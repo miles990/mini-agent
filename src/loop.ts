@@ -117,6 +117,20 @@ import { routeInboxItems } from './task-graph.js';
 import { triageRouting, logTriageBypass } from './myelin-fleet.js';
 import { initSharedKnowledge, observe as kbObserve, getKnowledgeSummary } from './shared-knowledge.js';
 import type { Phase0Results } from './preprocess.js';
+import {
+  buildSelectedSkillPrompt,
+  inferSkillSelectionInput,
+  recordSkillUsage,
+  selectAgentSkills,
+  type SkillSelectionResult,
+} from './agent-skill-manager.js';
+import {
+  autonomyClosureSignature,
+  buildAutonomyClosureBlockMessage,
+  readAutonomyClosureNotificationSignature,
+  shouldNotifyAutonomyClosureBlock,
+  writeAutonomyClosureNotificationSignature,
+} from './autonomy-closure-notifier.js';
 
 // =============================================================================
 // Types
@@ -212,6 +226,72 @@ function clearForegroundDelegation(taskId: string): void {
       fs.writeFileSync(fpath, JSON.stringify(remaining, null, 2));
     }
   } catch { /* fire-and-forget */ }
+}
+
+function recordRuntimeSkillUsage(input: {
+  memoryDir: string;
+  selection: SkillSelectionResult;
+  cycle: number;
+  mode: string;
+  action: string | null;
+  tags: string[];
+  sideEffects: string[];
+  error?: string;
+}): void {
+  if (input.selection.selected.length === 0) return;
+  const hasObservableWork = Boolean(input.action) || input.tags.length > 0 || input.sideEffects.length > 0;
+  const outcome = input.error
+    ? 'blocked'
+    : hasObservableWork
+      ? 'success'
+      : 'failure';
+  const pattern = inferRuntimeSkillPattern(input.selection, input.action, input.tags);
+  for (const skill of input.selection.selected) {
+    try {
+      recordSkillUsage(input.memoryDir, {
+        skill: skill.service,
+        outcome,
+        pattern,
+        taskId: `cycle-${input.cycle}`,
+        mode: input.mode,
+        combinedWith: skill.combinesWith,
+        verifier: skill.verifier,
+        note: [
+          `cycle=${input.cycle}`,
+          `reasons=${skill.reasons.join(',')}`,
+          input.error ? `error=${input.error}` : null,
+          input.action ? `action=${input.action.slice(0, 160)}` : null,
+          input.tags.length > 0 ? `tags=${input.tags.join(',')}` : null,
+        ].filter(Boolean).join(' | '),
+      });
+    } catch (err) {
+      slog('SKILL', `usage ledger write failed for ${skill.service}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+}
+
+function inferRuntimeSkillPattern(selection: SkillSelectionResult, action: string | null, tags: string[]): string {
+  const top = selection.selected[0];
+  const tagPart = tags.length > 0 ? tags.join('+').toLowerCase() : 'no-tags';
+  const actionPart = action
+    ? action.toLowerCase().replace(/https?:\/\/\S+/g, '').replace(/[^a-z0-9\u4e00-\u9fff]+/g, ' ').trim().slice(0, 80)
+    : 'no-action';
+  return `${top.service}:${tagPart}:${actionPart}`.slice(0, 160);
+}
+
+function notifyAutonomyClosureBlockIfChanged(
+  stateDir: string,
+  closure: Parameters<typeof shouldNotifyAutonomyClosureBlock>[0],
+): void {
+  try {
+    const previous = readAutonomyClosureNotificationSignature(stateDir);
+    if (!shouldNotifyAutonomyClosureBlock(closure, previous)) return;
+    const message = buildAutonomyClosureBlockMessage(closure);
+    sendChat(message, { directReply: true });
+    writeAutonomyClosureNotificationSignature(stateDir, autonomyClosureSignature(closure));
+  } catch (err) {
+    slog('AUTONOMY', `closure notification failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 // =============================================================================
@@ -2303,6 +2383,7 @@ export class AgentLoop {
         } else {
           const task = await ensureAutonomyClosureTask(memDir, closure);
           slog('AUTONOMY', `closure ${closure.status} score=${closure.score} blocking=${closure.blockingStages.join(',') || 'none'} task=${task?.id.slice(0, 12) ?? 'none'}`);
+          notifyAutonomyClosureBlockIfChanged(getInstanceDir(getCurrentInstanceId()), closure);
         }
       } catch (e) { slog('WARN', `autonomy closure health failed: ${e}`); }
 
@@ -2502,8 +2583,29 @@ export class AgentLoop {
             ? 'act' as import('./memory.js').CycleMode
             : (cycleIntent?.mode ?? detectCycleModeFn(context, currentTriggerReason, this.consecutiveLearnCycles, { hasPendingTasks, hasHighPriorityTasks, consecutiveIdleCycles: this.consecutiveIdleCycles }));
 
+      const runtimeSkillSelection = selectAgentSkills(inferSkillSelectionInput({
+        hint: [
+          cycleIntent?.reason,
+          cycleIntent?.focus,
+          currentTriggerReason,
+          schedulerTaskPrefix,
+          priorityPrefix,
+        ].filter(Boolean).join('\n'),
+        mode: cycleMode,
+        trigger: currentTriggerReason,
+        context: context.slice(0, 20_000),
+        priority: hasHighPriorityTasks ? 0 : hasPendingTasks ? 1 : 2,
+        limit: 5,
+      }));
+      const selectedSkillPrompt = buildSelectedSkillPrompt(runtimeSkillSelection);
+      if (runtimeSkillSelection.selected.length > 0) {
+        slog('SKILL', `cycle#${this.cycleCount} selected=${runtimeSkillSelection.selected.map(skill => `${skill.service}:${skill.score}`).join(',')}`);
+      }
+
       // Idle mode: replace prompt entirely with a lightweight idle prompt to avoid noop spirals
-      const effectivePrompt = cycleMode === 'idle' ? buildIdlePrompt() : prompt;
+      const effectivePrompt = cycleMode === 'idle'
+        ? buildIdlePrompt()
+        : prompt + (selectedSkillPrompt ? `\n\n${selectedSkillPrompt}` : '');
 
       // Intelligent model routing: decide Opus vs Sonnet based on cycle characteristics
       const modelRoute = routeModel({
@@ -3277,6 +3379,17 @@ export class AgentLoop {
         trigger: currentTriggerReason,
         tags: cycleTagsProcessed,
         sideEffects: cycleSideEffects,
+      });
+
+      recordRuntimeSkillUsage({
+        memoryDir: getMemoryRootDir(),
+        selection: runtimeSkillSelection,
+        cycle: this.cycleCount,
+        mode: cycleMode,
+        action,
+        tags: cycleTagsProcessed,
+        sideEffects: cycleSideEffects,
+        error: errorClassification?.type,
       });
 
       // ── Emit Activity Stream (side-effect cycles only, for Activity Monitor) ──
