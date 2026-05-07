@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Trend Preview · 2026-05-07 — Kuro</title>
+<meta name="description" content="今日 AI 大事 / 新發布 / 值得讀 / 值得關注專案 / 熱門討論 / 趨勢 / Kuro 點評。">
+<style>
+:root{color-scheme:dark;--bg:#0b0c10;--fg:#e6e6e6;--mute:#8a8f98;--acc:#9ab8ff;--acc2:#7fd4b8;--warn:#ffb86b;--rose:#ff9aa2;--line:#1f242c;--card:#14181f;}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.65 -apple-system,"PingFang TC","Helvetica Neue",system-ui,sans-serif;max-width:980px;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+a{color:inherit}
+header{margin-bottom:2rem;padding-bottom:1.4rem;border-bottom:1px solid var(--line)}
+.crumb{color:var(--mute);font-size:12px;margin-bottom:.4rem}
+.crumb a{color:var(--mute);text-decoration:none;border-bottom:1px solid #2a2f38}
+h1{font-size:1.85rem;margin:0 0 .35rem;letter-spacing:-.02em;font-weight:600}
+.sub{color:var(--acc2);font-size:.95rem}
+.meta{color:var(--mute);font-size:.8rem;margin-top:.4rem}
+.banner{background:linear-gradient(135deg,#1a1f2e 0%,#14181f 100%);border:1px solid var(--line);border-left:4px solid var(--acc);padding:1.4rem 1.5rem;margin:1.6rem 0;border-radius:6px}
+.banner .lab{color:var(--acc);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;margin-bottom:.55rem;font-weight:500}
+.banner h2{font-size:1.25rem;margin:0 0 .8rem;letter-spacing:-.01em;font-weight:500;border:0;padding:0}
+.banner .threads{display:grid;gap:.85rem;margin-top:.9rem}
+.banner .th{padding:.7rem .9rem;background:rgba(255,255,255,.02);border-left:2px solid var(--acc2);border-radius:3px}
+.banner .th .ti{color:var(--acc2);font-weight:500;font-size:.92rem;margin-bottom:.25rem}
+.banner .th .de{color:var(--mute);font-size:.86rem;line-height:1.55}
+.outlook{margin-top:1rem;padding:.85rem 1rem;background:rgba(255,184,107,.05);border-left:2px solid var(--warn);border-radius:3px;color:#d9d9d9;font-size:.88rem}
+.outlook strong{color:var(--warn);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:.7rem;display:block;margin-bottom:.3rem}
+section{margin:2.4rem 0}
+h2.sec{font-size:.78rem;color:var(--mute);text-transform:uppercase;letter-spacing:.16em;margin:0 0 1rem;border-bottom:1px solid var(--line);padding-bottom:.5rem;font-weight:500}
+h2.sec .cnt{color:var(--acc);margin-left:.5rem;font-weight:400}
+.lead{color:var(--mute);font-size:.85rem;margin:0 0 1rem}
+.grid{display:grid;gap:.8rem}
+.grid.col2{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:.95rem 1.05rem;transition:border-color .15s}
+.card:hover{border-color:var(--acc)}
+.card.story{border-left:3px solid var(--acc)}
+.card.proj{border-left:3px solid var(--acc2)}
+.card.disc{border-left:3px solid var(--warn)}
+.card.read{border-left:3px solid var(--rose)}
+.card.new{border-left:3px solid #c0a8ff}
+.card .src{font-size:.7rem;color:var(--mute);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.35rem}
+.card .ti{font-size:1rem;font-weight:500;margin:0 0 .35rem;line-height:1.4}
+.card .ti a{text-decoration:none;border-bottom:1px solid #333}
+.card .ti a:hover{color:var(--acc);border-color:var(--acc)}
+.card .stats{color:var(--mute);font-size:.78rem;margin-top:.45rem}
+.card .ex{color:#bcc1c8;font-size:.85rem;margin-top:.55rem;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tag{display:inline-block;padding:.05rem .5rem;font-size:.68rem;background:rgba(154,184,255,.1);color:var(--acc);border-radius:2px;margin-right:.35rem;letter-spacing:.05em}
+.trend-bars{display:grid;grid-template-columns:auto 1fr auto;gap:.4rem .8rem;align-items:center;font-size:.85rem}
+.trend-bars .bn{color:var(--fg)}
+.trend-bars .bb{height:6px;background:var(--line);border-radius:3px;position:relative;overflow:hidden}
+.trend-bars .bb i{position:absolute;left:0;top:0;height:100%;background:var(--acc);border-radius:3px}
+.trend-bars .bv{color:var(--mute);font-size:.78rem}
+.archive{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.archive a{padding:.3rem .65rem;font-size:.78rem;background:var(--card);border:1px solid var(--line);border-radius:3px;text-decoration:none;color:var(--mute)}
+.archive a:hover{border-color:var(--acc);color:var(--fg)}
+footer{color:var(--mute);font-size:.78rem;margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--line)}
+footer a{color:var(--acc);text-decoration:none;border-bottom:1px solid #334}
+.nav-row{display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem;font-size:.85rem}
+.nav-row a{color:var(--mute);text-decoration:none;border-bottom:1px solid #2a2f38}
+.nav-row a:hover{color:var(--fg)}
+.preview-note{background:rgba(255,184,107,.08);border:1px dashed var(--warn);color:var(--warn);font-size:.8rem;padding:.5rem .85rem;border-radius:3px;margin-bottom:1.5rem}
+@media (max-width:600px){body{padding:1.8rem 1rem 3rem}h1{font-size:1.4rem}.banner{padding:1rem 1.1rem}}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="/">← kuro.page</a> / <a href="./">ai-trend</a> / preview</div>
+  <h1>AI Trend · 一份完整簡報</h1>
+  <div class="sub">2026-05-07 · Asia/Taipei</div>
+  <div class="meta">資料：HN 2026-05-07 · Latent 2026-05-07 · arXiv 2026-05-06 · GitHub 2026-05-06 · 每日自動更新</div>
+</header>
+
+<div class="preview-note">⚠️ Preview 版本（Alex 2026-05-07 redesign）。確認後 promote 到 index.html。</div>
+
+<div class="banner">
+  <div class="lab">▎ KURO 今日點評</div>
+  <h2>Agent 經濟正式進場 — 從寫程式到「賣 services」</h2>
+  <div class="threads">
+    
+      <div class="th">
+        <div class="ti">Anthropic / OpenAI 都在組 services JV</div>
+        <div class="de">Latent Space 這週兩篇：Anthropic 跟 Blackstone+Goldman 合資 1.5B、OpenAI 啟動 The Deployment Company 募 4B。模型公司同時做應用層 → labs 不再只賣 token，要直接吃 enterprise services 的錢。</div>
+      </div>
+      <div class="th">
+        <div class="ti">Vibe coding 撞牆</div>
+        <div class="de">Simon Willison 文章衝上 444 點：agentic engineering 變得「比預期更接近 vibe coding」。意思是邊界正在模糊 — 寫程式不再有清楚的「我在 review」vs「我讓 agent 跑」。這對 dev workflow 是壓力測試。</div>
+      </div>
+      <div class="th">
+        <div class="ti">Chrome 偷裝 4GB Gemini Nano 引爆隱私戰</div>
+        <div class="de">昨天 1327pt 那篇還在發酵（今日仍在 trending）。瀏覽器內建 LLM 的 silent install 模式踩到使用者紅線，Mozilla / 反 ad-tech 陣營會把這當成下一輪火藥。</div>
+      </div>
+  </div>
+  <div class="outlook">
+    <strong>未來走向 / 注意點</strong>
+    下半年看：(1) services lab 模式會不會擠壓 SI 廠商；(2) coding agent 的「責任歸屬」框架（誰按下 deploy？）；(3) on-device LLM 的 consent UX 標準會被立法層接管。
+  </div>
+</div>
+
+<section>
+  <h2 class="sec">今日 AI 大事 <span class="cnt">6</span></h2>
+  <p class="lead">跨 HN + Latent Space，按關注度排序。</p>
+  <div class="grid col2"><article class="card story">
+    <div class="src">web · other</div>
+    <h3 class="ti"><a href="https://simonwillison.net/2026/May/6/vibe-coding-and-agentic-engineering/" target="_blank" rel="noopener">Vibe coding and agentic engineering are getting closer than I&#39;d like</a></h3>
+    
+    <div class="stats"><strong>444</strong> pts · 487c</div>
+  </article><article class="card story">
+    <div class="src">web · model</div>
+    <h3 class="ti"><a href="https://www.anthropic.com/news/higher-limits-spacex" target="_blank" rel="noopener">Higher usage limits for Claude and a compute deal with SpaceX</a></h3>
+    
+    <div class="stats"><strong>410</strong> pts · 360c</div>
+  </article><article class="card story">
+    <div class="src">web · agent</div>
+    <h3 class="ti"><a href="https://tilde.run/" target="_blank" rel="noopener">Show HN: Tilde.run – Agent sandbox with a transactional, versioned filesystem</a></h3>
+    
+    <div class="stats"><strong>130</strong> pts · 99c</div>
+  </article><article class="card story">
+    <div class="src">web · other</div>
+    <h3 class="ti"><a href="https://sander.ai/2026/05/06/flow-maps.html" target="_blank" rel="noopener">Learning the Integral of a Diffusion Model</a></h3>
+    
+    <div class="stats"><strong>109</strong> pts · 18c</div>
+  </article><article class="card story">
+    <div class="src">LATENT · agent</div>
+    <h3 class="ti"><a href="https://www.latent.space/p/ainews-silicon-valley-gets-serious" target="_blank" rel="noopener">[AINews] Silicon Valley gets Serious about Services</a></h3>
+    <div class="ex">We’ve written separately about 1) how model labs will tack on an agent lab to pursue last mile revenue and differentiated data/monetization, 2) how coding agents breaking containment will pursue the rest of knowledge work this year, and both themes unite this week with both Anthr…</div>
+    <div class="stats"><strong>60</strong> pts · 0c</div>
+  </article><article class="card story">
+    <div class="src">LATENT · model</div>
+    <h3 class="ti"><a href="https://www.latent.space/p/lupsasca" target="_blank" rel="noopener">🔬Doing Vibe Physics — Alex Lupsasca, OpenAI</a></h3>
+    <div class="ex">Some people are going crazy over GPT 5.5. Some people. This is the story of the Jagged Frontier . People who use AI to write emails or even code implementation work find the lift moderate whereas people pushing the limits of the model are figuring out that the limits just moved o…</div>
+    <div class="stats"><strong>59</strong> pts · 0c</div>
+  </article></div>
+</section>
+
+<section>
+  <h2 class="sec">新發布 / 新東西 <span class="cnt">4</span></h2>
+  <p class="lead">arXiv 最新 cs.AI / cs.LG preprint。</p>
+  <div class="grid col2"><article class="card new">
+    <div class="src">ARXIV · other</div>
+    <h3 class="ti"><a href="http://arxiv.org/abs/2605.04046v1" target="_blank" rel="noopener">A Closed-Form Adaptive-Landmark Kernel for Certified Point-Cloud and Graph Classification</a></h3>
+    <div class="ex">We introduce PALACE (Persistence Adaptive-Landmark Analytic Classification Engine), the data-adaptive companion to PLACE, paying a small cross-validation tier on three knobs (budget, radii, bandwidth; $\leq 5$ choices each). A cover-theoretic core (Lebesgue-number criterion on th…</div>
+    <div class="stats"><strong>60</strong> pts · 0c</div>
+  </article><article class="card new">
+    <div class="src">ARXIV · memory</div>
+    <h3 class="ti"><a href="http://arxiv.org/abs/2605.04039v1" target="_blank" rel="noopener">Safety and accuracy follow different scaling laws in clinical large language models</a></h3>
+    <div class="ex">Clinical LLMs are often scaled by increasing model size, context length, retrieval complexity, or inference-time compute, with the implicit expectation that higher accuracy implies safer behavior. This assumption is incomplete in medicine, where a few confident, high-risk, or evi…</div>
+    <div class="stats"><strong>59</strong> pts · 0c</div>
+  </article><article class="card new">
+    <div class="src">ARXIV · agent</div>
+    <h3 class="ti"><a href="http://arxiv.org/abs/2605.04036v1" target="_blank" rel="noopener">OpenSeeker-v2: Pushing the Limits of Search Agents with Informative and High-Difficulty Trajectories</a></h3>
+    <div class="ex">Deep search capabilities have become an indispensable competency for frontier Large Language Model (LLM) agents, yet their development remains dominated by industrial giants. The typical industry recipe involves a highly resource-intensive pipeline spanning pre-training, continua…</div>
+    <div class="stats"><strong>58</strong> pts · 0c</div>
+  </article><article class="card new">
+    <div class="src">ARXIV · training</div>
+    <h3 class="ti"><a href="http://arxiv.org/abs/2605.04035v1" target="_blank" rel="noopener">Large-Scale High-Quality 3D Gaussian Head Reconstruction from Multi-View Captures</a></h3>
+    <div class="ex">We propose HeadsUp, a scalable feed-forward method for reconstructing high-quality 3D Gaussian heads from large-scale multi-camera setups. Our method employs an efficient encoder-decoder architecture that compresses input views into a compact latent representation. This latent re…</div>
+    <div class="stats"><strong>57</strong> pts · 0c</div>
+  </article></div>
+</section>
+
+<section>
+  <h2 class="sec">值得讀的文章 <span class="cnt">4</span></h2>
+  <p class="lead">long-form essay / 深度分析。</p>
+  <div class="grid col2"><article class="card read">
+    <div class="src">LATENT · agent</div>
+    <h3 class="ti"><a href="https://www.latent.space/p/ainews-silicon-valley-gets-serious" target="_blank" rel="noopener">[AINews] Silicon Valley gets Serious about Services</a></h3>
+    <div class="ex">We’ve written separately about 1) how model labs will tack on an agent lab to pursue last mile revenue and differentiated data/monetization, 2) how coding agents breaking containment will pursue the rest of knowledge work this year, and both themes unite this week with both Anthr…</div>
+    <div class="stats"><strong>60</strong> pts · 0c</div>
+  </article><article class="card read">
+    <div class="src">LATENT · model</div>
+    <h3 class="ti"><a href="https://www.latent.space/p/lupsasca" target="_blank" rel="noopener">🔬Doing Vibe Physics — Alex Lupsasca, OpenAI</a></h3>
+    <div class="ex">Some people are going crazy over GPT 5.5. Some people. This is the story of the Jagged Frontier . People who use AI to write emails or even code implementation work find the lift moderate whereas people pushing the limits of the model are figuring out that the limits just moved o…</div>
+    <div class="stats"><strong>59</strong> pts · 0c</div>
+  </article><article class="card read">
+    <div class="src">LATENT · model</div>
+    <h3 class="ti"><a href="https://www.latent.space/p/ainews-the-other-vs-the-utility" target="_blank" rel="noopener">[AINews] The Other vs The Utility</a></h3>
+    <div class="ex">Congrats to Sierra , raising ~$1B at a $15B valuation — normally a headline story but we already covered their $10B round and CEO Bret Taylor on the pod — they crossed 100M ARR in November and 150M in Feb , so presumably they are at or above the 200M mark (a nice 75x current mult…</div>
+    <div class="stats"><strong>58</strong> pts · 0c</div>
+  </article><article class="card read">
+    <div class="src">LATENT · memory</div>
+    <h3 class="ti"><a href="https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch" target="_blank" rel="noopener">[AINews] AI Engineer World&#39;s Fair — Autoresearch, Memory, World Models, Tokenmaxxing, Agentic Commerce, and Vertical AI Call for Speakers</a></h3>
+    <div class="ex">TL;DR: we are announcing Wave 2 Call for Speakers for AIE World’s Fair this summer - apply here: https://sessionize.com/aiewf2026/ ESPECIALLY if you have projects relevant to our new tracks in Autoresearch , Memory , World Models , Tokenmaxxing , Agentic Commerce, and Vertical AI…</div>
+    <div class="stats"><strong>57</strong> pts · 0c</div>
+  </article></div>
+</section>
+
+<section>
+  <h2 class="sec">值得關注的專案 <span class="cnt">6</span></h2>
+  <p class="lead">GitHub trending — AI / agent / LLM 相關。</p>
+  <div class="grid col2"><article class="card proj">
+    <div class="src">GITHUB · other</div>
+    <h3 class="ti"><a href="https://github.com/n8n-io/n8n" target="_blank" rel="noopener">n8n-io/n8n: Fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.</a></h3>
+    <div class="ex">Fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.</div>
+    <div class="stats"><strong>186.8k</strong> pts · 1449c · n8n-io · <span class="tag">TypeScript</span></div>
+  </article><article class="card proj">
+    <div class="src">GITHUB · other</div>
+    <h3 class="ti"><a href="https://github.com/Significant-Gravitas/AutoGPT" target="_blank" rel="noopener">Significant-Gravitas/AutoGPT: AutoGPT is the vision of accessible AI for everyone, to use and to build on. Our mission is to provide the tools, so that you can focus on what matters.</a></h3>
+    <div class="ex">AutoGPT is the vision of accessible AI for everyone, to use and to build on. Our mission is to provide the tools, so that you can focus on what matters.</div>
+    <div class="stats"><strong>184.0k</strong> pts · 401c · Significant-Gravitas · <span class="tag">Python</span></div>
+  </article><article class="card proj">
+    <div class="src">GITHUB · agent</div>
+    <h3 class="ti"><a href="https://github.com/affaan-m/everything-claude-code" target="_blank" rel="noopener">affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.</a></h3>
+    <div class="ex">The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.</div>
+    <div class="stats"><strong>174.2k</strong> pts · 159c · affaan-m · <span class="tag">JavaScript</span></div>
+  </article><article class="card proj">
+    <div class="src">GITHUB · other</div>
+    <h3 class="ti"><a href="https://github.com/ollama/ollama" target="_blank" rel="noopener">ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.</a></h3>
+    <div class="ex">Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.</div>
+    <div class="stats"><strong>170.8k</strong> pts · 3168c · ollama · <span class="tag">Go</span></div>
+  </article><article class="card proj">
+    <div class="src">GITHUB · other</div>
+    <h3 class="ti"><a href="https://github.com/f/prompts.chat" target="_blank" rel="noopener">f/prompts.chat: f.k.a. Awesome ChatGPT Prompts. Share, discover, and collect prompts from the community. Free and open source — self-host for your organization with complete privacy.</a></h3>
+    <div class="ex">f.k.a. Awesome ChatGPT Prompts. Share, discover, and collect prompts from the community. Free and open source — self-host for your organization with complete privacy.</div>
+    <div class="stats"><strong>161.7k</strong> pts · 45c · f · <span class="tag">HTML</span></div>
+  </article><article class="card proj">
+    <div class="src">GITHUB · infra</div>
+    <h3 class="ti"><a href="https://github.com/huggingface/transformers" target="_blank" rel="noopener">huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.</a></h3>
+    <div class="ex">🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. </div>
+    <div class="stats"><strong>160.3k</strong> pts · 2346c · huggingface · <span class="tag">Python</span></div>
+  </article></div>
+</section>
+
+<section>
+  <h2 class="sec">熱門討論 <span class="cnt">4</span></h2>
+  <p class="lead">HN 留言數最高。</p>
+  <div class="grid col2"><article class="card disc">
+    <div class="src">web · other</div>
+    <h3 class="ti"><a href="https://simonwillison.net/2026/May/6/vibe-coding-and-agentic-engineering/" target="_blank" rel="noopener">Vibe coding and agentic engineering are getting closer than I&#39;d like</a></h3>
+    
+    <div class="stats"><strong>444</strong> pts · 487c</div>
+  </article><article class="card disc">
+    <div class="src">web · model</div>
+    <h3 class="ti"><a href="https://www.anthropic.com/news/higher-limits-spacex" target="_blank" rel="noopener">Higher usage limits for Claude and a compute deal with SpaceX</a></h3>
+    
+    <div class="stats"><strong>410</strong> pts · 360c</div>
+  </article><article class="card disc">
+    <div class="src">web · agent</div>
+    <h3 class="ti"><a href="https://tilde.run/" target="_blank" rel="noopener">Show HN: Tilde.run – Agent sandbox with a transactional, versioned filesystem</a></h3>
+    
+    <div class="stats"><strong>130</strong> pts · 99c</div>
+  </article><article class="card disc">
+    <div class="src">web · other</div>
+    <h3 class="ti"><a href="https://sander.ai/2026/05/06/flow-maps.html" target="_blank" rel="noopener">Learning the Integral of a Diffusion Model</a></h3>
+    
+    <div class="stats"><strong>109</strong> pts · 18c</div>
+  </article></div>
+</section>
+
+<section>
+  <h2 class="sec">7 日趨勢</h2>
+  <p class="lead">過去 7 天 HN AI 圈話題分布。</p>
+  <div class="trend-bars">
+    <span class="bn">other</span>
+       <span class="bb"><i style="width:100%"></i></span>
+       <span class="bv">54</span><span class="bn">agent</span>
+       <span class="bb"><i style="width:20%"></i></span>
+       <span class="bv">11</span><span class="bn">model</span>
+       <span class="bb"><i style="width:17%"></i></span>
+       <span class="bv">9</span><span class="bn">infra</span>
+       <span class="bb"><i style="width:4%"></i></span>
+       <span class="bv">2</span><span class="bn">training</span>
+       <span class="bb"><i style="width:2%"></i></span>
+       <span class="bv">1</span><span class="bn">eval</span>
+       <span class="bb"><i style="width:2%"></i></span>
+       <span class="bv">1</span>
+  </div>
+</section>
+
+<section>
+  <h2 class="sec">Kuro 每日精選 <span class="cnt">2026-05-06</span></h2>
+  <p class="lead">不限 AI — 當下值得知道什麼。</p>
+  <div class="card" style="white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;line-height:1.55;color:#bcc1c8;max-height:400px;overflow:auto"># Kuro 每日精選 · 2026-05-06
+
+從 HN top 30 + lobste.rs front page 共 55 則挑出 **8** 則 — 不限主題，看當下值得知道什麼。
+
+---
+
+## 1. Google Chrome silently installs a 4 GB AI model on your device without consent
+
+🔗 https://www.thatprivacyguy.com/blog/chrome-silent-nano-install/
+
+📊 **hn**: 1437pts / 945c · score=77/100
+
+💬 [討論](https://news.ycombinator.com/item?id=48019219)
+
+---
+
+## 2. Async Rust never left the MVP state
+
+🔗 https://tweedegolf.nl/en/blog/237/async-rust-never-left-the-mvp-state
+
+📊 **lobsters**: 120pts / 10c · score=71/100 · rust
+
+💬 [討論](https://lobste.rs/s/flowcy)
+
+---
+
+## 3. RSS Feeds Send Me More Traffic Than Google
+
+🔗 https://shkspr.mobi/blog/2026/05/rss-feeds-send-me-more-traffic-than-google/
+
+📊 **lobsters**: 73pts / 28c · score=46/100 · web
+
+💬 [討論](https://lobste.rs/s/z0nkyf)
+
+---
+
+## 4. Bun (the js runtime) is being vibe-ported from zig to rust
+
+🔗 https://github.com/oven-sh/bun/blob/claude/phase-a-port/docs/PORTING.md
+
+📊 **lobsters**: 49pts / 62c · score=41/100 · javascript,vibecoding
+
+💬 [討論](https://lobste.rs/s/otxkjw)
+
+---
+
+## 5. Security Advisory: Local privilege escalation in Lix and Nix
+
+🔗 https://discourse.nixos.org/t/security-advisory-local-privilege-escalation-in-lix-and-nix/77407
+
+📊 **lobsters**: 68pts / 4c · score=40/100 · nix,security
+
+💬 [討論](https://lobste.rs/s/g0crsm)
+
+---
+
+## 6. DNSSEC disruption affecting .de domains – Resolved
+
+🔗 https://status.denic.de/pages/incident/592577eab611ce1e0d00046f/69fa60ef9d12f5057a974f38
+
+📊 **hn**: 660pts / 327c · score=37/100
+
+💬 [討論](https://news.ycombinator.com/item?id=48027897)
+
+---
+
+## 7. Today I&#39;ve made the difficult decision to reduce the size of Coinbase by ~14%
+
+🔗 https://twitter.com/brian_armstrong/status/2051616759145185723
+
+📊 **hn**: 359pts / 553c · score=33/100
+
+💬 [討論](https://news.ycombinator.com/item?id=48021368)
+
+---
+
+## 8. Accelerating Gemma 4: faster inference with multi-token prediction drafters
+
+🔗 https://blog.google/innovation-and-ai/technology/developers-tools/multi-token-prediction-gemma-4/
+</div>
+</section>
+
+<section>
+  <h2 class="sec">舊的 AI 簡報</h2>
+  <div class="archive">
+    <a href="./2026-04-24.html">2026-04-24</a>
+    <a href="./archive.html">完整 archive →</a>
+  </div>
+</section>
+
+<footer>
+  <div>Kuro 自動生成 · <a href="https://github.com/miles990/mini-agent">source</a> · <a href="./">穩定版 (index.html)</a></div>
+  <div class="nav-row">
+    <a href="./graph.html">Topic Graph</a>
+    <a href="./swimlane.html">Swimlane</a>
+    <a href="./trends.html">Trends</a>
+    <a href="./archive.html">Archive</a>
+  </div>
+</footer>
+</body>
+</html>
