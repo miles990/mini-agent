@@ -7,6 +7,7 @@ import { evaluateRuntimeMemoryPlacement } from './memory-paths.js';
 import { eventBus } from './event-bus.js';
 import { readTestHealthSnapshot, summarizeTestHealth } from './test-health-autopilot.js';
 import { evaluatePrClosureGaps } from './pr-autopilot.js';
+import { evaluateKgExternalMemoryTruth, evaluateMemoryStateTruth } from './external-memory-health.js';
 
 export type AutonomyClosureStage =
   | 'runtime-workspace'
@@ -16,7 +17,9 @@ export type AutonomyClosureStage =
   | 'pr-review-consensus'
   | 'ship-and-deploy'
   | 'self-improvement'
-  | 'memory-context';
+  | 'memory-context'
+  | 'memory-state-truth'
+  | 'kg-context-fabric';
 
 export type AutonomyClosureStageStatus = 'ok' | 'warn' | 'blocked';
 export type AutonomyClosureStatus = 'healthy' | 'degraded' | 'blocked';
@@ -69,6 +72,8 @@ export function evaluateAutonomyClosure(
     shipAndDeployStage(correction),
     selfImprovementStage(openTasks),
     memoryContextStage(memoryDir, repoRoot),
+    memoryStateTruthStage(memoryDir, repoRoot),
+    kgContextFabricStage(memoryDir, options.now ?? new Date()),
   ];
 
   const blockingStages = stages.filter(s => s.status === 'blocked').map(s => s.stage);
@@ -454,6 +459,28 @@ function memoryContextStage(memoryDir: string, repoRoot: string): AutonomyClosur
       `relations=${hasRelations}`,
       `handoffs=${hasHandoffs}`,
     ],
+  };
+}
+
+function memoryStateTruthStage(memoryDir: string, repoRoot: string): AutonomyClosureStageResult {
+  const result = evaluateMemoryStateTruth(memoryDir, repoRoot);
+  return {
+    stage: 'memory-state-truth',
+    status: result.status,
+    summary: result.summary,
+    evidence: result.evidence,
+    repair: result.repair,
+  };
+}
+
+function kgContextFabricStage(memoryDir: string, now: Date): AutonomyClosureStageResult {
+  const result = evaluateKgExternalMemoryTruth(memoryDir, now);
+  return {
+    stage: 'kg-context-fabric',
+    status: result.status,
+    summary: result.summary,
+    evidence: result.evidence,
+    repair: result.repair,
   };
 }
 
