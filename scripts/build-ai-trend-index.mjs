@@ -143,7 +143,110 @@ function escapeHtml(s) {
   }[c]));
 }
 
-function renderHtml({ date, posts, picks, topics, topDisc, generated }) {
+async function loadTrends(date) {
+  // landing-7d.json provides per-topic delta_pct over 7 days, used for Rising/Falling
+  const file = join(ROOT, 'kuro-portfolio/ai-trend/data/landing-7d.json');
+  try {
+    const raw = JSON.parse(await readFile(file, 'utf8'));
+    const lines = (raw.trend_lines || []).map(t => ({
+      topic: t.topic,
+      total: t.total ?? 0,
+      delta: t.delta_pct ?? null,
+      today: t.points?.[t.points.length - 1]?.count ?? 0,
+    }));
+    const ranked = [...lines].filter(t => t.delta !== null).sort((a, b) => b.delta - a.delta);
+    const rising = ranked.filter(t => t.delta > 0).slice(0, 3);
+    const falling = ranked.filter(t => t.delta < 0).slice(-3).reverse();
+    return { rising, falling };
+  } catch (e) {
+    return { rising: [], falling: [], error: e.message };
+  }
+}
+
+async function loadBriefing(date) {
+  // memory/state/daily-briefing/{date}.md — Kuro 點評 + SWOT + 未來走向 + 注意事項
+  const file = join(STATE_DIR, 'daily-briefing', `${date}.md`);
+  try {
+    return await readFile(file, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+// Tiny markdown→HTML for briefing body (paragraphs / headers / links / tables / lists / strong / em)
+function mdToHtml(md) {
+  if (!md) return '';
+  // Strip top-level "# Daily Briefing" title (page already has h1)
+  md = md.replace(/^#\s+.+\n+/, '');
+  const lines = md.split('\n');
+  let out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // Table
+    if (/^\|/.test(line) && i + 1 < lines.length && /^\|\s*-+/.test(lines[i + 1])) {
+      const headerCells = line.split('|').slice(1, -1).map(c => c.trim());
+      i += 2;
+      const rows = [];
+      while (i < lines.length && /^\|/.test(lines[i])) {
+        rows.push(lines[i].split('|').slice(1, -1).map(c => c.trim()));
+        i++;
+      }
+      out.push('<table class="md-table"><thead><tr>' + headerCells.map(c => `<th>${renderInline(c)}</th>`).join('') + '</tr></thead><tbody>');
+      for (const r of rows) {
+        out.push('<tr>' + r.map(c => `<td>${renderInline(c)}</td>`).join('') + '</tr>');
+      }
+      out.push('</tbody></table>');
+      continue;
+    }
+    // Header
+    const h = line.match(/^(#{2,4})\s+(.+)$/);
+    if (h) { out.push(`<h${h[1].length} class="md-h">${renderInline(h[2])}</h${h[1].length}>`); i++; continue; }
+    // List
+    if (/^[-*]\s+/.test(line)) {
+      out.push('<ul class="md-ul">');
+      while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
+        out.push(`<li>${renderInline(lines[i].replace(/^[-*]\s+/, ''))}</li>`);
+        i++;
+      }
+      out.push('</ul>');
+      continue;
+    }
+    // Numbered list
+    if (/^\d+\.\s+/.test(line)) {
+      out.push('<ol class="md-ol">');
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+        out.push(`<li>${renderInline(lines[i].replace(/^\d+\.\s+/, ''))}</li>`);
+        i++;
+      }
+      out.push('</ol>');
+      continue;
+    }
+    // Blank
+    if (!line.trim()) { i++; continue; }
+    // Paragraph
+    let p = line;
+    i++;
+    while (i < lines.length && lines[i].trim() && !/^([-*]|\d+\.|#{2,4}|\|)/.test(lines[i])) {
+      p += ' ' + lines[i];
+      i++;
+    }
+    out.push(`<p>${renderInline(p)}</p>`);
+  }
+  return out.join('\n');
+}
+
+function renderInline(s) {
+  // [text](url) → <a>
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, u) => `<a href="${escapeHtml(u)}" target="_blank" rel="noopener">${escapeHtml(t)}</a>`);
+  // **bold**
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // backtick code
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  return s;
+}
+
+function renderHtml({ date, posts, picks, topics, topDisc, generated, trends, briefing }) {
   const dateZh = date.replace(/-/g, '/');
   return `<!DOCTYPE html>
 <html lang="zh-Hant">
@@ -231,11 +334,40 @@ footer a { color: var(--accent); border-bottom: 1px solid #334; text-decoration:
 .nav-row a { color: var(--muted); border-bottom: 1px solid #2a2f38; text-decoration: none; }
 .nav-row a:hover { color: var(--fg); }
 
+.trend-rf { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.trend-rf .col { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 0.85rem 1rem; }
+.trend-rf .col.up { border-left: 3px solid var(--accent2); }
+.trend-rf .col.down { border-left: 3px solid var(--warn); }
+.trend-rf h3 { font-size: 0.9rem; margin: 0 0 0.6rem; font-weight: 500; }
+.trend-rf .col.up h3 { color: var(--accent2); }
+.trend-rf .col.down h3 { color: var(--warn); }
+.trend-rf li { font-size: 0.88rem; margin: 0.25rem 0; list-style: none; display: flex; justify-content: space-between; gap: 0.5rem; }
+.trend-rf .topic-name { color: var(--fg); }
+.trend-rf .delta { color: var(--muted); font-variant-numeric: tabular-nums; }
+.trend-rf ul { margin: 0; padding: 0; }
+
+.briefing { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 4px; padding: 1.25rem 1.5rem; }
+.briefing p { margin: 0 0 0.85rem; line-height: 1.7; }
+.briefing a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted #4a5468; }
+.briefing a:hover { color: var(--accent2); border-bottom-color: var(--accent2); }
+.briefing .md-h { font-size: 1rem; color: var(--fg); margin: 1.5rem 0 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--line); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.briefing .md-h:first-child { margin-top: 0; }
+.briefing .md-ul, .briefing .md-ol { margin: 0 0 0.85rem; padding-left: 1.4rem; }
+.briefing .md-ul li, .briefing .md-ol li { margin: 0.3rem 0; line-height: 1.65; }
+.briefing code { background: #1c2028; padding: 0.1em 0.4em; border-radius: 3px; font-size: 0.88em; color: var(--accent2); }
+.briefing .md-table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 1rem; font-size: 0.88rem; }
+.briefing .md-table th, .briefing .md-table td { border: 1px solid var(--line); padding: 0.55rem 0.7rem; text-align: left; vertical-align: top; }
+.briefing .md-table th { background: #181c24; color: var(--accent2); font-weight: 500; }
+.briefing .md-table td:first-child { color: var(--accent); font-weight: 500; white-space: nowrap; }
+
 @media (max-width: 600px) {
   body { padding: 2rem 1rem 3rem; }
   header h1 { font-size: 1.4rem; }
   .topic-grid { grid-template-columns: 1fr; }
   .pick .stats { margin-left: 0; width: 100%; }
+  .trend-rf { grid-template-columns: 1fr; }
+  .briefing .md-table { font-size: 0.8rem; }
+  .briefing .md-table th, .briefing .md-table td { padding: 0.4rem 0.5rem; }
 }
 </style>
 </head>
@@ -273,8 +405,29 @@ ${topDisc.summary?.claim ? `    <div class="why" style="margin-top:0.7rem">${esc
   </div>` : '  <p class="lead">今天沒有資料。</p>'}
 </section>
 
+${trends && (trends.rising.length || trends.falling.length) ? `<section>
+  <h2>③ 上升 / 下降趨勢（7 天）</h2>
+  <p class="lead">看哪個主題本週聲量在漲、在退—基於 7 天滑動 delta_pct。</p>
+  <div class="trend-rf">
+    <div class="col up">
+      <h3>🔺 Rising</h3>
+      <ul>${trends.rising.map(t => `<li><span class="topic-name">${escapeHtml(t.topic)}</span><span class="delta">${t.delta >= 0 ? '+' : ''}${t.delta}% · 共 ${t.total} 篇</span></li>`).join('') || '<li class="muted">無</li>'}</ul>
+    </div>
+    <div class="col down">
+      <h3>🔻 Falling</h3>
+      <ul>${trends.falling.map(t => `<li><span class="topic-name">${escapeHtml(t.topic)}</span><span class="delta">${t.delta}% · 共 ${t.total} 篇</span></li>`).join('') || '<li class="muted">無</li>'}</ul>
+    </div>
+  </div>
+</section>` : ''}
+
+${briefing ? `<section>
+  <h2>④ Kuro 點評 · SWOT · 未來走向</h2>
+  <p class="lead">我自己讀完今天的訊號後寫的—文中連結都對應到本日真實出處，不是泛指。</p>
+  <div class="briefing">${mdToHtml(briefing)}</div>
+</section>` : ''}
+
 <section>
-  <h2>③ Kuro 每日精選</h2>
+  <h2>⑤ Kuro 每日精選</h2>
   <p class="lead">${picks.length > 0 ? `從 HN top 30 + lobste.rs front page 共數十則挑出 ${picks.length} 則 — 不限主題，看當下值得知道什麼。` : '今天還沒生成。'}</p>
 ${picks.map(p => `  <div class="pick">
     <div class="head">
@@ -309,8 +462,10 @@ async function main() {
   const picks = await loadKuroPicks(DATE);
   const topics = aggregateTopics(posts);
   const topDisc = topDiscussion(posts);
+  const trends = await loadTrends(DATE);
+  const briefing = await loadBriefing(DATE);
 
-  const html = renderHtml({ date: DATE, posts, picks, topics, topDisc, generated });
+  const html = renderHtml({ date: DATE, posts, picks, topics, topDisc, generated, trends, briefing });
   await writeFile(OUT, html, 'utf8');
   console.log(`[ok] wrote ${OUT}`);
   console.log(`     posts=${posts.length} topics=${topics.length} picks=${picks.length} top_disc="${topDisc?.title?.slice(0, 50) || 'none'}"`);
