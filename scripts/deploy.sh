@@ -10,6 +10,7 @@ LOCK_DIR="$HOME/.mini-agent/deploy.lock"
 DEFAULT_MEMORY_DIR="$(dirname "$DEPLOY_DIR")/mini-agent-memory/memory"
 DEPLOY_LOCK_WAIT_SECONDS="${MINI_AGENT_DEPLOY_LOCK_WAIT_SECONDS:-90}"
 DEPLOY_LOCK_TERM_GRACE_SECONDS="${MINI_AGENT_DEPLOY_LOCK_TERM_GRACE_SECONDS:-30}"
+WORKSPACE_JANITOR_TIMEOUT_SECONDS="${MINI_AGENT_WORKSPACE_JANITOR_TIMEOUT_SECONDS:-60}"
 
 mkdir -p "$HOME/.mini-agent"
 mkdir -p "$DEFAULT_MEMORY_DIR"
@@ -210,7 +211,20 @@ if [ "$HEALTH_OK" = true ]; then
         log "Skipping workspace janitor because deploy checkout has unresolved conflicts"
     else
         log "Running workspace janitor..."
-        if pnpm exec tsx scripts/workspace-janitor.ts --apply >> "$LOG_FILE" 2>&1; then
+        (
+            pnpm exec tsx scripts/workspace-janitor.ts --apply >> "$LOG_FILE" 2>&1
+        ) &
+        JANITOR_PID=$!
+        for _ in $(seq 1 "$WORKSPACE_JANITOR_TIMEOUT_SECONDS"); do
+            if ! kill -0 "$JANITOR_PID" 2>/dev/null; then break; fi
+            sleep 1
+        done
+        if kill -0 "$JANITOR_PID" 2>/dev/null; then
+            log "Workspace janitor timed out after ${WORKSPACE_JANITOR_TIMEOUT_SECONDS}s; terminating (non-fatal)"
+            kill -TERM "$JANITOR_PID" 2>/dev/null || true
+            wait "$JANITOR_PID" 2>/dev/null || true
+            log "Workspace janitor failed (non-fatal)"
+        elif wait "$JANITOR_PID"; then
             log "Workspace janitor completed"
         else
             log "Workspace janitor failed (non-fatal)"
