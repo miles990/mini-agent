@@ -14,6 +14,7 @@ describe('deploy script workspace janitor hook', () => {
     expect(acquireIndex).toBeLessThan(startIndex);
     expect(script).toContain('Another deploy is already running');
     expect(script).toContain('waiting up to ${DEPLOY_LOCK_WAIT_SECONDS}s');
+    expect(script).toContain('Deploy lock was released; taking over lock');
     expect(script).toContain('requesting graceful shutdown');
     expect(script).toContain('kill -TERM "$LOCK_PID"');
     expect(script).toContain('force killing before new deploy');
@@ -36,6 +37,7 @@ describe('deploy script workspace janitor hook', () => {
     expect(script).toContain('Releasing deploy lock before non-critical workspace janitor');
     expect(script).toContain('JANITOR_LOCK_DIR="$HOME/.mini-agent/workspace-janitor.lock"');
     expect(script).toContain('Skipping workspace janitor because another janitor is running');
+    expect(script).toContain('scripts/workspace-janitor.ts --apply --local-only');
   });
 
   it('exports external memory paths before starting the runtime service', () => {

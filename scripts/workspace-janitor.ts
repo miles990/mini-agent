@@ -20,6 +20,7 @@ const apply = process.argv.includes('--apply');
 const json = process.argv.includes('--json');
 const repo = readArg('--repo') ?? process.env.MINI_AGENT_GITHUB_REPO ?? 'miles990/mini-agent';
 const base = readArg('--base') ?? process.env.MINI_AGENT_BASE_BRANCH ?? 'main';
+const localOnly = process.argv.includes('--local-only');
 const root = git(['rev-parse', '--show-toplevel']) || process.cwd();
 const currentBranch = git(['rev-parse', '--abbrev-ref', 'HEAD']) || 'unknown';
 const mergedPrBranches = new Set(readMergedPrBranches(repo));
@@ -81,15 +82,17 @@ for (const branch of readLocalBranches()) {
   }
 }
 
-for (const branch of readRemoteBranches()) {
-  if (openPrBranches.has(branch)) continue;
-  if (mergedPrBranches.has(branch)) {
-    actions.push({
-      type: 'delete-remote-branch',
-      target: branch,
-      reason: 'PR already merged and no open PR uses this head',
-      command: ['git', 'push', 'origin', '--delete', branch],
-    });
+if (!localOnly) {
+  for (const branch of readRemoteBranches()) {
+    if (openPrBranches.has(branch)) continue;
+    if (mergedPrBranches.has(branch)) {
+      actions.push({
+        type: 'delete-remote-branch',
+        target: branch,
+        reason: 'PR already merged and no open PR uses this head',
+        command: ['git', 'push', 'origin', '--delete', branch],
+      });
+    }
   }
 }
 
@@ -114,9 +117,9 @@ if (apply) {
 }
 
 if (json) {
-  process.stdout.write(JSON.stringify({ apply, root, currentBranch, actions }, null, 2) + '\n');
+  process.stdout.write(JSON.stringify({ apply, localOnly, root, currentBranch, actions }, null, 2) + '\n');
 } else {
-  process.stdout.write(`[workspace-janitor] mode=${apply ? 'apply' : 'dry-run'} actions=${actions.length}\n`);
+  process.stdout.write(`[workspace-janitor] mode=${apply ? 'apply' : 'dry-run'} localOnly=${localOnly} actions=${actions.length}\n`);
   for (const action of actions) {
     process.stdout.write(`- ${action.type}: ${action.target} — ${action.reason}\n`);
   }
