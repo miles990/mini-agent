@@ -14,6 +14,7 @@
 
 import { createMyelin, createFleet, logDecision } from 'myelinate';
 import type { Myelin, MyelinStats, TriageResult, MyelinFleet, FleetStats } from 'myelinate';
+import path from 'node:path';
 
 import { slog } from './utils.js';
 import { getMemoryRootDir } from './memory-paths.js';
@@ -25,13 +26,23 @@ import type { TaskLane } from './task-graph.js';
 
 export type LearningAction = 'deep-dive' | 'index-only' | 'connect' | 'defer';
 export type RoutingAction = TaskLane | 'merge';
-export type WorkflowAction = 'propose' | 'decompose' | 'complete' | 'evolve';
+export type WorkflowAction =
+  | 'write-proposal'
+  | 'decompose-tasks'
+  | 'mark-and-continue'
+  | 'execute-or-delegate'
+  | 'try-self-first'
+  | 'evolve-process';
 
 const WORKFLOW_DOMAIN = {
   domain: 'workflow',
   description: '開發工作流程決策 — 提案/拆解/完成/流程演化',
-  seedRulesPath: 'memory/myelin-workflow-rules.json',
+  rulesFile: 'myelin-workflow-rules.json',
 } as const;
+
+function myelinPath(file: string): string {
+  return path.join(getMemoryRootDir(), file);
+}
 
 // =============================================================================
 // Heuristic functions (pure, no side effects)
@@ -101,15 +112,18 @@ async function workflowLLM(event: { type: string; source?: string; context?: Rec
   const doneRatio = Number(ctx.doneRatio ?? 0);
 
   if (phase === 'proposal' || /proposal|提案|scope|spec/.test(text)) {
-    return { action: 'propose', reason: 'proposal signal detected' };
+    return { action: 'write-proposal', reason: 'proposal signal detected' };
   }
   if (phase === 'breakdown' || /拆解|breakdown|tasks|steps/.test(text)) {
-    return { action: 'decompose', reason: 'task breakdown signal detected' };
+    return { action: 'decompose-tasks', reason: 'task breakdown signal detected' };
   }
   if (phase === 'done' || doneRatio >= 0.95 || /完成|done|closed/.test(text)) {
-    return { action: 'complete', reason: 'completion signal detected' };
+    return { action: 'mark-and-continue', reason: 'completion signal detected' };
   }
-  return { action: 'evolve', reason: 'default to process evolution' };
+  if (/block|blocked|hold|stuck|error|failed|friction|卡住|阻塞|失敗/.test(text)) {
+    return { action: 'try-self-first', reason: 'obstacle signal detected' };
+  }
+  return { action: 'evolve-process', reason: 'default to process evolution' };
 }
 
 // =============================================================================
@@ -128,8 +142,8 @@ function getFleet(): MyelinFleet<string> {
             // Triage bypass decisions are all rule-based — LLM fallback is unused
             return { action: 'wake', reason: 'default-wake' };
           },
-          rulesPath: './memory/myelin-triage-rules.json',
-          logPath: TRIAGE_LOG_PATH,
+          rulesPath: myelinPath('myelin-triage-rules.json'),
+          logPath: triageLogPath(),
           autoLog: false, // bypass decisions are logged manually via logTriageBypass
           failOpenAction: 'wake',
           crystallize: {
@@ -143,8 +157,8 @@ function getFleet(): MyelinFleet<string> {
         name: 'learning',
         instance: createMyelin<string>({
           llm: learningLLM,
-          rulesPath: './memory/myelin-learning-rules.json',
-          logPath: './memory/myelin-learning-decisions.jsonl',
+          rulesPath: myelinPath('myelin-learning-rules.json'),
+          logPath: myelinPath('myelin-learning-decisions.jsonl'),
           autoLog: true,
           failOpenAction: 'index-only',
           crystallize: { minOccurrences: 5, minConsistency: 0.90 },
@@ -154,8 +168,8 @@ function getFleet(): MyelinFleet<string> {
         name: 'routing',
         instance: createMyelin<string>({
           llm: routingLLM,
-          rulesPath: './memory/myelin-routing-rules.json',
-          logPath: './memory/myelin-routing-decisions.jsonl',
+          rulesPath: myelinPath('myelin-routing-rules.json'),
+          logPath: myelinPath('myelin-routing-decisions.jsonl'),
           failOpenAction: 'ooda',
           crystallize: { minOccurrences: 8, minConsistency: 0.90 },
         }),
@@ -164,8 +178,8 @@ function getFleet(): MyelinFleet<string> {
         name: 'research',
         instance: createMyelin<string>({
           llm: async () => ({ action: 'normal', reason: 'no-llm-fallback' }),
-          rulesPath: './memory/research-rules.json',
-          logPath: './memory/research-decisions.jsonl',
+          rulesPath: myelinPath('research-rules.json'),
+          logPath: myelinPath('research-decisions.jsonl'),
           autoLog: true,
           failOpen: true,
           failOpenAction: 'normal',
@@ -176,10 +190,10 @@ function getFleet(): MyelinFleet<string> {
         name: WORKFLOW_DOMAIN.domain,
         instance: createMyelin<string>({
           llm: workflowLLM,
-          rulesPath: `./${WORKFLOW_DOMAIN.seedRulesPath}`,
-          logPath: './memory/myelin-workflow-decisions.jsonl',
+          rulesPath: myelinPath(WORKFLOW_DOMAIN.rulesFile),
+          logPath: myelinPath('myelin-workflow-decisions.jsonl'),
           autoLog: true,
-          failOpenAction: 'evolve',
+          failOpenAction: 'evolve-process',
           crystallize: { minOccurrences: 5, minConsistency: 0.90 },
         }),
       },
@@ -193,12 +207,15 @@ function getFleet(): MyelinFleet<string> {
 // Public API — drop-in replacements for myelin-integration.ts exports
 // =============================================================================
 
-const TRIAGE_LOG_PATH = './memory/myelin-decisions.jsonl';
+function triageLogPath(): string {
+  return myelinPath('myelin-decisions.jsonl');
+}
+
 /** Log a hard-rule bypass directly (triage domain removed from fleet). */
 export function logTriageBypass(source: string, action: 'wake' | 'skip', reason: string): void {
   try {
     logDecision(
-      TRIAGE_LOG_PATH,
+      triageLogPath(),
       { type: source, source, context: {} },
       action,
       `hard-rule: ${reason}`,
@@ -322,6 +339,32 @@ export async function triageRouting(event: {
   const r = result!;
   const emoji = r.method === 'rule' ? '⚡' : '🧠';
   slog('MYELIN-ROUTE', `${emoji} ${event.type}/${event.taskType}: → ${r.action} (${r.latencyMs}ms ${r.method})`);
+  return r;
+}
+
+// =============================================================================
+// Workflow lifecycle
+// =============================================================================
+
+/**
+ * Route concrete lifecycle events through the workflow myelin.
+ * Called from memory-index task creation/status transitions so workflow rules
+ * are measured against actual work, not just crystallized in isolation.
+ */
+export async function triageWorkflowEvent(event: {
+  type: 'task-start' | 'proposal-status-change' | 'task-done' | 'analysis-complete' | 'obstacle-detected' | 'process-friction';
+  source?: string;
+  context?: Record<string, unknown>;
+}): Promise<TriageResult<string>> {
+  const result = await getFleet().triageWith('workflow', {
+    type: event.type,
+    source: event.source ?? 'ooda-cycle',
+    context: event.context ?? {},
+  });
+
+  const r = result!;
+  const emoji = r.method === 'rule' ? '⚡' : '🧠';
+  slog('MYELIN-WORKFLOW', `${emoji} ${event.type}: → ${r.action} (${r.latencyMs}ms ${r.method})`);
   return r;
 }
 
