@@ -245,4 +245,44 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
     expect(decision.taskId).toBe(active.id);
     expect(decision.taskId).not.toBe(suppressed.id);
   });
+
+  it('keeps suppression across routine scheduler events', async () => {
+    const task = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 task suppressed by repeated terminal signals',
+      payload: { priority: 0 },
+    });
+    invalidateIndexCache();
+
+    for (let i = 0; i < DISPATCH_SUPPRESSION_THRESHOLD; i++) {
+      recordTaskTerminalSignal(task.id);
+    }
+
+    const decision = schedulerPick(tmpDir, [{ source: 'heartbeat', priority: 3, isAlexDirectMessage: false }]);
+
+    expect(isTaskSuppressed(task.id)).toBe(true);
+    expect(decision.taskId).not.toBe(task.id);
+  });
+
+  it('resets suppression on a human-directed scheduler event', async () => {
+    const task = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 task revived by Alex message',
+      payload: { priority: 0 },
+    });
+    invalidateIndexCache();
+
+    for (let i = 0; i < DISPATCH_SUPPRESSION_THRESHOLD; i++) {
+      recordTaskTerminalSignal(task.id);
+    }
+    expect(isTaskSuppressed(task.id)).toBe(true);
+
+    const decision = schedulerPick(tmpDir, [{ source: 'room', priority: 0, isAlexDirectMessage: true }]);
+
+    expect(isTaskSuppressed(task.id)).toBe(false);
+    expect(getTerminalSignalCount(task.id)).toBe(0);
+    expect(decision.taskId).toBe(task.id);
+  });
 });

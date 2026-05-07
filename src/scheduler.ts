@@ -324,6 +324,8 @@ export function schedulerPick(
     status: ['pending', 'in_progress'],
   });
 
+  resetSuppressionsForExternalEvents(events);
+
   const tasks: TaskSnapshot[] = entries.map(entryToSnapshot)
     .filter(t => {
       const proc = getProcess(t.id);
@@ -438,6 +440,17 @@ export function resetAllSuppressions(): void {
     slog('SCHED', `suppression-reset-all cleared ${count} suppressed tasks`);
     eventBus.emit('action:scheduler', { event: 'suppression-reset-all', count });
   }
+}
+
+function resetSuppressionsForExternalEvents(events: IncomingEvent[]): void {
+  if (suppressedTaskIds.size === 0 && terminalSignalCount.size === 0) return;
+  const hasHumanDirectedEvent = events.some(event =>
+    event.isAlexDirectMessage
+    || event.priority === 0
+    || ['telegram', 'telegram-user', 'room', 'chat'].includes(event.source),
+  );
+  if (!hasHumanDirectedEvent) return;
+  resetAllSuppressions();
 }
 
 export function isTaskSuppressed(taskId: string): boolean {
