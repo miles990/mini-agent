@@ -53,7 +53,11 @@ async function loadLatest(subdir, fromDate, days = 14) {
     const key = dd.toISOString().slice(0, 10);
     try {
       const raw = JSON.parse(await readFile(join(STATE_DIR, subdir, `${key}.json`), 'utf8'));
-      return { key, posts: raw.posts || [], run_at: raw.run_at, daysOld: i };
+      const posts = (raw.posts || []).filter(p => {
+        const u = String(p.url || p.story_url || '').toLowerCase();
+        return !/(^|\/\/)(www\.)?(x\.com|twitter\.com|t\.co)\//.test(u);
+      });
+      return { key, posts, run_at: raw.run_at, daysOld: i };
     } catch {}
   }
   return { key: null, posts: [], run_at: null, daysOld: null };
