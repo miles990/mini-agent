@@ -34,6 +34,17 @@ export function evaluateMemoryStateTruth(memoryDir: string, repoRoot: string): E
     };
   }
 
+  const heartbeatPhantoms = findHeartbeatRecurringErrorPhantoms(memoryDir);
+  if (heartbeatPhantoms.length > 0) {
+    const hasP0 = heartbeatPhantoms.some(item => item.priority === 'P0');
+    return {
+      status: hasP0 ? 'blocked' : 'warn',
+      summary: `${heartbeatPhantoms.length} HEARTBEAT recurring-error task(s) lack live error-pattern support`,
+      evidence: [...evidence, ...heartbeatPhantoms.slice(0, 8).map(item => `HEARTBEAT.md:${item.line} ${item.priority} ${item.title}`)],
+      repair: 'Retire or refresh stale HEARTBEAT error tasks so context render follows live error-pattern truth instead of historical counters.',
+    };
+  }
+
   const gitDir = path.join(memoryDir, '.git');
   if (!fs.existsSync(gitDir)) {
     return {
@@ -159,6 +170,100 @@ export function evaluateKgExternalMemoryTruth(memoryDir: string, now = new Date(
     evidence,
   };
 }
+
+function findHeartbeatRecurringErrorPhantoms(memoryDir: string): Array<{ line: number; priority: string; title: string }> {
+  const heartbeatPath = path.join(memoryDir, 'HEARTBEAT.md');
+  if (!fs.existsSync(heartbeatPath)) return [];
+
+  const livePatterns = readLiveErrorPatternNeedles(memoryDir);
+  const heartbeat = stripHtmlComments(fs.readFileSync(heartbeatPath, 'utf-8'));
+  const lines = heartbeat.split('\n');
+  const phantoms: Array<{ line: number; priority: string; title: string }> = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.startsWith('- [ ]')) continue;
+    const recurring = line.match(/(?:\(|（)(\d+)\s*(?:次|x|occurrences?),?\s*last\s*(\d{4}-\d{2}-\d{2})(?:\)|）)/i);
+    if (!recurring) continue;
+
+    const title = extractHeartbeatTaskTitle(line);
+    const needles = recurringErrorNeedles(title);
+    if (needles.length === 0) continue;
+
+    const liveMatch = needles.some(needle => livePatterns.some(pattern => pattern.includes(needle)));
+    if (!liveMatch) {
+      phantoms.push({
+        line: i + 1,
+        priority: extractPriority(line),
+        title: title || line.slice(0, 120),
+      });
+    }
+  }
+
+  return phantoms;
+}
+
+function readLiveErrorPatternNeedles(memoryDir: string): string[] {
+  const filePath = path.join(memoryDir, 'state', 'error-patterns.json');
+  if (!fs.existsSync(filePath)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+    return Object.entries(raw)
+      .filter(([, value]) => {
+        const record = value as Record<string, unknown>;
+        return record.resolved !== true;
+      })
+      .map(([key, value]) => {
+        const record = value as Record<string, unknown>;
+        return normalizePatternText([
+          key,
+          String(record.lastMessage ?? ''),
+          String(record.rootCause ?? ''),
+        ].join(' '));
+      });
+  } catch {
+    return [];
+  }
+}
+
+function stripHtmlComments(text: string): string {
+  return text.replace(/<!--[\s\S]*?-->\n?/g, '');
+}
+
+function extractHeartbeatTaskTitle(line: string): string {
+  const bold = line.match(/\*\*(.*?)\*\*/);
+  if (bold?.[1]) return bold[1];
+  return line.replace(/^- \[ \]\s*/, '').replace(/(?:\(|（)\d+\s*(?:次|x|occurrences?),?\s*last\s*\d{4}-\d{2}-\d{2}(?:\)|）).*/, '').trim();
+}
+
+function extractPriority(line: string): string {
+  return line.match(/\bP[0-3]\b/)?.[0] ?? 'P?';
+}
+
+function recurringErrorNeedles(title: string): string[] {
+  const normalized = normalizePatternText(title);
+  return normalized
+    .split(/\s+/)
+    .filter(token => token.length >= 4 && !STOP_PATTERN_TOKENS.has(token));
+}
+
+function normalizePatternText(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+const STOP_PATTERN_TOKENS = new Set([
+  'cannot',
+  'read',
+  'properties',
+  'property',
+  'undefined',
+  'error',
+  'timeout',
+  'failed',
+  'failure',
+  'unknown',
+  'real',
+]);
 
 function findMalformedCriticalJsonl(memoryDir: string): Array<{ file: string; line: number; error: string }> {
   const malformed: Array<{ file: string; line: number; error: string }> = [];

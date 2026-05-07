@@ -42,6 +42,62 @@ describe('external memory health', () => {
     expect(['warn', 'ok']).toContain(result.status);
   });
 
+  it('blocks unchecked P0 recurring-error HEARTBEAT tasks with no live error-pattern support', () => {
+    writeFileSync(path.join(tmpDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'state', 'error-patterns.json'), JSON.stringify({
+      'TIMEOUT:silent_exit_void::callClaude': {
+        count: 15,
+        lastSeen: '2026-05-07',
+        lastMessage: 'CLI silent_exit_void after 327s',
+      },
+    }), 'utf-8');
+    writeFileSync(path.join(tmpDir, 'HEARTBEAT.md'), [
+      '# HEARTBEAT',
+      '## Active Tasks',
+      '- [ ] **P0 Cannot read properties of unde:generic**（72 次, last 2026-04-25）：historical counter',
+    ].join('\n'), 'utf-8');
+
+    const result = evaluateMemoryStateTruth(tmpDir, tmpDir);
+
+    expect(result.status).toBe('blocked');
+    expect(result.summary).toContain('HEARTBEAT recurring-error');
+    expect(result.evidence.join('\n')).toContain('unde:generic');
+  });
+
+  it('ignores retired recurring-error HEARTBEAT tasks wrapped in comments', () => {
+    writeFileSync(path.join(tmpDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'state', 'error-patterns.json'), '{}', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'HEARTBEAT.md'), [
+      '# HEARTBEAT',
+      '## Active Tasks',
+      '<!-- - [x] **P0 Cannot read properties of unde:generic**（72 次, last 2026-04-25）：historical counter -->',
+    ].join('\n'), 'utf-8');
+
+    const result = evaluateMemoryStateTruth(tmpDir, tmpDir);
+
+    expect(result.status).toBe('ok');
+  });
+
+  it('keeps active recurring-error HEARTBEAT tasks when backed by a live error-pattern', () => {
+    writeFileSync(path.join(tmpDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'state', 'error-patterns.json'), JSON.stringify({
+      'TIMEOUT:silent_exit_void::callClaude': {
+        count: 15,
+        lastSeen: '2026-05-07',
+        lastMessage: 'CLI silent_exit_void after 327s',
+      },
+    }), 'utf-8');
+    writeFileSync(path.join(tmpDir, 'HEARTBEAT.md'), [
+      '# HEARTBEAT',
+      '## Active Tasks',
+      '- [ ] **P1 silent_exit_void**（15 次, last 2026-05-07）：new live samples still need root cause',
+    ].join('\n'), 'utf-8');
+
+    const result = evaluateMemoryStateTruth(tmpDir, tmpDir);
+
+    expect(result.status).toBe('ok');
+  });
+
   it('treats absent KG footprint as not configured for this memory workspace', () => {
     vi.stubEnv('KG_URL', '');
 
