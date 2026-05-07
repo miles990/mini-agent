@@ -45,6 +45,11 @@ SLOT_STALE_MINUTES="${FORGE_SLOT_TTL_MINUTES:-60}" # slot abandoned after this (
 BASE_REF="${FORGE_BASE_REF:-origin/main}"           # immutable base for all worker branches
 BASE_BRANCH="${BASE_REF#origin/}"
 
+if [ -f "$MAIN_DIR/scripts/kuro-github-env.sh" ]; then
+  # shellcheck source=/dev/null
+  source "$MAIN_DIR/scripts/kuro-github-env.sh"
+fi
+
 # ============================================================
 # Human-readable helpers
 # ============================================================
@@ -563,6 +568,9 @@ cmd_merge() {
   local worktree="${1:?Usage: forge-lite.sh merge <worktree-path> [message]}"
   local message="${2:-[forge] task completed}"
   [ -d "$worktree" ] || { echo "Error: directory not found: $worktree" >&2; exit 1; }
+  if declare -f kuro_github_env_required >/dev/null 2>&1; then
+    kuro_github_env_required
+  fi
 
   set_state "merge" "$worktree"
   ensure_base_ref

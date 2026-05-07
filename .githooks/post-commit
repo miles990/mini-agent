@@ -72,6 +72,11 @@ case "$SUBJECT" in
             export MINI_AGENT_ALLOW_SCOPE_CONTAMINATION=1
             ;;
         esac
+        if [ -f "$REPO_ROOT/scripts/kuro-github-env.sh" ]; then
+          # shellcheck source=/dev/null
+          . "$REPO_ROOT/scripts/kuro-github-env.sh"
+          kuro_github_env_required || exit 1
+        fi
         if git push origin "$BRANCH" >>"$PUSH_LOG" 2>&1; then
           echo "[post-commit] ✓ auto-pushed $BRANCH at $(date '+%Y-%m-%d %H:%M:%S') ($SUBJECT)" >>"$PUSH_LOG"
         else

@@ -3,11 +3,11 @@
 # Usage: email.sh check | read <uid> | headers [count] | search <query>
 #
 # Requires: GMAIL_APP_PASSWORD env var (Google App Password)
-# Gmail user: kuro.ai.agent@gmail.com
+# Gmail user defaults to Kuro's registry identity.
 
 set -euo pipefail
 
-GMAIL_USER="kuro.ai.agent@gmail.com"
+GMAIL_USER="${KURO_GMAIL_USER:-${KURO_GOOGLE_EMAIL:-${GMAIL_USER:-kuro.ai.agent@gmail.com}}}"
 GMAIL_PASS="${GMAIL_APP_PASSWORD:-}"
 IMAP_URL="imaps://imap.gmail.com:993"
 

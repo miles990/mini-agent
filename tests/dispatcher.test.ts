@@ -49,6 +49,17 @@ describe('parseTags', () => {
     expect(result.cleanContent).toBe('');
   });
 
+  it('parses blocked task queue updates with a block reason', () => {
+    const result = parseTags('<kuro:task-queue op="update" id="idx-1" status="blocked" block_reason="waiting for external review">Continue with tests first</kuro:task-queue>');
+    expect(result.taskQueueActions[0]).toEqual(expect.objectContaining({
+      op: 'update',
+      id: 'idx-1',
+      status: 'blocked',
+      title: 'Continue with tests first',
+      blockReason: 'waiting for external review',
+    }));
+  });
+
   it('parses <kuro:task-queue> resolve tag with ids', () => {
     const result = parseTags('<kuro:task-queue op="resolve" ids="idx-a, idx-b">done</kuro:task-queue>');
     expect(result.taskQueueActions[0]).toEqual({

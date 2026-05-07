@@ -16,6 +16,7 @@ import { eventBus } from './event-bus.js';
 import { notifyTelegram } from './telegram.js';
 import { getMemory } from './memory.js';
 import { evaluateWorkspaceIsolation } from './workspace-isolation.js';
+import { assertKuroGithubIdentity, kuroGitEnv } from './github-identity.js';
 // markNextItemsDone removed — loop.ts now calls markTaskDoneByDescription from memory-index.ts directly
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { CHAT_ROOM_INBOX_PATH } from './inbox-processor.js';
@@ -568,14 +569,15 @@ export async function autoCommitExternalRepos(): Promise<void> {
 
       await execFileAsync(
         'git', ['commit', '-m', msg],
-        { cwd: dir, encoding: 'utf-8', timeout: 10000 },
+        { cwd: dir, encoding: 'utf-8', timeout: 10000, env: kuroGitEnv() },
       );
 
       // Push if remote exists
       try {
+        assertKuroGithubIdentity();
         await execFileAsync(
           'git', ['push', 'origin', 'HEAD'],
-          { cwd: dir, encoding: 'utf-8', timeout: 30000 },
+          { cwd: dir, encoding: 'utf-8', timeout: 30000, env: kuroGitEnv() },
         );
       } catch { /* no remote or push failed */ }
 

@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { assertKuroGithubIdentity, kuroGithubCliEnv, kuroGitEnv } from './github-identity.js';
 import { isSafeRuntimeBranch, refreshGitIndex } from './workspace-isolation.js';
 
 export type RuntimeAutocorrectStatus =
@@ -106,7 +107,7 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
         // (cherry-pick creates new commits with different hashes)
         ensureWorktree(root, worktree, branch, snapshot.headSha);
       }
-      git(worktree, ['push', '-u', 'origin', branch]);
+      git(worktree, ['push', '-u', 'origin', branch], kuroGitEnv());
     }
     let prUrl: string | undefined;
     if (opts.createPr ?? true) {
@@ -191,6 +192,7 @@ function ensureWorktree(repoRoot: string, worktree: string, branch: string, base
 
 function findExistingPullRequest(repo: string, branch: string): string | undefined {
   try {
+    assertKuroGithubIdentity();
     const out = execFileSync('gh', [
       'pr', 'list',
       '--repo', repo,
@@ -202,6 +204,7 @@ function findExistingPullRequest(repo: string, branch: string): string | undefin
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 30_000,
+      env: kuroGithubCliEnv(),
     }).trim();
     if (!out) return undefined;
     const parsed = JSON.parse(out) as Array<{ url?: string }>;
@@ -212,6 +215,7 @@ function findExistingPullRequest(repo: string, branch: string): string | undefin
 }
 
 function createPullRequest(worktree: string, repo: string, baseBranch: string, branch: string, ahead: number): string | undefined {
+  assertKuroGithubIdentity();
   const title = `fix(runtime): preserve local runtime commit ${branch.replace('fix/runtime-autocorrect-', '')}`;
   const body = [
     '## Summary',
@@ -234,6 +238,7 @@ function createPullRequest(worktree: string, repo: string, baseBranch: string, b
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
     timeout: 30_000,
+    env: kuroGithubCliEnv(),
   }).trim();
   return out || undefined;
 }
@@ -268,15 +273,16 @@ function safeGitBytes(cwd: string, args: string[]): Buffer | null {
   }
 }
 
-function git(cwd: string, args: string[]): string {
-  return gitRaw(cwd, args).trim();
+function git(cwd: string, args: string[], env?: NodeJS.ProcessEnv): string {
+  return gitRaw(cwd, args, env).trim();
 }
 
-function gitRaw(cwd: string, args: string[]): string {
+function gitRaw(cwd: string, args: string[], env?: NodeJS.ProcessEnv): string {
   return execFileSync('git', args, {
     cwd,
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
     timeout: 60_000,
+    env: env ?? process.env,
   });
 }

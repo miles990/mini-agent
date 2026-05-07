@@ -33,6 +33,7 @@ import { classifyMemoryRepoPath } from './memory-repo-policy.js';
 import { getFeature, setEnabled } from './features.js';
 import { pruneReviewBacklog } from './review-backlog-janitor.js';
 import { sweepKgDiscussionLifecycle } from './kg-discussion-janitor.js';
+import { assertKuroGithubIdentity, kuroGitEnv } from './github-identity.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -407,9 +408,10 @@ export async function autoPushIfAhead(): Promise<void> {
     }
 
     // Push
+    assertKuroGithubIdentity();
     await execFileAsync(
       'git', ['push', 'origin', 'main'],
-      { cwd, encoding: 'utf-8', timeout: 30000 },
+      { cwd, encoding: 'utf-8', timeout: 30000, env: kuroGitEnv() },
     );
     slog('HOUSEKEEPING', `auto-pushed ${ahead} commit(s) to origin/main`);
   } catch (err) {
