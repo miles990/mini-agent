@@ -35,14 +35,17 @@ const DATE = process.argv[2] || todayTaipei();
 
 // Topic taxonomy — 同 build-landing.mjs 但只列 8 個常用
 const TOPICS = [
-  { name: 'Agent / 自主系統',  kw: /\b(agent|autonomous|tool[- ]use|copilot|claude code|cursor|swarm|orchestrat|mcp)\b/i },
-  { name: 'Model / LLM',       kw: /\b(gpt[- ]?\d|claude|gemini|llama|mistral|anthropic|openai|deepseek|qwen|grok|sonnet|haiku|opus)\b/i },
-  { name: 'Training / 微調',   kw: /\b(train(ing)?|fine[- ]?tun|rlhf|distill|pretrain|sft|dpo|grpo|reward model|alignment)\b/i },
+  // Order matters: more-specific / contextual buckets fire BEFORE generic name-mention buckets.
+  // (Issue #269: "Anthropic+Colossus compute deal" → Infra not Model; "Chrome installs Gemini" → Policy not Model.)
+  { name: 'Security / 安全',   kw: /\b(security|cyber ?security|infosec|prompt injection|jailbreak|exploit|cve|vuln|attack|malware|supply chain)\b/i },
+  { name: 'Agent / 自主系統',  kw: /\b(agent|agentic|autonomous|tool[- ]use|copilot|claude code|cursor|swarm|orchestrat|mcp)\b/i },
+  { name: 'Diffusion / 生成',  kw: /\b(diffusion|stable diffusion|flux|sdxl|image gen(eration)?|video gen(eration)?|text[- ]to[- ]image|text[- ]to[- ]video)\b/i },
   { name: 'Memory / 記憶',     kw: /\b(memory|context window|persistent|retrieval|rag|wiki|notebook)\b/i },
   { name: 'Eval / 評測',       kw: /\b(benchmark|eval(uation)?|leaderboard|swe[- ]bench|mmlu|humaneval|arena)\b/i },
-  { name: 'Security / 安全',   kw: /\b(security|prompt injection|jailbreak|exploit|cve|vuln|attack|sandbox|malware|supply chain)\b/i },
-  { name: 'Infra / 基礎設施',  kw: /\b(infra|kubernetes|k8s|docker|deploy|gpu|cuda|inference|vllm|serving|triton)\b/i },
-  { name: 'Policy / 政策',     kw: /\b(policy|standard|regulat|opposition|firefox|mozilla|chrome|browser|w3c|copyright|license)\b/i },
+  { name: 'Training / 微調',   kw: /\b(train(ing)?|fine[- ]?tun|rlhf|distill|pretrain|sft|dpo|grpo|reward model|alignment)\b/i },
+  { name: 'Policy / 政策',     kw: /\b(policy|standard|regulat|opposition|firefox|mozilla|chrome|browser|w3c|copyright|license|consent|silently install)\b/i },
+  { name: 'Infra / 基礎設施',  kw: /\b(infra|kubernetes|k8s|docker|deploy|gpu|cuda|inference|vllm|serving|triton|colossus|h100|h200|compute deal|data ?cent(er|re)|cluster|spacex)\b/i },
+  { name: 'Model / LLM',       kw: /\b(gpt[- ]?\d|claude|gemini|llama|mistral|anthropic|openai|deepseek|qwen|grok|sonnet|haiku|opus)\b/i },
 ];
 
 // GitHub source-side topic → display category. github-ai-trend.mjs already
@@ -68,11 +71,15 @@ function tagPost(post) {
       if (GH_TOPIC_MAP[tag]) return GH_TOPIC_MAP[tag];
     }
   }
-  // Priority 2: regex over title + summary (works even if enrichment failed,
-  // since title alone often carries enough signal).
-  const text = [post.title || '', post.summary?.claim || '', post.summary?.so_what || ''].join(' ');
-  const hits = TOPICS.filter(t => t.kw.test(text)).map(t => t.name);
-  return hits[0] || 'Other / 其他';
+  // Priority 2a: regex on TITLE alone — titles carry the actual topic signal.
+  // Summaries often mention "agent"/"model" generically and drown the signal (Issue #269).
+  const title = post.title || '';
+  const titleHit = TOPICS.find(t => t.kw.test(title));
+  if (titleHit) return titleHit.name;
+  // Priority 2b: fall back to summary fields when title is uninformative.
+  const text = [title, post.summary?.claim || '', post.summary?.so_what || ''].join(' ');
+  const hit = TOPICS.find(t => t.kw.test(text));
+  return hit?.name || 'Other / 其他';
 }
 
 async function loadTodayPosts(date) {
