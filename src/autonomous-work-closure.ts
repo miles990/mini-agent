@@ -24,6 +24,7 @@ export interface AutonomousWorkClosureResult {
   deduplicatedTasks: number;
   releasedHolds: number;
   productRepairsQueued: number;
+  productRepairsClosed: number;
   productVerifiers: ProductVerifierResult[];
 }
 
@@ -44,17 +45,18 @@ export async function sweepAutonomousWorkClosure(
   const pruned = await pruneNonActionableRoomTasks(memoryDir, { sources: ['room', 'room-promoted', 'ooda-expression'] });
   const deduplicatedTasks = await deduplicateActiveTasks(memoryDir, now);
   const releasedHolds = await releaseExpiredHolds(memoryDir, now);
-  const productRepairsQueued = await ensureProductRepairTasks(memoryDir, productVerifiers, now);
+  const { queued: productRepairsQueued, closed: productRepairsClosed } = await reconcileProductRepairTasks(memoryDir, productVerifiers, now);
   const result = {
     prunedNonActionable: pruned.pruned,
     completedExpressionTasks,
     deduplicatedTasks,
     releasedHolds,
     productRepairsQueued,
+    productRepairsClosed,
     productVerifiers,
   };
-  const changed = result.prunedNonActionable + completedExpressionTasks + deduplicatedTasks + releasedHolds + productRepairsQueued;
-  if (changed > 0) slog('WORK-CLOSURE', `sweep changed=${changed} pruned=${result.prunedNonActionable} expression=${completedExpressionTasks} dedup=${deduplicatedTasks} holds=${releasedHolds} repairs=${productRepairsQueued}`);
+  const changed = result.prunedNonActionable + completedExpressionTasks + deduplicatedTasks + releasedHolds + productRepairsQueued + productRepairsClosed;
+  if (changed > 0) slog('WORK-CLOSURE', `sweep changed=${changed} pruned=${result.prunedNonActionable} expression=${completedExpressionTasks} dedup=${deduplicatedTasks} holds=${releasedHolds} repairs=${productRepairsQueued} closedRepairs=${productRepairsClosed}`);
   return result;
 }
 
@@ -185,10 +187,28 @@ async function releaseExpiredHolds(memoryDir: string, now: Date): Promise<number
   return released;
 }
 
-async function ensureProductRepairTasks(memoryDir: string, verifiers: ProductVerifierResult[], now: Date): Promise<number> {
+async function reconcileProductRepairTasks(memoryDir: string, verifiers: ProductVerifierResult[], now: Date): Promise<{ queued: number; closed: number }> {
   const active = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ACTIVE_STATUSES });
   const hasAiTrendWork = active.some(task => AI_TREND_RE.test(String(task.summary ?? '')));
+  const byProduct = new Map(verifiers.map(v => [v.product, v]));
   let queued = 0;
+  let closed = 0;
+  for (const task of active) {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    if (payload.origin !== 'autonomous-work-closure' || typeof payload.product !== 'string') continue;
+    const verifier = byProduct.get(payload.product);
+    if (verifier?.status !== 'pass') continue;
+    const updated = await updateMemoryIndexEntry(memoryDir, task.id, {
+      status: 'completed',
+      payload: {
+        ...payload,
+        completed_by: 'autonomous-work-closure',
+        completed_reason: verifier.summary,
+        completed_at: now.toISOString(),
+      },
+    });
+    if (updated) closed++;
+  }
   for (const verifier of verifiers) {
     if (verifier.status !== 'fail' || !verifier.repairTitle || !verifier.verifyCommand) continue;
     if (verifier.product === 'ai-trend' && !hasAiTrendWork) continue;
@@ -215,7 +235,7 @@ async function ensureProductRepairTasks(memoryDir: string, verifiers: ProductVer
     });
     queued++;
   }
-  return queued;
+  return { queued, closed };
 }
 
 function canonicalTaskKey(task: MemoryIndexEntry): string | null {
