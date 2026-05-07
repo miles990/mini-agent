@@ -49,12 +49,18 @@ export interface HandoffClosureResult {
   appended: number;
 }
 
-export type PrConflictAction = 'none' | 'attempt-update-branch' | 'needs-decomposition' | 'needs-verification';
+export type PrConflictAction =
+  | 'none'
+  | 'attempt-update-branch'
+  | 'needs-decomposition'
+  | 'needs-verification'
+  | 'close-contaminated';
 
 export interface PrConflictInput {
   number: number;
   title: string;
   body?: string | null;
+  baseRefName?: string | null;
   mergeable?: string | null;
   reviewDecision?: string | null;
   labels?: string[];
@@ -372,8 +378,22 @@ export function decidePrConflictAction(pr: PrConflictInput): PrConflictDecision 
   if (pr.isDraft || labels.has('hold')) {
     return { action: 'none', risk: 'medium', reason: 'draft or hold PR should not be conflict-updated automatically' };
   }
+  if (pr.baseRefName && pr.baseRefName !== 'main') {
+    return {
+      action: 'close-contaminated',
+      risk: 'high',
+      reason: `PR targets ${pr.baseRefName}; autonomous review PRs must target main and should be rebuilt from current main`,
+    };
+  }
 
   const files = uniqueStrings(pr.changedFiles);
+  if (files.length > 20) {
+    return {
+      action: 'close-contaminated',
+      risk: 'high',
+      reason: `conflicting PR spans ${files.length} files; close and rebuild a narrow PR from current main`,
+    };
+  }
   if (!hasCompletedVerification(pr.body ?? '')) {
     return { action: 'needs-verification', risk: 'medium', reason: 'conflicting PR lacks completed verification evidence' };
   }

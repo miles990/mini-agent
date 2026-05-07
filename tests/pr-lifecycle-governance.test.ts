@@ -327,4 +327,35 @@ describe('PR lifecycle governance', () => {
       action: 'needs-verification',
     }));
   });
+
+  it('closes conflicting PRs that target the protected runtime branch instead of main', () => {
+    expect(decidePrConflictAction({
+      number: 280,
+      title: 'fix(enrich-fallback): flip status',
+      body: '## Verification\n- [x] `node --check script.mjs` passed',
+      baseRefName: 'runtime/main',
+      mergeable: 'CONFLICTING',
+      reviewDecision: '',
+      changedFiles: ['scripts/ai-trend-enrich-fallback.mjs'],
+    })).toEqual(expect.objectContaining({
+      action: 'close-contaminated',
+      risk: 'high',
+      reason: expect.stringContaining('runtime/main'),
+    }));
+  });
+
+  it('closes extremely broad conflicting PRs before verification repair loops', () => {
+    expect(decidePrConflictAction({
+      number: 281,
+      title: 'fix: broad stale branch',
+      body: '## Test plan\n- [ ] verify later',
+      baseRefName: 'main',
+      mergeable: 'CONFLICTING',
+      reviewDecision: '',
+      changedFiles: Array.from({ length: 21 }, (_, index) => `src/file-${index}.ts`),
+    })).toEqual(expect.objectContaining({
+      action: 'close-contaminated',
+      risk: 'high',
+    }));
+  });
 });

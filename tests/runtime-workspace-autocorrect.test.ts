@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { autocorrectRuntimeWorkspace } from '../src/runtime-workspace-autocorrect.js';
+import { autocorrectRuntimeWorkspace, runtimeAutocorrectPrBody } from '../src/runtime-workspace-autocorrect.js';
 
 describe('runtime workspace autocorrect', () => {
   let tmpDir: string;
@@ -252,6 +252,15 @@ describe('runtime workspace autocorrect', () => {
     expect(result.branch).toBe(expectedBranch);
     expect(gitOut(repo, ['rev-parse', 'HEAD'])).toBe(gitOut(repo, ['rev-parse', 'origin/main']));
     expect(gitOut(repo, ['status', '--short', '--branch'])).toContain('runtime/main...origin/main');
+  });
+
+  it('writes completed verification evidence into autocorrect PR bodies', () => {
+    const body = runtimeAutocorrectPrBody(1, 'fix/runtime-autocorrect-abc12345');
+
+    expect(body).toContain('## Verification');
+    expect(body).toContain('- [x] `git push -u origin fix/runtime-autocorrect-abc12345` passed');
+    expect(body).toContain('- [x] `git reset --hard origin/main` passed');
+    expect(body).not.toContain('pending isolated PR review');
   });
 });
 
