@@ -6,7 +6,7 @@ import { evaluatePrReviewConsensus, parsePrReviewHandoffs, readPrReviewClaimsSyn
 import { evaluateRuntimeMemoryPlacement } from './memory-paths.js';
 import { eventBus } from './event-bus.js';
 import { readTestHealthSnapshot, summarizeTestHealth } from './test-health-autopilot.js';
-import { evaluatePrClosureGaps } from './pr-autopilot.js';
+import { evaluatePrClosureGaps, readOpenPrSnapshot } from './pr-autopilot.js';
 import { evaluateKgExternalMemoryTruth, evaluateMemoryStateTruth } from './external-memory-health.js';
 import { evaluateMiddlewareQuality } from './middleware-quality-health.js';
 import { readClassifiedMiddlewareTaskIds } from './middleware-failure-self-healing.js';
@@ -371,8 +371,15 @@ function prReviewConsensusStage(memoryDir: string): AutonomyClosureStageResult {
 
   const activeContent = readFileSync(activePath, 'utf-8');
   const openPrGaps = evaluatePrClosureGaps(memoryDir, activeContent);
-  const handoffs = parsePrReviewHandoffs(activeContent);
-  const claims = readPrReviewClaimsSync(memoryDir);
+  const handoffsRaw = parsePrReviewHandoffs(activeContent);
+  const openPrSnapshot = readOpenPrSnapshot(memoryDir);
+  const openPrNumbers = openPrSnapshot ? new Set(openPrSnapshot.prs.map(pr => pr.number)) : null;
+  const handoffs = openPrNumbers
+    ? handoffsRaw.filter(handoff => openPrNumbers.has(handoff.prNumber))
+    : handoffsRaw;
+  const claims = openPrNumbers
+    ? readPrReviewClaimsSync(memoryDir).filter(claim => openPrNumbers.has(claim.prNumber))
+    : readPrReviewClaimsSync(memoryDir);
   const consensuses = evaluatePrReviewConsensus(handoffs, claims);
   const missing = consensuses.filter(c => c.status === 'pending' && c.missingReviewers.length > 0);
   const changes = consensuses.filter(c => c.status === 'changes_requested' || c.status === 'disputed');
