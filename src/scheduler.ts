@@ -31,6 +31,8 @@ export interface TaskSnapshot {
   source: 'alex' | 'kuro' | 'system' | 'discovery';
   createdAt: string;
   ticksSpent: number;
+  /** Cycles since this task last made forward progress (ack/event/sync). Optional: legacy callers may omit. */
+  ticksSinceLastProgress?: number;
   deadline: string | null;
   dependsOn: string[];
 }
@@ -81,6 +83,22 @@ const AGING_BOOST_TICKS = 30;
 
 /** Consecutive terminal-signal cycles before a task is suppressed from dispatch. */
 export const DISPATCH_SUPPRESSION_THRESHOLD = 3;
+
+/**
+ * Stale-progress threshold for dispatch skipping (issue #196).
+ *
+ * Tasks whose `ticksSinceLastProgress` reaches this number are filtered out of
+ * dispatch picking, even if they never emit `<kuro:done>`. Resumes automatically
+ * when the task's progress counter resets (sync, event, ack, manual update).
+ *
+ * Rationale: GitHub-issue tasks that wait for human review never trigger the
+ * `<kuro:done>` path, so the terminal-signal counter never accumulates and the
+ * scheduler keeps re-dispatching the same task indefinitely (#196 burn pattern).
+ * The 5-tick threshold matches the existing P0 escalation boundary in
+ * `incrementTaskStaleness` (memory-index.ts), so suppression kicks in exactly
+ * when staleness becomes user-visible.
+ */
+export const STALE_DISPATCH_SKIP_THRESHOLD = 5;
 
 // =============================================================================
 // Default Scheduler
@@ -406,6 +424,24 @@ export function schedulerPick(
         return false;
       }
       return true;
+    })
+    .filter(t => {
+      // Issue #196: stale-progress dispatch skip. Tasks waiting on external
+      // signals (GitHub issue review, PR merge, room reply) never emit
+      // <kuro:done>, so the terminal-signal counter never trips. Skip them
+      // here so the scheduler stops burning cycles re-dispatching the same
+      // stale task. Resumes automatically when ticksSinceLastProgress resets.
+      const ticks = t.ticksSinceLastProgress ?? 0;
+      if (ticks >= STALE_DISPATCH_SKIP_THRESHOLD) {
+        slog('SCHED', `dispatch-stale-skip: task=${t.id.slice(0, 12)} ticks=${ticks} ${t.summary.slice(0, 50)}`);
+        eventBus.emit('action:scheduler', {
+          event: 'dispatch-stale-skip',
+          taskId: t.id,
+          ticksSinceLastProgress: ticks,
+        });
+        return false;
+      }
+      return true;
     });
   const decision = scheduler.decideNext(tasks, schedulerState, events);
   const correctionTask = entries.find(isCorrectionTask);
@@ -594,6 +630,9 @@ export function entryToSnapshot(entry: MemoryIndexEntry): TaskSnapshot {
   const source = detectSource(entry);
   const created = (payload.created as string) ?? entry.ts;
   const ticksSpent = typeof payload.ticksSpent === 'number' ? payload.ticksSpent : 0;
+  const ticksSinceLastProgress = typeof payload.ticksSinceLastProgress === 'number'
+    ? payload.ticksSinceLastProgress
+    : 0;
 
   const deadline = parseDeadline(entry.summary ?? '', payload);
   const dependsOn = Array.isArray(payload.dependsOn) ? payload.dependsOn as string[] : [];
@@ -606,6 +645,7 @@ export function entryToSnapshot(entry: MemoryIndexEntry): TaskSnapshot {
     source,
     createdAt: created,
     ticksSpent,
+    ticksSinceLastProgress,
     deadline,
     dependsOn,
   };
