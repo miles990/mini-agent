@@ -196,6 +196,36 @@ describe('middleware failure self-healing', () => {
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(1);
   });
 
+  it('reuses an existing duplicate provider hold instead of aborting the sweep', async () => {
+    const first = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-budget-1',
+      worker: 'agent-brain',
+      status: 'failed',
+      task: 'Review delegated work as claude',
+      error: "Claude Code returned an error result: You're out of extra usage · resets 2:40am (Asia/Taipei)",
+      completedAt: '2026-05-06T16:31:00.000Z',
+    }], new Date('2026-05-06T16:30:00.000Z'));
+    const holdId = readMiddlewareFailureClassificationsSync(memoryDir)[0].providerHoldTaskId;
+
+    const second = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-budget-2',
+      worker: 'agent-brain',
+      status: 'failed',
+      task: 'Review delegated work as claude again',
+      error: "Claude Code returned an error result: You're out of extra usage · resets 2:40am (Asia/Taipei)",
+      completedAt: '2026-05-06T16:32:00.000Z',
+    }], new Date('2026-05-06T16:31:00.000Z'));
+
+    expect(first).toEqual(expect.objectContaining({ classified: 1, held: 1 }));
+    expect(second).toEqual(expect.objectContaining({ classified: 1, held: 1 }));
+    expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-budget-2',
+      providerHoldTaskId: holdId,
+      lifecycleAction: 'provider-hold',
+    }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] })).toHaveLength(1);
+  });
+
   it('reclassifies a known task when better error-only signal changes the bucket', async () => {
     await classifyMiddlewareFailures(memoryDir, [{
       id: 'task-reclassify',
