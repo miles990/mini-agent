@@ -4321,7 +4321,7 @@ function extractDelegationSummaryInline(output: string, maxLen: number): string 
 // Review Backlog — persistent tracking of unreviewed delegation results
 // =============================================================================
 
-const BACKLOG_TTL_MS = 3 * 24 * 3600_000; // 3 days (Issue #83 follow-up: shorter TTL for un-acknowledged stale entries)
+const BACKLOG_TTL_MS = 6 * 3600_000; // completed delegation results must be absorbed or archived quickly
 
 /**
  * Detect failure-class delegation outputs that have zero learning value.
@@ -4378,7 +4378,43 @@ export function clearReviewedDelegations(response: string, instanceId: string): 
 }
 
 /** Read review backlog entries for prompt injection, newest first and capped to avoid stale noise. */
-const REVIEW_BACKLOG_RENDER_CAP = 30;
+const REVIEW_BACKLOG_RENDER_CAP = 10;
+
+export function pruneReviewBacklog(instanceId: string): { pruned: number; remaining: number } {
+  try {
+    const backlogPath = path.join(getInstanceDir(instanceId), 'review-backlog.jsonl');
+    if (!existsSync(backlogPath)) return { pruned: 0, remaining: 0 };
+    const lines = readFileSync(backlogPath, 'utf-8').split('\n').filter(Boolean);
+    const now = Date.now();
+    const kept: string[] = [];
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (now - new Date(entry.archivedAt).getTime() >= BACKLOG_TTL_MS) continue;
+        if (entry.summary && isStaleFailureOutput(entry.summary)) continue;
+        kept.push(line);
+      } catch { continue; }
+    }
+    kept.sort((a, b) => {
+      try {
+        const left = JSON.parse(a);
+        const right = JSON.parse(b);
+        return Date.parse(right.archivedAt ?? '') - Date.parse(left.archivedAt ?? '');
+      } catch {
+        return 0;
+      }
+    });
+    const capped = kept.slice(0, REVIEW_BACKLOG_RENDER_CAP);
+    if (capped.length === 0) {
+      try { unlinkSync(backlogPath); } catch { /* best effort */ }
+    } else if (capped.length < lines.length) {
+      writeFileSync(backlogPath, capped.join('\n') + '\n');
+    }
+    return { pruned: lines.length - capped.length, remaining: capped.length };
+  } catch {
+    return { pruned: 0, remaining: 0 };
+  }
+}
 
 export function getReviewBacklog(instanceId: string): Array<{ id: string; type?: string; summary: string; archivedAt: string }> {
   try {

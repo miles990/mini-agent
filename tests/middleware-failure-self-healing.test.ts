@@ -39,6 +39,7 @@ describe('middleware failure self-healing', () => {
         taskId: 'task-budget',
         bucket: 'budget-or-quota',
         status: 'held',
+        lifecycleAction: 'provider-hold',
       }),
     ]);
 
@@ -87,6 +88,7 @@ describe('middleware failure self-healing', () => {
       bucket: 'max-turns',
       status: 'classified',
       followUpTaskId: expect.any(String),
+      lifecycleAction: 'decompose',
     }));
     const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
     expect(followUps).toHaveLength(1);
@@ -115,6 +117,29 @@ describe('middleware failure self-healing', () => {
       taskId: 'task-reclassify',
       bucket: 'budget-or-quota',
       status: 'held',
+      lifecycleAction: 'provider-hold',
+    }));
+  });
+
+  it('routes offline and timeout failures into lane recovery instead of blind retry', async () => {
+    await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-timeout',
+      worker: 'researcher',
+      status: 'failed',
+      task: 'Research context',
+      error: 'Worker stall: no activity timeout',
+    }], new Date('2026-05-06T16:30:00.000Z'));
+
+    const classification = readMiddlewareFailureClassificationsSync(memoryDir)[0];
+    expect(classification).toEqual(expect.objectContaining({
+      taskId: 'task-timeout',
+      bucket: 'stall-or-timeout',
+      lifecycleAction: 'recover-lane',
+      followUpTaskId: expect.any(String),
+    }));
+    expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-timeout',
+      status: 'needs_human',
     }));
   });
 
