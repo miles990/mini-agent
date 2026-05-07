@@ -181,8 +181,28 @@ function handleMemoryEvent(e: AgentEvent): void {
 
 function handleTaskEvent(e: AgentEvent): void {
   const logger = getLogger();
-  slog('LOOP', `📋 Auto-created task: ${(e.data.content as string).slice(0, 80)}`);
-  logger.logBehavior('agent', 'task.create', (e.data.content as string).slice(0, 200));
+  const content = taskEventContent(e.data);
+  slog('LOOP', `📋 Auto-created task: ${content.slice(0, 80)}`);
+  logger.logBehavior('agent', 'task.create', content.slice(0, 200));
+}
+
+export function taskEventContent(data: AgentEvent['data']): string {
+  if (typeof data.content === 'string' && data.content.trim()) return data.content;
+  const entry = data.entry as { summary?: unknown; id?: unknown } | undefined;
+  if (typeof entry?.summary === 'string' && entry.summary.trim()) return entry.summary;
+  if (typeof data.event === 'string' && data.event.trim()) {
+    const id = typeof data.taskId === 'string'
+      ? data.taskId
+      : typeof data.goalId === 'string'
+        ? data.goalId
+        : typeof entry?.id === 'string'
+          ? entry.id
+          : '';
+    return id ? `${data.event}:${id}` : data.event;
+  }
+  if (typeof data.taskId === 'string') return data.taskId;
+  if (typeof data.goalId === 'string') return data.goalId;
+  return 'task event';
 }
 
 // =============================================================================
