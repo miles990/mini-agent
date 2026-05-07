@@ -38,6 +38,7 @@ describe('KG discussion lifecycle janitor', () => {
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })[0]).toEqual(expect.objectContaining({
       summary: expect.stringContaining('close or refresh'),
       tags: expect.arrayContaining(['kg', 'discussion-lifecycle', 'stale-discussion']),
+      payload: expect.objectContaining({ priority: 2 }),
     }));
   });
 
@@ -69,9 +70,56 @@ describe('KG discussion lifecycle janitor', () => {
 
     const result = await classifyKgDiscussions(memoryDir, discussions, new Date('2026-05-07T00:00:00.000Z'), {
       maxQueuedPerSweep: 3,
+      maxActiveLifecycleTasks: 8,
     });
 
     expect(result).toEqual({ scanned: 8, stale: 8, queued: 3, skippedKnown: 0 });
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(3);
+  });
+
+  it('does not queue more lifecycle tasks when the active maintenance lane is full', async () => {
+    const discussions = Array.from({ length: 4 }, (_, index) => ({
+      id: `disc-${index}`,
+      topic: `stale topic ${index}`,
+      status: 'open',
+      position_count: 1,
+      updated_at: '2026-04-25T00:00:00.000Z',
+    }));
+
+    const first = await classifyKgDiscussions(memoryDir, discussions.slice(0, 2), new Date('2026-05-07T00:00:00.000Z'), {
+      maxActiveLifecycleTasks: 2,
+    });
+    const second = await classifyKgDiscussions(memoryDir, discussions.slice(2), new Date('2026-05-07T01:00:00.000Z'), {
+      maxActiveLifecycleTasks: 2,
+    });
+
+    expect(first.queued).toBe(2);
+    expect(second).toEqual({ scanned: 2, stale: 2, queued: 0, skippedKnown: 0 });
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(2);
+  });
+
+  it('moves excess existing lifecycle tasks to hold during rebalance', async () => {
+    const discussions = Array.from({ length: 3 }, (_, index) => ({
+      id: `disc-${index}`,
+      topic: `stale topic ${index}`,
+      status: 'open',
+      position_count: 1,
+      updated_at: '2026-04-25T00:00:00.000Z',
+    }));
+
+    await classifyKgDiscussions(memoryDir, discussions, new Date('2026-05-07T00:00:00.000Z'), {
+      maxActiveLifecycleTasks: 3,
+    });
+    await classifyKgDiscussions(memoryDir, [], new Date('2026-05-07T01:00:00.000Z'), {
+      maxActiveLifecycleTasks: 1,
+    });
+
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(1);
+    const held = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] });
+    expect(held).toHaveLength(2);
+    expect(held[0].payload).toEqual(expect.objectContaining({
+      priority: 2,
+      hold_reason: expect.stringContaining('maintenance lane capped'),
+    }));
   });
 });

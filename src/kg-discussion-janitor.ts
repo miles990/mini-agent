@@ -1,12 +1,14 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { appendMemoryIndexEntry, queryMemoryIndexSync } from './memory-index.js';
+import { appendMemoryIndexEntry, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
 import { slog } from './utils.js';
 
 const LEDGER_FILE = 'kg-discussion-lifecycle.jsonl';
 const DEFAULT_STALE_DAYS = 7;
 const DEFAULT_ROOM_STALE_DAYS = 2;
 const DEFAULT_MAX_QUEUED_PER_SWEEP = 5;
+const DEFAULT_MAX_ACTIVE_LIFECYCLE_TASKS = 2;
+const DEFAULT_LIFECYCLE_TASK_PRIORITY = 2;
 
 export interface KgDiscussionRecord {
   id: string;
@@ -44,6 +46,7 @@ export async function sweepKgDiscussionLifecycle(
     staleDays?: number;
     roomStaleDays?: number;
     maxQueuedPerSweep?: number;
+    maxActiveLifecycleTasks?: number;
   } = {},
 ): Promise<KgDiscussionSweepResult> {
   const now = options.now ?? new Date();
@@ -55,7 +58,7 @@ export async function classifyKgDiscussions(
   memoryDir: string,
   discussions: KgDiscussionRecord[],
   now = new Date(),
-  options: { staleDays?: number; roomStaleDays?: number; maxQueuedPerSweep?: number } = {},
+  options: { staleDays?: number; roomStaleDays?: number; maxQueuedPerSweep?: number; maxActiveLifecycleTasks?: number } = {},
 ): Promise<KgDiscussionSweepResult> {
   const known = new Set(readKgDiscussionLifecycleRecords(memoryDir).map(record => record.discussionId));
   const stale = discussions
@@ -70,12 +73,21 @@ export async function classifyKgDiscussions(
     skippedKnown: 0,
   };
 
+  const maxActiveLifecycleTasks = options.maxActiveLifecycleTasks ?? DEFAULT_MAX_ACTIVE_LIFECYCLE_TASKS;
+  await rebalanceActiveLifecycleTasks(memoryDir, maxActiveLifecycleTasks);
+  const activeLifecycleTasks = countActiveLifecycleTasks(memoryDir);
+  const activeBudget = Math.max(
+    0,
+    maxActiveLifecycleTasks - activeLifecycleTasks,
+  );
+  const queueBudget = Math.min(options.maxQueuedPerSweep ?? DEFAULT_MAX_QUEUED_PER_SWEEP, activeBudget);
+
   for (const item of stale) {
     if (known.has(item.discussion.id)) {
       result.skippedKnown++;
       continue;
     }
-    if (result.queued >= (options.maxQueuedPerSweep ?? DEFAULT_MAX_QUEUED_PER_SWEEP)) continue;
+    if (result.queued >= queueBudget) continue;
     const followUpTaskId = await ensureDiscussionFollowUpTask(memoryDir, item.discussion, item.bucket, now);
     appendLifecycleRecord(memoryDir, {
       discussionId: item.discussion.id,
@@ -88,7 +100,7 @@ export async function classifyKgDiscussions(
   }
 
   if (result.queued > 0) {
-    slog('KG-DISCUSSION-JANITOR', `queued ${result.queued}/${result.stale} stale KG discussion follow-up(s)`);
+    slog('KG-DISCUSSION-JANITOR', `queued ${result.queued}/${result.stale} stale KG discussion follow-up(s); active=${activeLifecycleTasks}, budget=${queueBudget}`);
   }
   return result;
 }
@@ -166,6 +178,7 @@ async function ensureDiscussionFollowUpTask(
     tags: ['kg', 'discussion-lifecycle', bucket],
     payload: {
       origin: 'kg-discussion-janitor',
+      priority: DEFAULT_LIFECYCLE_TASK_PRIORITY,
       kg_discussion_id: discussion.id,
       kg_discussion_topic: topic,
       kg_discussion_bucket: bucket,
@@ -174,6 +187,40 @@ async function ensureDiscussionFollowUpTask(
     },
   });
   return entry.id;
+}
+
+function countActiveLifecycleTasks(memoryDir: string): number {
+  return getLifecycleTasks(memoryDir, ['pending', 'in_progress']).length;
+}
+
+async function rebalanceActiveLifecycleTasks(memoryDir: string, maxActive: number): Promise<void> {
+  const active = getLifecycleTasks(memoryDir, ['pending', 'in_progress'])
+    .sort((a, b) => a.ts.localeCompare(b.ts));
+
+  for (const [index, entry] of active.entries()) {
+    const payload = { ...(entry.payload ?? {}), priority: DEFAULT_LIFECYCLE_TASK_PRIORITY };
+    if (index < maxActive) {
+      if ((entry.payload ?? {}).priority !== DEFAULT_LIFECYCLE_TASK_PRIORITY) {
+        await updateMemoryIndexEntry(memoryDir, entry.id, { payload });
+      }
+      continue;
+    }
+    await updateMemoryIndexEntry(memoryDir, entry.id, {
+      status: 'hold',
+      payload: {
+        ...payload,
+        hold_reason: `kg-discussion maintenance lane capped at ${maxActive} active task(s)`,
+      },
+    });
+  }
+}
+
+function getLifecycleTasks(memoryDir: string, statuses: Array<'pending' | 'in_progress' | 'hold'>): MemoryIndexEntry[] {
+  return queryMemoryIndexSync(memoryDir, { type: ['task'], status: statuses })
+    .filter(entry => {
+      const payload = (entry.payload ?? {}) as Record<string, unknown>;
+      return payload.origin === 'kg-discussion-janitor';
+    });
 }
 
 function appendLifecycleRecord(memoryDir: string, record: KgDiscussionLifecycleRecord): void {
