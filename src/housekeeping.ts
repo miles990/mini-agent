@@ -25,6 +25,7 @@ import { migrateToColdStorage } from './context-optimizer.js';
 import { scanContradictions } from './contradiction-scanner.js';
 import { shouldTriggerKGIngest, markKGIngestTriggered, pushToKGService } from './kg-live-ingest.js';
 import { spawnDelegation } from './delegation.js';
+import { reconcileMiddlewareCommitmentsSafe } from './middleware-truth-reconciler.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -715,6 +716,9 @@ export async function runHousekeeping(): Promise<void> {
   // KG auto-ingest: check every 5 cycles if enough new writes have accumulated
   if (cycleCounter % 5 === 0) {
     dispatchKGIngestIfNeeded();
+    await reconcileMiddlewareCommitmentsSafe().catch(err => {
+      slog('MIDDLEWARE-TRUTH', `reconcile skipped: ${err instanceof Error ? err.message : String(err)}`);
+    });
   }
 
   // 低頻：每 10 cycle 掃描 instance 目錄下的過期臨時資源
