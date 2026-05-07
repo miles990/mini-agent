@@ -107,7 +107,8 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
         // (cherry-pick creates new commits with different hashes)
         ensureWorktree(root, worktree, branch, snapshot.headSha);
       }
-      git(worktree, ['push', '-u', 'origin', branch], kuroGitEnv());
+      const pushEnv = isLocalRemote(root) ? process.env : kuroGitEnv();
+      git(worktree, ['push', '-u', 'origin', branch], pushEnv);
     }
     let prUrl: string | undefined;
     if (opts.createPr ?? true) {
@@ -255,6 +256,11 @@ function moveTrackedDirtyToWorktree(repoRoot: string, worktree: string): void {
   writeFileSync(patchPath, patch, 'utf-8');
   git(worktree, ['apply', '--index', patchPath]);
   git(worktree, ['commit', '-m', 'fix(runtime): preserve tracked runtime workspace changes']);
+}
+
+function isLocalRemote(repoRoot: string, remote = 'origin'): boolean {
+  const url = safeGit(repoRoot, ['remote', 'get-url', remote]) ?? '';
+  return url.startsWith('/') || url.startsWith('./') || url.startsWith('../') || url.startsWith('file://');
 }
 
 function safeGit(cwd: string, args: string[]): string | null {
