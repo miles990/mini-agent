@@ -8,6 +8,8 @@ import {
   evaluateAutonomyClosure,
 } from '../src/autonomy-closure-health.js';
 import { queryMemoryIndexSync } from '../src/memory-index.js';
+import { writeOpenPrSnapshot } from '../src/pr-autopilot.js';
+import { appendPrReviewClaim, createPrReviewClaim } from '../src/pr-review-runner.js';
 
 describe('autonomy closure health', () => {
   let tmpDir: string;
@@ -95,6 +97,37 @@ describe('autonomy closure health', () => {
     expect(snapshot.status).toBe('blocked');
     expect(snapshot.blockingStages).toContain('public-write-identity');
     expect(snapshot.stages.find(s => s.stage === 'public-write-identity')?.evidence[0]).toContain('expected=kuro-agent actual=miles990');
+  });
+
+  it('does not block PR review consensus on handoffs for PRs absent from the open PR snapshot', () => {
+    writeFileSync(path.join(tmpDir, 'state/task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+    mkdirSync(path.join(tmpDir, 'handoffs'), { recursive: true });
+    writeFileSync(path.join(tmpDir, 'handoffs/active.md'), [
+      '| source | owner | item | status | opened | closed |',
+      '| github | codex | PR #313 stale closed PR | changes-requested | 05-07 | - |',
+    ].join('\n') + '\n', 'utf-8');
+    appendPrReviewClaim(tmpDir, createPrReviewClaim({
+      prNumber: 313,
+      reviewer: 'codex',
+      framework: 'code-review',
+      verdict: 'request_changes',
+      risk: 'medium',
+      summary: 'Stale change request for a closed PR.',
+      evidence: ['handoff'],
+    }));
+    writeOpenPrSnapshot(tmpDir, [], new Date('2026-05-08T00:00:00.000Z'));
+
+    const snapshot = evaluateAutonomyClosure(tmpDir, {
+      repoRoot,
+      now: new Date('2026-05-08T00:01:00.000Z'),
+    });
+
+    expect(snapshot.blockingStages).not.toContain('pr-review-consensus');
+    expect(snapshot.stages.find(s => s.stage === 'pr-review-consensus')).toEqual(expect.objectContaining({
+      status: 'ok',
+      summary: 'no pending PR review handoffs and open PR snapshot is current',
+    }));
   });
 
   it('closes active autonomy closure task after blockers resolve', async () => {
