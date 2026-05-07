@@ -117,6 +117,7 @@ import { routeInboxItems } from './task-graph.js';
 import { triageRouting, logTriageBypass } from './myelin-fleet.js';
 import { initSharedKnowledge, observe as kbObserve, getKnowledgeSummary } from './shared-knowledge.js';
 import type { Phase0Results } from './preprocess.js';
+import { reactiveTriggerGate, parseReactiveTriggerSource, extractTriggerPath, type ReactiveTriggerSource } from './reactive-trigger-gate.js';
 
 // =============================================================================
 // Types
@@ -153,6 +154,7 @@ export interface LoopStatus {
   mode: 'task' | 'autonomous' | 'idle';
   pendingPriority?: { reason: string; waitingMs: number };
   omlxGate?: string;
+  reactiveTriggerGate?: string;
 }
 
 const DEFAULT_CONFIG: AgentLoopConfig = {
@@ -1014,6 +1016,13 @@ export class AgentLoop {
       return;
     }
 
+    if (event.source === 'workspace') {
+      const path = typeof agentEvent.data?.path === 'string' ? agentEvent.data.path : undefined;
+      if (this.skipReactiveTrigger('workspace', path, { scheduleHeartbeat: false })) {
+        return;
+      }
+    }
+
     // If agent process is busy — only P0 (telegram-user) can preempt.
     // Lower priority events queue up and wait for the current work to finish.
     if (isLoopBusy()) {
@@ -1038,6 +1047,45 @@ export class AgentLoop {
     this.triggerReason = event.source === 'telegram' ? 'telegram-user' : `${event.source}${detail}`;
 
     this.runCycle();
+  }
+
+  private skipReactiveTrigger(
+    source: ReactiveTriggerSource,
+    triggerPath: string | undefined,
+    opts: { scheduleHeartbeat: boolean },
+  ): boolean {
+    const memDir = getMemoryRootDir();
+    let pendingInbox = 0;
+    let pendingHighPriority = 0;
+    try { pendingInbox = readPendingInbox().length; } catch { /* best effort */ }
+    try { pendingHighPriority = getHighPriorityPendingCount(memDir); } catch { /* best effort */ }
+
+    const decision = reactiveTriggerGate.decide({
+      source,
+      path: triggerPath,
+      perceptionChanged: perceptionStreams.version !== this.lastPerceptionVersion,
+      pendingHighPriority,
+      pendingInbox,
+      pendingDelegationResults: this.hasPendingDelegationResults,
+      pendingPriority: !!this.pendingPriority,
+      lastAction: this.lastAction,
+      trueNoopStreak: this.trueNoopStreak,
+    });
+    if (decision.action === 'wake') return false;
+
+    slog('LOOP', `[reactive-gate] skip ${source}: ${decision.reason} (saved≈${decision.savedContextChars} chars)`);
+    logTriageBypass(source, 'skip', decision.reason);
+    eventBus.emit('action:loop', {
+      event: 'reactive-trigger.skip',
+      source,
+      reason: decision.reason,
+      savedContextChars: decision.savedContextChars,
+    });
+    this.lastCycleTime = Date.now();
+    if (opts.scheduleHeartbeat && this.running && !this.paused) {
+      this.scheduleHeartbeat();
+    }
+    return true;
   }
 
   /** Event handler — bound to `this` for subscribe/unsubscribe */
@@ -1317,6 +1365,7 @@ export class AgentLoop {
         pendingPriority: { reason: this.pendingPriority.reason, waitingMs: Date.now() - this.pendingPriority.arrivedAt },
       } : {}),
       ...(gateStatsStr ? { omlxGate: gateStatsStr } : {}),
+      reactiveTriggerGate: reactiveTriggerGate.formatStatus(),
     };
   }
 
@@ -1438,6 +1487,11 @@ export class AgentLoop {
     // Placed here (not in handleEvent) so ALL cycle entry points are covered:
     // heartbeat timer, priority drain, direct-message queue, and event-driven triggers
     const reason = this.triggerReason ?? '';
+    if (parseReactiveTriggerSource(reason) === 'heartbeat') {
+      if (this.skipReactiveTrigger('heartbeat', extractTriggerPath(reason), { scheduleHeartbeat: true })) {
+        return;
+      }
+    }
     const isDM = [...AgentLoop.DIRECT_MESSAGE_SOURCES].some(s => reason.startsWith(s))
       || reason.startsWith('direct-message');
     const isContinuation = reason.startsWith('continuation');
