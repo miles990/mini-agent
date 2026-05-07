@@ -56,7 +56,7 @@ describe('room task normalizer', () => {
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(1);
   });
 
-  it('decomposes complex product directives into PM, implementation, UX, content, visual, and QA work', async () => {
+  it('decomposes complex product directives into a full autonomous team loop', async () => {
     await enqueueRoomDirective(
       memoryDir,
       'ai agent 也是我的 PM 也是我的工程師 我的前端 我的美術。它要可以整理我的需求分析脈絡，將任務解構且條列出來，並一一滿足。',
@@ -64,7 +64,7 @@ describe('room task normalizer', () => {
       'alex',
     );
 
-    const roleOrder = ['pm', 'engineer', 'frontend', 'content', 'visual', 'qa'];
+    const roleOrder = ['research', 'pm', 'architect', 'engineer', 'frontend', 'content', 'visual', 'qa'];
     const tasks = queryMemoryIndexSync(memoryDir, { type: ['task'] });
     const parent = tasks.find(t => t.status === 'decomposed');
     const subtasks = tasks
@@ -72,8 +72,18 @@ describe('room task normalizer', () => {
       .sort((a, b) => roleOrder.indexOf(String((a.payload ?? {}).role)) - roleOrder.indexOf(String((b.payload ?? {}).role)));
 
     expect(parent?.summary).toContain('ai agent');
-    expect(subtasks).toHaveLength(6);
+    expect(subtasks).toHaveLength(8);
     expect(subtasks.map(t => (t.payload ?? {}).role)).toEqual(roleOrder);
     expect(subtasks.every(t => typeof (t.payload ?? {}).acceptance_criteria === 'string')).toBe(true);
+    expect(subtasks.every(t => (t.payload ?? {}).team_loop)).toBe(true);
+    expect(subtasks.map(t => (t.payload ?? {}).team_loop)).toEqual(
+      roleOrder.map(role => expect.objectContaining({
+        role,
+        progress_report: 'on-material-progress',
+        completion_summary: 'required',
+        kg_context: 'link-findings-decisions-artifacts',
+      })),
+    );
+    expect(subtasks[0].payload?.intent).toBe('research');
   });
 });
