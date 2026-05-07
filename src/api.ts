@@ -55,6 +55,47 @@ function getLoopLagSnapshot(): LoopLagSnapshot {
 function resetLoopLagHistogram(): void {
   loopLagHistogram.reset();
 }
+
+function formatWorkClosureTask(task: MemoryIndexEntry): Record<string, unknown> {
+  const payload = (task.payload ?? {}) as Record<string, unknown>;
+  return {
+    id: task.id,
+    type: task.type,
+    status: task.status,
+    source: task.source,
+    summary: task.summary,
+    priority: payload.priority,
+    role: payload.role,
+    origin: payload.origin,
+    verifyCommand: payload.verify_command,
+    acceptanceCriteria: payload.acceptance_criteria,
+    roomMsgId: payload.roomMsgId,
+    updatedAt: task.ts,
+  };
+}
+
+function summarizeActiveDuplicateBuckets(tasks: MemoryIndexEntry[]): Array<{ key: string; count: number; tasks: ReturnType<typeof formatWorkClosureTask>[] }> {
+  const buckets = new Map<string, MemoryIndexEntry[]>();
+  for (const task of tasks) {
+    const key = observableTaskKey(task);
+    if (!key) continue;
+    buckets.set(key, [...(buckets.get(key) ?? []), task]);
+  }
+  return [...buckets.entries()]
+    .filter(([, list]) => list.length > 1)
+    .map(([key, list]) => ({ key, count: list.length, tasks: list.map(formatWorkClosureTask) }));
+}
+
+function observableTaskKey(task: MemoryIndexEntry): string | null {
+  const payload = (task.payload ?? {}) as Record<string, unknown>;
+  if (typeof payload.roomMsgId === 'string') return `room:${payload.roomMsgId}`;
+  const summary = String(task.summary ?? '');
+  const normalized = summary.toLowerCase().replace(/https?:\/\/\S+/g, ' ').replace(/[^\p{L}\p{N}]+/gu, '').slice(0, 80);
+  if (/\bai-trend\b|AI\s*簡報|中文簡介|中文摘要|X上的當日|資料來源沒有x|kuro\.page\/ai-trend/i.test(summary)) {
+    return `product:ai-trend:${normalized}`;
+  }
+  return normalized.length >= 24 ? `summary:${normalized}` : null;
+}
 import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getProviderForSource, getLaneStatus, callClaude, killAllChildProcesses, preemptLoopCycle, abortForeground, startForegroundSweep, stopForegroundSweep } from './agent.js';
 import {
   searchMemory,
@@ -118,6 +159,8 @@ import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, 
 import { readProviderClaimsSync, transitionStoredProviderClaim } from './claim-ledger.js';
 import type { ClaimStatus } from './provider-claims.js';
 import { readBrainRunEventsSync, readBrainRunStatesSync } from './brain-run-ledger.js';
+import { verifyAiTrendClosure } from './autonomous-work-closure.js';
+import type { MemoryIndexEntry } from './memory-index.js';
 import type { BrainRunEventKind, BrainRunStatus } from './brain-run-ledger.js';
 import type { ActorId } from './brain-types.js';
 import { createDefaultMiddlewareProviders } from './middleware-provider.js';
@@ -902,7 +945,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/dashboard/work-closure', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -2918,6 +2961,33 @@ export function createApi(port = 3001): express.Express {
       res.json(evaluateAutonomyClosure(memDir));
     } catch {
       res.json({ status: 'unknown', score: 0, stages: [], blockingStages: [], warningStages: [], recommendedTask: null });
+    }
+  });
+
+  app.get('/api/dashboard/work-closure', (_req: Request, res: Response) => {
+    try {
+      const memDir = getMemoryRootDir();
+      const active = queryMemoryIndexSync(memDir, {
+        type: ['task', 'goal'],
+        status: ['pending', 'in_progress', 'hold', 'blocked', 'needs-decomposition'],
+      });
+      const productVerifiers = [verifyAiTrendClosure(process.cwd())];
+      const expressionTasks = active.filter(task => /^\[表達意圖\]|^\[OODA|ooda-expression/i.test(String(task.summary ?? '')));
+      const productTasks = active.filter(task => /\bai-trend\b|AI\s*簡報|中文簡介|中文摘要|X上的當日|資料來源沒有x|kuro\.page\/ai-trend/i.test(String(task.summary ?? '')));
+      const holdTasks = active.filter(task => task.status === 'hold');
+      res.json({
+        status: productVerifiers.some(v => v.status === 'fail') ? 'degraded' : 'ok',
+        activeTasks: active.length,
+        lanes: {
+          product: productTasks.map(formatWorkClosureTask),
+          expression: expressionTasks.map(formatWorkClosureTask),
+          holds: holdTasks.map(formatWorkClosureTask),
+        },
+        duplicateBuckets: summarizeActiveDuplicateBuckets(active),
+        productVerifiers,
+      });
+    } catch (error) {
+      res.status(500).json({ status: 'error', error: error instanceof Error ? error.message : String(error) });
     }
   });
 

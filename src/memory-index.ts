@@ -1923,7 +1923,7 @@ function extractTopicHint(message: string): string {
   return extractUrlContext(url);
 }
 
-function ruleDecompose(message: string, intent: IntentType): Array<{ title: string; type: IntentType }> | null {
+function ruleDecompose(message: string, intent: IntentType): Array<{ title: string; type: IntentType; role?: string; acceptance?: string }> | null {
   if (intent === 'research' && URL_RE.test(message)) {
     const url = message.match(URL_RE)?.[0] || '';
     const ctx = extractUrlContext(url);
@@ -1934,8 +1934,27 @@ function ruleDecompose(message: string, intent: IntentType): Array<{ title: stri
       { title: `回覆結果: ${topic}`, type: 'question' },
     ];
   }
+  if (intent === 'execute' && shouldPmDecompose(message)) {
+    const topic = extractTopicHint(message) || message.replace(/\n/g, ' ').slice(0, 40);
+    return [
+      { title: `PM 整理需求脈絡與驗收標準: ${topic}`, type: 'execute', role: 'pm', acceptance: 'Alex 的需求被整理成背景、目標、限制、驗收條件與不做事項。' },
+      { title: `工程拆解並實作可運行方案: ${topic}`, type: 'execute', role: 'engineer', acceptance: '核心功能有具體 code/artifact，且可用命令或 live endpoint 驗證。' },
+      { title: `前端/UX 檢查資訊架構與操作體驗: ${topic}`, type: 'execute', role: 'frontend', acceptance: '主要使用路徑、資訊密度、響應式呈現與文案都符合需求。' },
+      { title: `內容/脈絡補齊與中文化: ${topic}`, type: 'execute', role: 'content', acceptance: '對外可見內容有足夠脈絡、中文說明與來源鏈接。' },
+      { title: `視覺/美術一致性檢查: ${topic}`, type: 'execute', role: 'visual', acceptance: '版面、色彩、間距、可讀性與視覺層級一致，沒有不必要裝飾。' },
+      { title: `驗證、部署、回報與收尾: ${topic}`, type: 'execute', role: 'qa', acceptance: '驗收命令或 live check 通過，完成狀態被回報，相關子任務 terminal。' },
+    ];
+  }
   if (intent === 'fyi') return [{ title: `閱讀並記錄`, type: 'fyi' }];
   return null;
+}
+
+function shouldPmDecompose(message: string): boolean {
+  const hasExplicitRole = /PM|產品|工程師|前端|美術|設計|QA|驗收/i.test(message);
+  const hasComplexAsk = /需求|脈絡|解構|條列|一一滿足|完整|整套|重新設計|頁面|網站|app|系統|方案|任務/i.test(message);
+  if (hasExplicitRole && hasComplexAsk) return true;
+  if (message.length < 80 && !message.includes('\n')) return false;
+  return hasComplexAsk;
 }
 
 export async function enqueueRoomDirective(
@@ -1958,7 +1977,7 @@ export async function enqueueRoomDirective(
   const pendingTasks = queryMemoryIndexSync(memoryDir, { type: 'task', status: ['pending', 'in_progress'] });
   const isDup = (summary: string) => pendingTasks.some(t => t.summary === summary);
 
-  if (shouldDecompose(message) || intent === 'research') {
+  if (shouldDecompose(message) || shouldPmDecompose(message) || intent === 'research') {
     const subtasks = ruleDecompose(message, intent);
     if (subtasks && subtasks.length > 1) {
       const parentEntry = await appendMemoryIndexEntry(memoryDir, {
@@ -1978,7 +1997,16 @@ export async function enqueueRoomDirective(
           status: 'pending',
           summary: sub.title,
           source: 'room',
-          payload: { priority, roomMsgId, from, section: 'next', intent: sub.type, parent_task: parentEntry.id },
+          payload: {
+            priority,
+            roomMsgId,
+            from,
+            section: 'next',
+            intent: sub.type,
+            parent_task: parentEntry.id,
+            ...(sub.role ? { role: sub.role } : {}),
+            ...(sub.acceptance ? { acceptance_criteria: sub.acceptance } : {}),
+          },
         });
         eventBus.emit('action:task', { content: subEntry.summary, entry: subEntry });
       }
@@ -2003,11 +2031,15 @@ export async function enqueueRoomDirective(
   slog('NEXT', `Enqueued [${from}] "${title.slice(0, 40)}" (${intent}, P${priority})`);
 }
 
-export async function pruneNonActionableRoomTasks(memoryDir: string): Promise<{ pruned: number }> {
+export async function pruneNonActionableRoomTasks(
+  memoryDir: string,
+  options: { sources?: string[] } = {},
+): Promise<{ pruned: number }> {
+  const sources = new Set(options.sources ?? ['room']);
   const tasks = queryMemoryIndexSync(memoryDir, {
     type: ['task'],
     status: ['pending', 'in_progress', 'hold'],
-  }).filter(entry => entry.source === 'room');
+  }).filter(entry => entry.source && sources.has(entry.source));
   let pruned = 0;
   for (const task of tasks) {
     const payload = getTaskPayload(task);

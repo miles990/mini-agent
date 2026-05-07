@@ -2279,6 +2279,16 @@ export class AgentLoop {
       } catch (e) { slog('WARN', `correction gate failed: ${e}`); }
 
       try {
+        const { sweepAutonomousWorkClosure } = await import('./autonomous-work-closure.js');
+        const workClosure = await sweepAutonomousWorkClosure(memDir, { repoRoot: process.cwd() });
+        const failedProducts = workClosure.productVerifiers
+          .filter(v => v.status === 'fail')
+          .map(v => v.product)
+          .join(',');
+        if (failedProducts) slog('WORK-CLOSURE', `product verifier failed: ${failedProducts}`);
+      } catch (e) { slog('WARN', `autonomous work closure failed: ${e}`); }
+
+      try {
         const { closeResolvedAutonomyClosureTasks, ensureAutonomyClosureTask, evaluateAutonomyClosure } = await import('./autonomy-closure-health.js');
         const closure = evaluateAutonomyClosure(memDir);
         if (closure.status === 'healthy') {
