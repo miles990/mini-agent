@@ -13,6 +13,7 @@ import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 import { getProcess } from './process-table.js';
 import { evaluateCorrectionGate, isCorrectionTask, type CorrectionGateSnapshot } from './correction-gate.js';
+import { reverifyPredicate } from './predicate-freshness.js';
 
 // =============================================================================
 // Types
@@ -444,6 +445,76 @@ export function schedulerPick(
   recordSchedulerDecision(decision);
 
   return decision;
+}
+
+/**
+ * Async variant of schedulerPick that adds a live predicate re-verify step
+ * (Layer 1 of issue #306 — stale-signal lag fix).
+ *
+ * After schedulerPick selects a correction task, this function checks whether
+ * the underlying predicate is still stale via reverifyPredicate(). If the
+ * predicate is now clean (returns false), the dispatch is skipped and an idle
+ * decision is returned instead, preventing phantom P0 cycles.
+ *
+ * Fail-open: when reverifyPredicate returns null (no live check wired), the
+ * snapshot decision is preserved — phantom-skip must never silently drop a
+ * real correction.
+ */
+export async function schedulerPickAsync(
+  memoryDir: string,
+  repoRoot: string,
+  events: IncomingEvent[] = [],
+): Promise<SchedulingDecision> {
+  const decision = schedulerPick(memoryDir, events);
+
+  // Only correction tasks need predicate re-verification.
+  if (!decision.taskId) return decision;
+
+  const entries = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress'] });
+  const entry = entries.find(e => e.id === decision.taskId);
+  if (!entry || !isCorrectionTask(entry)) return decision;
+
+  // Extract the predicate type from payload or summary.
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  const predicateType: string =
+    (typeof payload.correction_reason_type === 'string' ? payload.correction_reason_type : null)
+    ?? parseCorrectionReasonFromSummaryExported(entry.summary ?? '')
+    ?? '';
+
+  if (!predicateType) return decision; // Unknown type — fail-open.
+
+  const ctx = { repoRoot, memoryDir };
+  let stillStale: boolean | null;
+  try {
+    stillStale = await reverifyPredicate(predicateType, ctx);
+  } catch {
+    stillStale = null; // Fail-open on unexpected error.
+  }
+
+  if (stillStale === false) {
+    // Predicate is now clean — skip dispatch to avoid phantom P0 cycle.
+    slog(
+      'SCHED',
+      `stale-signal-skip: predicate=${predicateType} task=${decision.taskId.slice(0, 12)} resolved since snapshot`,
+    );
+    eventBus.emit('action:scheduler', {
+      event: 'stale-signal-skip',
+      predicateType,
+      taskId: decision.taskId,
+      ts: new Date().toISOString(),
+    });
+    const idle: SchedulingDecision = { taskId: null, reason: `stale-signal-skip: ${predicateType}`, action: 'idle', suspended: null };
+    resetCurrentTask();
+    recordSchedulerDecision(idle);
+    return idle;
+  }
+
+  // stillStale === true or null → proceed with the original decision.
+  return decision;
+}
+
+function parseCorrectionReasonFromSummaryExported(summary: string): string | null {
+  return parseCorrectionReasonFromSummary(summary);
 }
 
 function correctionTaskMatchesSnapshot(
