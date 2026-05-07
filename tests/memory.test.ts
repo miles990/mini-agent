@@ -299,7 +299,7 @@ describe('InstanceMemory', () => {
   });
 
   describe('warm rotation', () => {
-    it('should trim daily notes exceeding warm limit', async () => {
+    it('should keep daily notes append-only even when exceeding warm limit', async () => {
       // Warm limit is 10
       for (let i = 0; i < 15; i++) {
         await memory.appendDailyNote(`Entry ${i}`);
@@ -307,8 +307,8 @@ describe('InstanceMemory', () => {
 
       const daily = await memory.readDailyNotes();
       const entryLines = daily.split('\n').filter(l => l.match(/^\[/));
-      expect(entryLines.length).toBeLessThanOrEqual(10);
-      // Should keep the latest entries
+      expect(entryLines.length).toBe(15);
+      expect(daily).toContain('Entry 0');
       expect(daily).toContain('Entry 14');
     });
   });

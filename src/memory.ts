@@ -1916,36 +1916,10 @@ export class InstanceMemory {
       // 添加新內容
       const newContent = current + `\n[${timestamp}] ${content}`;
 
-      // Warm rotate: 限制每日筆數
-      // Group lines into entries: each entry starts with [timestamp] and includes all following lines
-      const lines = newContent.split('\n');
-      const header: string[] = [];
-      const entries: string[][] = [];
-      let currentEntry: string[] | null = null;
-
-      for (const line of lines) {
-        if (line.startsWith('#') && !currentEntry) {
-          header.push(line);
-        } else if (/^\[[\d:]+\]/.test(line)) {
-          // New timestamp entry — save previous and start new
-          if (currentEntry) entries.push(currentEntry);
-          currentEntry = [line];
-        } else if (currentEntry) {
-          currentEntry.push(line);
-        } else {
-          header.push(line);
-        }
-      }
-      if (currentEntry) entries.push(currentEntry);
-
-      // 如果超過 warmLimit，移除最舊的（保留完整 entry）
-      if (entries.length > this.warmLimit) {
-        const trimmed = entries.slice(-this.warmLimit);
-        const finalContent = [...header, ...trimmed.flat()].join('\n');
-        await fs.writeFile(dailyPath, finalContent, 'utf-8');
-      } else {
-        await fs.writeFile(dailyPath, newContent, 'utf-8');
-      }
+      // Daily notes are episodic truth, not a context cache. warmLimit may be
+      // used by readers, but writes must remain append-only to avoid deleting
+      // earlier same-day user/agent context.
+      await fs.writeFile(dailyPath, newContent, 'utf-8');
     });
   }
 
