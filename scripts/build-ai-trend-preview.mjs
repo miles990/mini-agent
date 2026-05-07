@@ -188,7 +188,7 @@ h2.sec .upd.stale{color:var(--warn)}
 
 /* dense list */
 ul.feed{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
-ul.feed li{padding:.65rem .25rem;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:.4rem 1rem;align-items:baseline}
+ul.feed li{padding:.4rem .25rem;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:.4rem 1rem;align-items:baseline}
 ul.feed li:hover{background:var(--row)}
 ul.feed li .meta-row{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:.4rem 1rem;color:var(--dim);font-size:.74rem;letter-spacing:.04em;margin-top:.05rem}
 ul.feed li .meta-row .pts{color:var(--mute)}
@@ -269,7 +269,7 @@ function renderItem(p, rank) {
     <span class="rk">${rank}</span>
     <div class="body">
       <h3 class="ti"><a href="${u}" target="_blank" rel="noopener">${htmlEsc(parts.zhTitle)}</a></h3>
-      ${parts.hasZh && parts.enTitle ? `<div class="orig">原題：${htmlEsc(parts.enTitle)}</div>` : ''}
+      
       ${parts.desc
         ? `<div class="zh">${htmlEsc(parts.desc)}</div>`
         : (!parts.hasZh ? `<div class="zh todo">中文摘要待 LLM enrich pass — 先點右側「閱讀原文 →」</div>` : '')}
