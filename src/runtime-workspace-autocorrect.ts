@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { isSafeRuntimeBranch, refreshGitIndex } from './workspace-isolation.js';
 
@@ -47,12 +47,6 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
       reason: `runtime checkout is on ${snapshot.branch ?? 'unknown'}; expected runtime/main before autocorrect`,
     };
   }
-  if (snapshot.behind > 0) {
-    return {
-      status: 'blocked',
-      reason: `runtime checkout is behind origin/${baseBranch}; sync base before autocorrect`,
-    };
-  }
   const mode = snapshot.ahead > 0 ? 'commits' : snapshot.dirty ? 'tracked-dirty' : 'clean';
   if (snapshot.dirty && snapshot.hasUntracked) {
     return {
@@ -60,7 +54,7 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
       reason: 'runtime checkout has untracked changes; commit, move, or ignore them before autocorrect',
     };
   }
-  if (mode === 'clean') return { status: 'not-needed', reason: 'runtime checkout is clean' };
+  if (mode === 'clean' && snapshot.behind === 0) return { status: 'not-needed', reason: 'runtime checkout is clean' };
   if (!snapshot.headSha) return { status: 'failed', reason: 'could not read runtime HEAD sha' };
 
   const shortSha = mode === 'tracked-dirty' ? `dirty-${Date.now().toString(36)}` : snapshot.headSha.slice(0, 8);
@@ -82,13 +76,30 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
 
   try {
     git(root, ['fetch', 'origin', baseBranch]);
+    if (snapshot.behind > 0 && mode === 'clean') {
+      git(root, ['reset', '--hard', `origin/${baseBranch}`]);
+      return {
+        status: 'not-needed',
+        reason: `fast-forwarded protected runtime checkout to origin/${baseBranch}`,
+        resetRuntime: true,
+      };
+    }
+    if (snapshot.behind > 0 && mode === 'tracked-dirty' && trackedDirtyMatchesRef(root, `origin/${baseBranch}`)) {
+      git(root, ['reset', '--hard', `origin/${baseBranch}`]);
+      return {
+        status: 'not-needed',
+        reason: `runtime dirty state was already present in origin/${baseBranch}; synced protected checkout`,
+        resetRuntime: true,
+      };
+    }
     // Idempotency: if the remote branch already exists from a prior partial run,
     // skip the cherry-pick + push step. This handles the case where `gh pr create`
     // (or any later step) failed mid-sequence and the loop retries the autocorrect.
     const remoteBranchExists = !!safeGit(root, ['ls-remote', '--heads', 'origin', branch]);
     if (!remoteBranchExists) {
       if (mode === 'tracked-dirty') {
-        ensureWorktree(root, worktree, branch, `origin/${baseBranch}`);
+        const dirtyBaseRef = snapshot.behind > 0 ? snapshot.headSha : `origin/${baseBranch}`;
+        ensureWorktree(root, worktree, branch, dirtyBaseRef);
         moveTrackedDirtyToWorktree(root, worktree);
       } else {
         // Create worktree directly at headSha to preserve original commit hashes
@@ -123,6 +134,21 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
       worktree,
     };
   }
+}
+
+function trackedDirtyMatchesRef(repoRoot: string, ref: string): boolean {
+  const paths = git(repoRoot, ['diff', '--name-only', 'HEAD'])
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+  if (paths.length === 0) return true;
+  return paths.every(file => {
+    const diskPath = path.join(repoRoot, file);
+    if (!existsSync(diskPath)) return false;
+    const refBytes = safeGitBytes(repoRoot, ['show', `${ref}:${file}`]);
+    if (!refBytes) return false;
+    return readFileSync(diskPath).equals(refBytes);
+  });
 }
 
 function readGitSnapshot(repoRoot: string): GitSnapshot | null {
@@ -224,6 +250,19 @@ function moveTrackedDirtyToWorktree(repoRoot: string, worktree: string): void {
 function safeGit(cwd: string, args: string[]): string | null {
   try {
     return git(cwd, args).trim();
+  } catch {
+    return null;
+  }
+}
+
+function safeGitBytes(cwd: string, args: string[]): Buffer | null {
+  try {
+    return execFileSync('git', args, {
+      cwd,
+      encoding: 'buffer',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 60_000,
+    });
   } catch {
     return null;
   }
