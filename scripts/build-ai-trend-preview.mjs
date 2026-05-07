@@ -243,9 +243,9 @@ function renderItem(p, rank) {
   const src = (p.source || (p.url && p.url.includes('news.ycombinator') ? 'hn' : 'web')).toUpperCase();
   const tag = tagOf(p);
   const stats = [];
-  if (p.points != null) stats.push(`<b>${fmtNum(p.points)}</b> pts`);
+  if (p.points != null) stats.push(`<b>${fmtNum(p.points)}</b> 分`);
   const cm = p.num_comments ?? p.comments;
-  if (cm != null) stats.push(`${fmtNum(cm)} c`);
+  if (cm != null) stats.push(`${fmtNum(cm)} 留言`);
   if (p.author && /github/i.test(src)) stats.push(htmlEsc(p.author));
   if (p.language) stats.push(htmlEsc(p.language));
   const zh = zhSummary(p);
@@ -259,7 +259,7 @@ function renderItem(p, rank) {
         ? `<div class="zh">${htmlEsc(zh)}</div>`
         : `<div class="zh todo">中文摘要待 LLM enrich pass — 先點右側「閱讀原文 →」</div>`}
       <div class="meta-row">
-        <span class="src">${htmlEsc(src)}</span>
+        <span class="src">${htmlEsc(src==="WEB"?"網頁":src)}</span>
         <span class="tag">#${htmlEsc(tag)}</span>
         ${stats.length ? `<span class="pts">${stats.join(' · ')}</span>` : ''}
         ${host ? `<span>${htmlEsc(host)}</span>` : ''}
@@ -428,12 +428,12 @@ ${archive.length ? `<section>
 </section>` : ''}
 
 <footer>
-  <div>Kuro 自動生成 · <a href="https://github.com/miles990/mini-agent">source</a> · build ${fmtTaipeiMinute(buildAt)} (Asia/Taipei)</div>
+  <div>Kuro 自動生成 · <a href="https://github.com/miles990/mini-agent">原始碼</a> · 建置 ${fmtTaipeiMinute(buildAt)} (Asia/Taipei)</div>
   <div class="nav-row">
-    <a href="./graph.html">Topic Graph</a>
-    <a href="./swimlane.html">Swimlane</a>
-    <a href="./trends.html">Trends</a>
-    <a href="./archive.html">Archive</a>
+    <a href="./graph.html">主題圖譜</a>
+    <a href="./swimlane.html">主題泳道</a>
+    <a href="./trends.html">趨勢圖</a>
+    <a href="./archive.html">歷史簡報</a>
   </div>
 </footer>
 </body>
