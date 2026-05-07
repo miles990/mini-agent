@@ -69,6 +69,32 @@ import { recordCascadeMetric } from './cascade.js';
 import { appendProvenance, memoryIdForContent } from './memory-provenance.js';
 import { getMemoryRootDir, getMemoryStateRootDir } from './memory-paths.js';
 
+const PROMPT_WRAPPER_LINE_RE = /^<\/?(?:foreground_reply_mode|cached_perception|parameter|invoke|tool_result|user_context)>$/i;
+const PROMPT_DIRECTIVE_LINE_RE = /^\((?:Generate response as Kuro|continue the conversation organically)[^)]+\)$/i;
+const SKILL_DIRECTIVE_LINE_RE = /^<Use the Skill tool\b[^>]*>$/i;
+
+export function sanitizeDailyNoteContent(content: string): string {
+  let text = content
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<ktml:thinking>[\s\S]*?<\/ktml:thinking>/gi, '')
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+
+  const lines = text.split('\n')
+    .filter(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return true;
+      if (PROMPT_WRAPPER_LINE_RE.test(trimmed)) return false;
+      if (PROMPT_DIRECTIVE_LINE_RE.test(trimmed)) return false;
+      if (SKILL_DIRECTIVE_LINE_RE.test(trimmed)) return false;
+      return true;
+    });
+
+  text = lines.join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return text;
+}
+
 // =============================================================================
 // Write-time Dedup — Jaccard word similarity (zero LLM cost)
 // =============================================================================
@@ -1894,6 +1920,9 @@ export class InstanceMemory {
    * 附加到今日日記（支援 Warm rotate）
    */
   async appendDailyNote(content: string): Promise<void> {
+    const sanitizedContent = sanitizeDailyNoteContent(content);
+    if (!sanitizedContent) return;
+
     const dailyDir = path.join(this.memoryDir, 'daily');
     await ensureDir(dailyDir);
 
@@ -1914,7 +1943,7 @@ export class InstanceMemory {
       }
 
       // 添加新內容
-      const newContent = current + `\n[${timestamp}] ${content}`;
+      const newContent = current + `\n[${timestamp}] ${sanitizedContent}`;
 
       // Daily notes are episodic truth, not a context cache. warmLimit may be
       // used by readers, but writes must remain append-only to avoid deleting
@@ -1943,7 +1972,10 @@ export class InstanceMemory {
 
     // 2. 寫入 Warm storage (daily notes)
     const prefix = role === 'user' ? '(alex)' : '(kuro)';
-    await this.appendDailyNote(`${prefix} ${content}`);
+    const sanitizedContent = sanitizeDailyNoteContent(content);
+    if (sanitizedContent) {
+      await this.appendDailyNote(`${prefix} ${sanitizedContent}`);
+    }
   }
 
   /**
