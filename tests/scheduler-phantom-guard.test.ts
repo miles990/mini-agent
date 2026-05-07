@@ -24,6 +24,7 @@ import {
   invalidateIndexCache,
   queryMemoryIndexSync,
 } from '../src/memory-index.js';
+import { appendCorrectionHold } from '../src/correction-holds.js';
 
 let tmpDir: string;
 
@@ -211,5 +212,28 @@ describe('issue #257 — phantom task guard in getP0TaskPreviews', () => {
     expect(previews.some(p => p.includes('Real P0 incident response'))).toBe(true);
     expect(previews.some(p => p.includes(phantomId))).toBe(false);
     expect(previews.some(p => p.includes('max-turns failure'))).toBe(false);
+  });
+
+  it('held correction-gate P0 task is excluded from preview list', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 correction gate: resolve low-responsiveness',
+      payload: {
+        priority: 0,
+        correction_reason_type: 'low-responsiveness',
+      },
+    });
+    appendCorrectionHold(tmpDir, {
+      id: 'hold-low-responsive-maintenance',
+      correction_reason_type: 'low-responsiveness',
+      reason: 'bounded maintenance lane is allowed to age without suppressing prompt header',
+      unblock_when: { kind: 'timeout', until: '2999-01-01T00:00:00.000Z' },
+      created_at: new Date().toISOString(),
+    });
+    invalidateIndexCache();
+
+    const previews = getP0TaskPreviews(tmpDir);
+    expect(previews.some(p => p.includes('low-responsiveness'))).toBe(false);
   });
 });
