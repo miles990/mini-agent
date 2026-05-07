@@ -280,8 +280,10 @@ async function ensureMiddlewareFailureFollowUpTask(
     });
     return entry.id;
   } catch (error) {
-    const duplicate = findMiddlewareFailureFollowUp(memoryDir, plan.summary, taskId, bucket);
-    if (duplicate && error instanceof Error && /duplicate/i.test(error.message)) return duplicate.id;
+    if (/duplicate/i.test(String(error))) {
+      const duplicate = findMiddlewareFailureFollowUp(memoryDir, plan.summary, taskId, bucket);
+      return duplicate?.id ?? 'duplicate-existing-task';
+    }
     throw error;
   }
 }
@@ -292,11 +294,15 @@ function findMiddlewareFailureFollowUp(
   taskId: string,
   bucket: MiddlewareFailureBucket,
 ): { id: string } | undefined {
+  const normalized = summary.toLowerCase().trim();
   return queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress', 'hold', 'completed'] })
     .find(entry => {
       const payload = (entry.payload ?? {}) as Record<string, unknown>;
       if (payload.middleware_failure_task_id === taskId && payload.middleware_failure_bucket === bucket) return true;
-      return entry.summary === summary;
+      const entrySummary = String(entry.summary ?? '').toLowerCase().trim();
+      if (entrySummary === normalized) return true;
+      if (normalized.length >= 20 && entrySummary.includes(normalized.slice(0, 40))) return true;
+      return entrySummary.length >= 20 && normalized.includes(entrySummary.slice(0, 40));
     });
 }
 
