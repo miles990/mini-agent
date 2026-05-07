@@ -7,10 +7,12 @@ set -e
 DEPLOY_DIR="/Users/user/Workspace/mini-agent"
 LOG_FILE="$HOME/.mini-agent/deploy.log"
 LOCK_DIR="$HOME/.mini-agent/deploy.lock"
+JANITOR_LOCK_DIR="$HOME/.mini-agent/workspace-janitor.lock"
 DEFAULT_MEMORY_DIR="$(dirname "$DEPLOY_DIR")/mini-agent-memory/memory"
 DEPLOY_LOCK_WAIT_SECONDS="${MINI_AGENT_DEPLOY_LOCK_WAIT_SECONDS:-90}"
 DEPLOY_LOCK_TERM_GRACE_SECONDS="${MINI_AGENT_DEPLOY_LOCK_TERM_GRACE_SECONDS:-30}"
 WORKSPACE_JANITOR_TIMEOUT_SECONDS="${MINI_AGENT_WORKSPACE_JANITOR_TIMEOUT_SECONDS:-60}"
+LOCK_HELD=0
 
 mkdir -p "$HOME/.mini-agent"
 mkdir -p "$DEFAULT_MEMORY_DIR"
@@ -25,10 +27,21 @@ is_deploy_process() {
     ps -p "$1" -o command= 2>/dev/null | grep -q 'scripts/deploy\.sh'
 }
 
+release_lock() {
+    if [ "$LOCK_HELD" = "1" ] && [ -d "$LOCK_DIR" ]; then
+        CURRENT_LOCK_PID=$(cat "$LOCK_DIR/pid" 2>/dev/null || true)
+        if [ "$CURRENT_LOCK_PID" = "$$" ]; then
+            rm -rf "$LOCK_DIR"
+        fi
+        LOCK_HELD=0
+    fi
+}
+
 acquire_lock() {
     if mkdir "$LOCK_DIR" 2>/dev/null; then
         echo "$$" > "$LOCK_DIR/pid"
-        trap 'rm -rf "$LOCK_DIR"' EXIT
+        LOCK_HELD=1
+        trap release_lock EXIT
         return 0
     fi
 
@@ -75,12 +88,53 @@ acquire_lock() {
 
     if mkdir "$LOCK_DIR" 2>/dev/null; then
         echo "$$" > "$LOCK_DIR/pid"
-        trap 'rm -rf "$LOCK_DIR"' EXIT
+        LOCK_HELD=1
+        trap release_lock EXIT
         return 0
     fi
 
     log "Could not acquire deploy lock; aborting"
     exit 1
+}
+
+run_workspace_janitor() {
+    if mkdir "$JANITOR_LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "$JANITOR_LOCK_DIR/pid"
+    else
+        JANITOR_LOCK_PID=$(cat "$JANITOR_LOCK_DIR/pid" 2>/dev/null || true)
+        if [ -n "$JANITOR_LOCK_PID" ] && kill -0 "$JANITOR_LOCK_PID" 2>/dev/null; then
+            log "Skipping workspace janitor because another janitor is running (PID $JANITOR_LOCK_PID)"
+            return 0
+        fi
+        log "Removing stale workspace janitor lock"
+        rm -rf "$JANITOR_LOCK_DIR"
+        if ! mkdir "$JANITOR_LOCK_DIR" 2>/dev/null; then
+            log "Skipping workspace janitor; could not acquire janitor lock"
+            return 0
+        fi
+        echo "$$" > "$JANITOR_LOCK_DIR/pid"
+    fi
+
+    log "Running workspace janitor..."
+    (
+        pnpm exec tsx scripts/workspace-janitor.ts --apply >> "$LOG_FILE" 2>&1
+    ) &
+    JANITOR_PID=$!
+    for _ in $(seq 1 "$WORKSPACE_JANITOR_TIMEOUT_SECONDS"); do
+        if ! kill -0 "$JANITOR_PID" 2>/dev/null; then break; fi
+        sleep 1
+    done
+    if kill -0 "$JANITOR_PID" 2>/dev/null; then
+        log "Workspace janitor timed out after ${WORKSPACE_JANITOR_TIMEOUT_SECONDS}s; terminating (non-fatal)"
+        kill -TERM "$JANITOR_PID" 2>/dev/null || true
+        wait "$JANITOR_PID" 2>/dev/null || true
+        log "Workspace janitor failed (non-fatal)"
+    elif wait "$JANITOR_PID"; then
+        log "Workspace janitor completed"
+    else
+        log "Workspace janitor failed (non-fatal)"
+    fi
+    rm -rf "$JANITOR_LOCK_DIR"
 }
 
 cd "$DEPLOY_DIR"
@@ -203,6 +257,8 @@ done
 
 if [ "$HEALTH_OK" = true ]; then
     log "Deployment successful"
+    log "Releasing deploy lock before non-critical workspace janitor"
+    release_lock
     if [ "${MINI_AGENT_SKIP_WORKSPACE_JANITOR:-0}" = "1" ]; then
         log "Skipping workspace janitor"
     elif [ "$(git branch --show-current 2>/dev/null)" != "runtime/main" ]; then
@@ -210,25 +266,7 @@ if [ "$HEALTH_OK" = true ]; then
     elif git status --porcelain | grep -q '^UU '; then
         log "Skipping workspace janitor because deploy checkout has unresolved conflicts"
     else
-        log "Running workspace janitor..."
-        (
-            pnpm exec tsx scripts/workspace-janitor.ts --apply >> "$LOG_FILE" 2>&1
-        ) &
-        JANITOR_PID=$!
-        for _ in $(seq 1 "$WORKSPACE_JANITOR_TIMEOUT_SECONDS"); do
-            if ! kill -0 "$JANITOR_PID" 2>/dev/null; then break; fi
-            sleep 1
-        done
-        if kill -0 "$JANITOR_PID" 2>/dev/null; then
-            log "Workspace janitor timed out after ${WORKSPACE_JANITOR_TIMEOUT_SECONDS}s; terminating (non-fatal)"
-            kill -TERM "$JANITOR_PID" 2>/dev/null || true
-            wait "$JANITOR_PID" 2>/dev/null || true
-            log "Workspace janitor failed (non-fatal)"
-        elif wait "$JANITOR_PID"; then
-            log "Workspace janitor completed"
-        else
-            log "Workspace janitor failed (non-fatal)"
-        fi
+        run_workspace_janitor
     fi
     exit 0
 else
