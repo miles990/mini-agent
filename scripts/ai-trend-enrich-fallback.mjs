@@ -25,31 +25,33 @@ const SOURCE_MAP = {
   x: { dir: 'x-trend', label: 'X 討論' },
 };
 
+// Order matters: more specific rules first so generic "agent"/"llm" don't
+// swallow MCP/RAG/multimodal/browser repos.
 const CATEGORY_RULES = [
-  { keys: ['agent', 'autogpt', 'autonomous', 'crewai', 'multi-agent', 'autogen'], label: 'Agent 框架/應用',
-    so_what: '可比對自家 agent 架構的能力邊界與整合策略。' },
   { keys: ['mcp', 'tool-call', 'function-call', 'tool use', 'tool_use'], label: 'MCP / 工具呼叫',
     so_what: '評估納入工具鏈或暴露為 MCP server 的可行性。' },
-  { keys: ['rag', 'retrieval', 'vector', 'embedding', 'memory', 'knowledge graph'], label: 'RAG / 記憶層',
-    so_what: '對照當前 KG/memory 設計，挑可借用的索引或 retrieval 模式。' },
-  { keys: ['llm', 'gpt', 'claude', 'gemini', 'qwen', 'deepseek', 'llama', 'model'], label: '模型 / 推理',
-    so_what: '追蹤可替換或補位的推理引擎，影響成本/延遲決策。' },
-  { keys: ['code', 'codegen', 'developer', 'devtool', 'ide', 'cli', 'copilot'], label: '開發者工具',
-    so_what: '評估納入工程工作流或學習其 UX 細節。' },
-  { keys: ['ui', 'frontend', 'dashboard', 'studio', 'desktop'], label: '產品 / UI',
-    so_what: '參考介面與互動設計，對照自家 dashboard 的呈現策略。' },
-  { keys: ['data', 'dataset', 'benchmark', 'eval'], label: '資料 / 評測',
-    so_what: '可作為比較或回歸測試的資料/評測來源。' },
-  { keys: ['training', 'finetune', 'sft', 'rlhf'], label: '訓練 / 後訓練',
-    so_what: '評估是否值得投入自訓或微調流程。' },
-  { keys: ['workflow', 'pipeline', 'orchestrat', 'automat', 'n8n'], label: '工作流 / 編排',
-    so_what: '對照當前 middleware 編排策略，找替代或補強位置。' },
-  { keys: ['voice', 'tts', 'asr', 'speech', 'audio', 'video', 'image', 'vision', 'multimodal'], label: '多模態',
-    so_what: '評估補上多模態能力的可行性與整合成本。' },
-  { keys: ['security', 'sandbox', 'guard', 'safety', 'jailbreak'], label: '安全 / 沙箱',
-    so_what: '檢視 agent 執行邊界與權限模型是否該升級。' },
   { keys: ['browser', 'scrap', 'crawl', 'puppeteer', 'playwright'], label: '瀏覽器 / 抓取',
     so_what: '對照現有 CDP 流程，評估替代抓取/操作介面。' },
+  { keys: ['voice', 'tts', 'asr', 'speech', 'audio', 'video', 'image', 'vision', 'multimodal'], label: '多模態',
+    so_what: '評估補上多模態能力的可行性與整合成本。' },
+  { keys: ['rag', 'retrieval', 'vector', 'embedding', 'memory', 'knowledge graph'], label: 'RAG / 記憶層',
+    so_what: '對照當前 KG/memory 設計，挑可借用的索引或 retrieval 模式。' },
+  { keys: ['training', 'finetune', 'sft', 'rlhf'], label: '訓練 / 後訓練',
+    so_what: '評估是否值得投入自訓或微調流程。' },
+  { keys: ['security', 'sandbox', 'guard', 'safety', 'jailbreak'], label: '安全 / 沙箱',
+    so_what: '檢視 agent 執行邊界與權限模型是否該升級。' },
+  { keys: ['data', 'dataset', 'benchmark', 'eval'], label: '資料 / 評測',
+    so_what: '可作為比較或回歸測試的資料/評測來源。' },
+  { keys: ['workflow', 'pipeline', 'orchestrat', 'automat', 'n8n'], label: '工作流 / 編排',
+    so_what: '對照當前 middleware 編排策略，找替代或補強位置。' },
+  { keys: ['ui', 'frontend', 'dashboard', 'studio', 'desktop'], label: '產品 / UI',
+    so_what: '參考介面與互動設計，對照自家 dashboard 的呈現策略。' },
+  { keys: ['code', 'codegen', 'developer', 'devtool', 'ide', 'copilot', ' cli '], label: '開發者工具',
+    so_what: '評估納入工程工作流或學習其 UX 細節。' },
+  { keys: ['agent', 'autogpt', 'autonomous', 'crewai', 'multi-agent', 'autogen'], label: 'Agent 框架/應用',
+    so_what: '可比對自家 agent 架構的能力邊界與整合策略。' },
+  { keys: ['llm', 'gpt', 'claude', 'gemini', 'qwen', 'deepseek', 'llama', 'model'], label: '模型 / 推理',
+    so_what: '追蹤可替換或補位的推理引擎，影響成本/延遲決策。' },
 ];
 const DEFAULT_CATEGORY = { label: '一般 AI 工具',
   so_what: '初步觀察，待後續判讀是否進入工具鏈或選型清單。' };
@@ -118,11 +120,19 @@ function summarize(post, label) {
   const heat = describeHeat(points, comments);
   const keywords = extractKeywords(desc, 3);
   const keywordPhrase = keywords.length ? keywords.join('、') : trimSentence(desc, 24);
+  // Per-post differentiated so_what: prefix subject + keyword angle so 60 posts
+  // don't all share an identical sentence even when category collapses to the same bucket.
+  const subjectShort = trimSentence(subject, 32);
+  const keywordHint = keywords.length ? keywords.slice(0, 2).join('、') : '';
+  const so_what = keywordHint
+    ? `${subjectShort}（${keywordHint}）— ${category.so_what}`
+    : `${subjectShort} — ${category.so_what}`;
   return {
     claim: `${label} ${subject} 聚焦 ${trimSentence(desc, 48)}`,
     evidence: `來源為 ${post.url || '本地趨勢資料'}；熱度 ${points} 點、${comments} 則討論。`,
     novelty: `${heat}，主題涵蓋 ${keywordPhrase}，屬於${category.label}類訊號。`,
-    so_what: category.so_what,
+    so_what,
+    category: category.label,
   };
 }
 
@@ -162,6 +172,8 @@ for (const post of doc.posts || []) {
     novelty: isPending(summary.novelty) ? fallback.novelty : summary.novelty,
     so_what: isPending(summary.so_what) ? fallback.so_what : summary.so_what,
   };
+  // Surface category at top-level so dashboards/index builders can group properly.
+  if (!post.category && fallback.category) post.category = fallback.category;
   post.status = post.status === 'dry-run' ? 'fallback-enriched' : (post.status || 'fallback-enriched');
   changed++;
 }
