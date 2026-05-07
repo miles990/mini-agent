@@ -46,7 +46,8 @@ function ageHours(iso) {
   return (Date.now() - d.getTime()) / 3600_000;
 }
 
-async function loadLatest(subdir, fromDate, days = 14) {
+async function loadLatest(subdir, fromDate, days = 14, opts = {}) {
+  const { keepX = false } = opts;
   const d = new Date(fromDate + 'T00:00:00Z');
   for (let i = 0; i < days; i++) {
     const dd = new Date(d.getTime() - i * 86400_000);
@@ -54,6 +55,7 @@ async function loadLatest(subdir, fromDate, days = 14) {
     try {
       const raw = JSON.parse(await readFile(join(STATE_DIR, subdir, `${key}.json`), 'utf8'));
       const posts = (raw.posts || []).filter(p => {
+        if (keepX) return true;
         const u = String(p.url || p.story_url || '').toLowerCase();
         return !/(^|\/\/)(www\.)?(x\.com|twitter\.com|t\.co)\//.test(u);
       });
@@ -299,13 +301,18 @@ async function main() {
   const latent = await loadLatest('latent-space-trend', DATE);
   const arxiv = await loadLatest('arxiv-trend', DATE);
   const gh = await loadLatest('github-trend', DATE);
+  const x = await loadLatest('x-trend', DATE, 14, { keepX: true });
   const trend = await loadTopicTrend(DATE);
   const archive = await listArchiveDates();
   const kpick = await loadKuroPick(DATE);
 
-  const cross = uniqByUrl([...hn.posts, ...latent.posts])
-    .sort((a,b) => (b.points||0) - (a.points||0))
-    .slice(0, 20);
+  // X 用「likes/1000」做 cross-source 可比分數，避免吞噬 HN/Latent
+  const xNorm = (x.posts || []).map(p => ({ ...p, _xs: (p.points || 0) / 1000 }));
+  const cross = uniqByUrl([...hn.posts, ...latent.posts, ...xNorm])
+    .map(p => ({ ...p, _score: p._xs ?? (p.points || 0) }))
+    .sort((a,b) => (b._score||0) - (a._score||0))
+    .slice(0, 25);
+  const xTop = (x.posts || []).slice(0, 12);
 
   const newReleases = (arxiv.posts || []).slice(0, 15);
 
@@ -339,6 +346,7 @@ async function main() {
   <div class="meta">
     ${srcStamp('HN', hn)}
     ${srcStamp('Latent', latent)}
+    ${srcStamp('X', x)}
     ${srcStamp('arXiv', arxiv)}
     ${srcStamp('GitHub', gh)}
     <span class="src-stamp"><b>頁面 build</b><span>${fmtTaipeiMinute(buildAt)}</span></span>
@@ -394,6 +402,12 @@ async function main() {
 </section>
 
 <section>
+  <h2 class="sec">X / 社群熱議 <span class="cnt">${xTop.length}</span> ${srcUpd(x, 'X')}</h2>
+  <p class="lead">X (Twitter) 上 24h AI 圈最高互動 — Grok API 拉取，按 likes 排序。</p>
+  <ul class="feed">${xTop.map((p,i) => renderItem(p, i+1)).join('')}</ul>
+</section>
+
+<section>
   <h2 class="sec">7 日趨勢</h2>
   <p class="lead">過去 7 天 HN AI 圈話題分布。</p>
   ${renderTrendBars(trend)}
@@ -437,7 +451,8 @@ ${archive.length ? `<section>
   console.log(`  latent=${latent.key||'-'}/${latent.posts.length}@${latent.run_at?fmtTaipeiMinute(latent.run_at):'-'}`);
   console.log(`  arxiv=${arxiv.key||'-'}/${arxiv.posts.length}@${arxiv.run_at?fmtTaipeiMinute(arxiv.run_at):'-'}`);
   console.log(`  gh=${gh.key||'-'}/${gh.posts.length}@${gh.run_at?fmtTaipeiMinute(gh.run_at):'-'}`);
-  console.log(`  sections: cross=${cross.length} new=${newReleases.length} reads=${reads.length} proj=${projects.length} disc=${discs.length}`);
+  console.log(`  x=${x.key||'-'}/${x.posts.length}@${x.run_at?fmtTaipeiMinute(x.run_at):'-'}`);
+  console.log(`  sections: cross=${cross.length} new=${newReleases.length} reads=${reads.length} proj=${projects.length} disc=${discs.length} x=${xTop.length}`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
