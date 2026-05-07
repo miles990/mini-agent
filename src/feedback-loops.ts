@@ -190,7 +190,33 @@ export function extractErrorSubtype(errorMsg: string): string {
   if (lower.includes('靜默中斷') || lower.includes('靜默溢位') || lower.includes('silent exit')) {
     if (lower.includes('auth') || lower.includes('unauthorized') || lower.includes('401')) return 'silent_exit_auth';
     if (lower.includes('overloaded') || lower.includes('529')) return 'silent_exit_overload';
-    if (lower.includes('stdout=empty')) return 'silent_exit_void';
+    if (lower.includes('stdout=empty')) {
+      // 2026-05-07 (Issue #233): silent_exit_void now has >= 3 distinct failure classes.
+      //   - #191 HTTP-stall class: ~970-1007s, prompt 13-16K => already non-retryable in classifyError
+      //   - #77 baseline class:    ~260s, prompt 22-25K => retryable
+      //   - #233 new class:        ~357s, prompt >= 35K  => prompt bloat causing first-token stall
+      //
+      // Bucket by promptChars extracted from the logged error message
+      // (format: "prompt NNN chars" from agent.ts:2010 logger call).
+      // This produces distinct error-patterns.json keys per class so each gets its own
+      // P1 task instead of all collapsing to TIMEOUT:silent_exit_void::callClaude.
+      //
+      // Duration band also extracted where present:
+      //   >=800s => silent_exit_void_http  (HTTP-stall / #191 class, non-retryable server hold)
+      //   <800s + >=35K chars => silent_exit_void_40k  (prompt-bloat stall / #233 new class)
+      //   <800s + <35K chars => silent_exit_void        (CLI internal hang / #77 baseline)
+      const promptMatch = /prompt (\d+) chars/.exec(errorMsg);
+      const promptChars = promptMatch ? Number(promptMatch[1]) : 0;
+      const durationMsMatch = /(\d+)ms total/.exec(errorMsg);
+      const durationMs = durationMsMatch ? Number(durationMsMatch[1]) : 0;
+      // Also parse duration from classified.message format: "Xs 無 stderr"
+      const durSecMatch = /(\d+)s \u7121 stderr/.exec(errorMsg);
+      const durSec = durSecMatch ? Number(durSecMatch[1]) : 0;
+      const totalMs = durationMs || durSec * 1000;
+      if (totalMs >= 800_000) return 'silent_exit_void_http';
+      if (promptChars >= 35_000) return 'silent_exit_void_40k';
+      return 'silent_exit_void';
+    }
     return 'silent_exit';
   }
   return 'generic';
