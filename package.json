@@ -28,7 +28,9 @@
     "check:test-health": "tsx scripts/test-health-autopilot.ts",
     "setup": "pnpm install && pnpm build && npm link",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
-    "check:pr-lifecycle": "tsx scripts/check-pr-lifecycle.ts"
+    "check:pr-lifecycle": "tsx scripts/check-pr-lifecycle.ts",
+    "rotate:logs": "node scripts/rotate-decision-logs.mjs",
+    "rotate:logs:dry": "node scripts/rotate-decision-logs.mjs --dry-run"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.112",
