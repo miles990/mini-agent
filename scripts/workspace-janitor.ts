@@ -94,8 +94,10 @@ for (const branch of readRemoteBranches()) {
 }
 
 if (apply) {
+  process.stdout.write(`[workspace-janitor] applying ${actions.length} action(s)\n`);
   for (const action of actions) {
     if (!action.command) continue;
+    process.stdout.write(`[workspace-janitor] apply ${action.type}: ${action.target}\n`);
     try {
       execFileSync(action.command[0], action.command.slice(1), {
         cwd: root,
@@ -105,6 +107,7 @@ if (apply) {
       });
     } catch (error) {
       action.reason += `; apply failed: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`;
+      process.stdout.write(`[workspace-janitor] failed ${action.type}: ${action.target} — ${action.reason}\n`);
     }
   }
   git(['worktree', 'prune']);

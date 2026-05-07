@@ -17,13 +17,13 @@ describe('deploy script workspace janitor hook', () => {
     expect(script).toContain('requesting graceful shutdown');
     expect(script).toContain('kill -TERM "$LOCK_PID"');
     expect(script).toContain('force killing before new deploy');
-    expect(script).toContain("trap 'rm -rf \"$LOCK_DIR\"' EXIT");
+    expect(script).toContain('trap release_lock EXIT');
   });
 
   it('runs workspace janitor after successful health check without making deploy fail', () => {
     const script = readFileSync(path.join(process.cwd(), 'scripts', 'deploy.sh'), 'utf-8');
     const successIndex = script.indexOf('log "Deployment successful"');
-    const janitorIndex = script.indexOf('scripts/workspace-janitor.ts --apply');
+    const janitorIndex = script.indexOf('run_workspace_janitor', successIndex);
     const exitIndex = script.indexOf('exit 0', successIndex);
 
     expect(successIndex).toBeGreaterThan(-1);
@@ -33,6 +33,9 @@ describe('deploy script workspace janitor hook', () => {
     expect(script).toContain('Skipping workspace janitor because deploy checkout is not on runtime/main');
     expect(script).toContain('Skipping workspace janitor because deploy checkout has unresolved conflicts');
     expect(script).toContain('Workspace janitor failed (non-fatal)');
+    expect(script).toContain('Releasing deploy lock before non-critical workspace janitor');
+    expect(script).toContain('JANITOR_LOCK_DIR="$HOME/.mini-agent/workspace-janitor.lock"');
+    expect(script).toContain('Skipping workspace janitor because another janitor is running');
   });
 
   it('exports external memory paths before starting the runtime service', () => {
