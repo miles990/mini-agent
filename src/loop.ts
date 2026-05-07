@@ -2249,10 +2249,11 @@ export class AgentLoop {
       try {
         const { closeResolvedCorrectionTasks, evaluateCorrectionGate, ensureCorrectionTask } = await import('./correction-gate.js');
         let correction = evaluateCorrectionGate(memDir);
-        if (
-          correction.shipTruth.state === 'pending-push' &&
-          process.env.MINI_AGENT_AUTOCORRECT_RUNTIME_WORKSPACE !== '0'
-        ) {
+        const shouldAutocorrectRuntime = correction.reasons.some(reason =>
+          reason.type === 'local-commit-not-pushed'
+          || reason.type === 'dirty-runtime-workspace',
+        );
+        if (shouldAutocorrectRuntime && process.env.MINI_AGENT_AUTOCORRECT_RUNTIME_WORKSPACE !== '0') {
           try {
             const { autocorrectRuntimeWorkspace } = await import('./runtime-workspace-autocorrect.js');
             const result = autocorrectRuntimeWorkspace(process.cwd(), { apply: true });

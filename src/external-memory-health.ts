@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { isKgDiscussionLifecycleKnown } from './kg-discussion-janitor.js';
 
 export interface ExternalMemoryHealthResult {
   status: 'ok' | 'warn' | 'blocked';
@@ -126,9 +127,18 @@ export function evaluateKgExternalMemoryTruth(memoryDir: string, now = new Date(
   const bufferDepth = Number(healthBody.buffer_depth ?? 0);
   const workerRunning = (healthBody.worker as Record<string, unknown> | undefined)?.running;
   const staleDiscussions = discussions.ok
-    ? findStaleOpenDiscussions(discussions.value, now, options.staleDiscussionDays ?? 14)
+    ? findStaleOpenDiscussions(discussions.value, now, options.staleDiscussionDays ?? 7)
     : [];
-  if (discussions.ok) evidence.push(`staleOpenDiscussions=${staleDiscussions.length}`);
+  const unmanagedStaleDiscussions = staleDiscussions.filter(discussion => {
+    const id = getDiscussionId(discussion);
+    return id === null || !isKgDiscussionLifecycleKnown(memoryDir, id);
+  });
+  if (discussions.ok) {
+    evidence.push(`staleOpenDiscussions=${staleDiscussions.length}`);
+    if (staleDiscussions.length !== unmanagedStaleDiscussions.length) {
+      evidence.push(`queuedStaleDiscussions=${staleDiscussions.length - unmanagedStaleDiscussions.length}`);
+    }
+  }
 
   if (!stats.ok || !discussions.ok) {
     return {
@@ -155,12 +165,12 @@ export function evaluateKgExternalMemoryTruth(memoryDir: string, now = new Date(
       repair: 'Restart KG worker so shared AI context can keep ingesting, linking, and maintaining confidence.',
     };
   }
-  if (staleDiscussions.length > 0) {
+  if (unmanagedStaleDiscussions.length > 0) {
     return {
       status: 'warn',
-      summary: `${staleDiscussions.length} stale KG context discussion(s) need closure`,
+      summary: `${unmanagedStaleDiscussions.length} stale KG context discussion(s) need lifecycle routing`,
       evidence,
-      repair: 'Resolve, archive, or refresh stale KG discussions so shared AI context does not accumulate unresolved analysis threads.',
+      repair: 'Run KG discussion janitor so stale discussions become explicit close/refresh tasks, then resolve, merge, archive, or refresh them.',
     };
   }
 
@@ -323,15 +333,18 @@ function curlJson(url: string, timeoutSeconds: number): { ok: true; value: unkno
   }
 }
 
-function findStaleOpenDiscussions(value: unknown, now: Date, staleDays: number): unknown[] {
+function findStaleOpenDiscussions(value: unknown, now: Date, staleDays: number): Array<Record<string, unknown>> {
   const records = Array.isArray((value as Record<string, unknown>)?.discussions)
     ? (value as Record<string, unknown>).discussions as Array<Record<string, unknown>>
     : Array.isArray(value) ? value as Array<Record<string, unknown>> : [];
   const thresholdMs = staleDays * 24 * 60 * 60 * 1000;
   return records.filter(record => {
-    const topic = String(record.topic ?? record.name ?? '');
-    if (/^room-\d{4}-\d{2}-\d{2}$/.test(topic)) return false;
     const updatedAt = Date.parse(String(record.updated_at ?? record.updatedAt ?? record.created_at ?? ''));
     return Number.isFinite(updatedAt) && (now.getTime() - updatedAt) > thresholdMs;
   });
+}
+
+function getDiscussionId(record: Record<string, unknown>): string | null {
+  const id = record.id ?? record.discussion_id ?? record.discussionId;
+  return typeof id === 'string' && id.trim() ? id : null;
 }

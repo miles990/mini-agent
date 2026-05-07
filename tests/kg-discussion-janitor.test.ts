@@ -1,0 +1,77 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import {
+  classifyKgDiscussions,
+  readKgDiscussionLifecycleRecords,
+} from '../src/kg-discussion-janitor.js';
+import { queryMemoryIndexSync } from '../src/memory-index.js';
+
+let memoryDir: string;
+
+beforeEach(() => {
+  memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-kg-discussion-'));
+});
+
+afterEach(() => {
+  rmSync(memoryDir, { recursive: true, force: true });
+});
+
+describe('KG discussion lifecycle janitor', () => {
+  it('queues stale open discussions as explicit close-or-refresh tasks', async () => {
+    const result = await classifyKgDiscussions(memoryDir, [{
+      id: 'disc-old',
+      topic: 'agent coordination stale topic',
+      status: 'open',
+      position_count: 2,
+      updated_at: '2026-04-25T00:00:00.000Z',
+    }], new Date('2026-05-07T00:00:00.000Z'));
+
+    expect(result).toEqual({ scanned: 1, stale: 1, queued: 1, skippedKnown: 0 });
+    expect(readKgDiscussionLifecycleRecords(memoryDir)[0]).toEqual(expect.objectContaining({
+      discussionId: 'disc-old',
+      bucket: 'stale-discussion',
+      followUpTaskId: expect.any(String),
+    }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })[0]).toEqual(expect.objectContaining({
+      summary: expect.stringContaining('close or refresh'),
+      tags: expect.arrayContaining(['kg', 'discussion-lifecycle', 'stale-discussion']),
+    }));
+  });
+
+  it('is idempotent once a stale discussion has a lifecycle record', async () => {
+    const discussion = {
+      id: 'disc-room',
+      namespace: 'kuro',
+      topic: 'room-2026-05-01',
+      status: 'open',
+      position_count: 0,
+      updated_at: '2026-05-01T00:00:00.000Z',
+    };
+
+    await classifyKgDiscussions(memoryDir, [discussion], new Date('2026-05-07T00:00:00.000Z'));
+    const second = await classifyKgDiscussions(memoryDir, [discussion], new Date('2026-05-07T01:00:00.000Z'));
+
+    expect(second).toEqual({ scanned: 1, stale: 1, queued: 0, skippedKnown: 1 });
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(1);
+  });
+
+  it('caps queued lifecycle tasks per sweep to avoid flooding Kuro', async () => {
+    const discussions = Array.from({ length: 8 }, (_, index) => ({
+      id: `disc-${index}`,
+      topic: `stale topic ${index}`,
+      status: 'open',
+      position_count: 1,
+      updated_at: '2026-04-25T00:00:00.000Z',
+    }));
+
+    const result = await classifyKgDiscussions(memoryDir, discussions, new Date('2026-05-07T00:00:00.000Z'), {
+      maxQueuedPerSweep: 3,
+    });
+
+    expect(result).toEqual({ scanned: 8, stale: 8, queued: 3, skippedKnown: 0 });
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(3);
+  });
+});

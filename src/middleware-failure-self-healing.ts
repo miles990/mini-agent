@@ -33,6 +33,14 @@ export type MiddlewareFailureBucket =
   | 'workspace-isolation'
   | 'other';
 
+export type MiddlewareFailureLifecycleAction =
+  | 'provider-hold'
+  | 'decompose'
+  | 'recover-lane'
+  | 'repair-workspace'
+  | 'triage'
+  | 'terminal-cancelled';
+
 export interface MiddlewareFailureClassification {
   taskId: string;
   worker: string;
@@ -43,6 +51,7 @@ export interface MiddlewareFailureClassification {
   providerHoldTaskId?: string;
   followUpTaskId?: string;
   delegationFailureSignature?: string;
+  lifecycleAction?: MiddlewareFailureLifecycleAction;
 }
 
 export interface MiddlewareFailureSweepResult {
@@ -105,22 +114,28 @@ export async function classifyMiddlewareFailures(
     let followUpTaskId: string | undefined;
     let delegationStatus: DelegationFailureStatus = 'resolved';
     let resolution = `middleware failed task classified as ${bucket}`;
+    let lifecycleAction: MiddlewareFailureLifecycleAction = 'triage';
 
     if (providerHold) {
       providerHoldTaskId = await ensureProviderHoldTask(memoryDir, providerHold, task, now);
       result.held++;
+      lifecycleAction = 'provider-hold';
       resolution = `${resolution}; provider held until ${providerHold.resumeAt}; holdTask=${providerHoldTaskId}`;
     } else if (bucket === 'max-turns') {
       followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
+      lifecycleAction = 'decompose';
       resolution = `${resolution}; created decomposition follow-up ${followUpTaskId}`;
     } else if (bucket === 'offline' || bucket === 'stall-or-timeout') {
       followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
       delegationStatus = 'needs_human';
+      lifecycleAction = 'recover-lane';
       resolution = `${resolution}; created lane recovery follow-up ${followUpTaskId}`;
     } else if (bucket === 'workspace-isolation' || bucket === 'other') {
       followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
+      lifecycleAction = bucket === 'workspace-isolation' ? 'repair-workspace' : 'triage';
       resolution = `${resolution}; created repair follow-up ${followUpTaskId}`;
     } else if (bucket === 'cancelled') {
+      lifecycleAction = 'terminal-cancelled';
       resolution = `${resolution}; user/system cancellation treated as terminal unless it recurs`;
     }
 
@@ -142,6 +157,7 @@ export async function classifyMiddlewareFailures(
       ...(providerHoldTaskId ? { providerHoldTaskId } : {}),
       ...(followUpTaskId ? { followUpTaskId } : {}),
       delegationFailureSignature: delegationDecision.record.signature,
+      lifecycleAction,
     });
     result.classified++;
   }
@@ -212,10 +228,20 @@ function parseClassification(line: string): MiddlewareFailureClassification | nu
       ...(typeof raw.providerHoldTaskId === 'string' ? { providerHoldTaskId: raw.providerHoldTaskId } : {}),
       ...(typeof raw.followUpTaskId === 'string' ? { followUpTaskId: raw.followUpTaskId } : {}),
       ...(typeof raw.delegationFailureSignature === 'string' ? { delegationFailureSignature: raw.delegationFailureSignature } : {}),
+      ...(isMiddlewareFailureLifecycleAction(raw.lifecycleAction) ? { lifecycleAction: raw.lifecycleAction } : {}),
     };
   } catch {
     return null;
   }
+}
+
+function isMiddlewareFailureLifecycleAction(value: unknown): value is MiddlewareFailureLifecycleAction {
+  return value === 'provider-hold'
+    || value === 'decompose'
+    || value === 'recover-lane'
+    || value === 'repair-workspace'
+    || value === 'triage'
+    || value === 'terminal-cancelled';
 }
 
 async function ensureMiddlewareFailureFollowUpTask(

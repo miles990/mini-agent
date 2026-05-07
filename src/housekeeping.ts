@@ -20,6 +20,7 @@ import {
   queryMemoryIndexSync,
   updateMemoryIndexEntry,
   deleteMemoryIndexEntry,
+  pruneNonActionableRoomTasks,
 } from './memory-index.js';
 import { migrateToColdStorage } from './context-optimizer.js';
 import { scanContradictions } from './contradiction-scanner.js';
@@ -30,6 +31,8 @@ import { rotateDecisionLogs } from './decision-log-rotation.js';
 import { sweepMiddlewareFailures } from './middleware-failure-self-healing.js';
 import { classifyMemoryRepoPath } from './memory-repo-policy.js';
 import { getFeature, setEnabled } from './features.js';
+import { pruneReviewBacklog } from './review-backlog-janitor.js';
+import { sweepKgDiscussionLifecycle } from './kg-discussion-janitor.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -716,6 +719,10 @@ export async function runHousekeeping(): Promise<void> {
   await expireOldInboxItems().catch(() => {});
   await syncHandoffStatus().catch(() => {});
   await decayStaleTasks().catch(() => {});
+  await pruneNonActionableRoomTasks(getMemoryRootDir()).catch(err => {
+    slog('NEXT', `room task prune skipped: ${err instanceof Error ? err.message : String(err)}`);
+  });
+  pruneReviewBacklog(getCurrentInstanceId());
   ensureCriticalContextFeatures();
   await snapshotExternalMemoryChanges(getMemoryRootDir()).catch(err => {
     slog('MEMORY-SNAPSHOT', `snapshot skipped: ${err instanceof Error ? err.message : String(err)}`);
@@ -729,6 +736,9 @@ export async function runHousekeeping(): Promise<void> {
     });
     await sweepMiddlewareFailures(getMemoryRootDir()).catch(err => {
       slog('MIDDLEWARE-SELF-HEAL', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
+    });
+    await sweepKgDiscussionLifecycle(getMemoryRootDir()).catch(err => {
+      slog('KG-DISCUSSION-JANITOR', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
     });
   }
 
