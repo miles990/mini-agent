@@ -233,6 +233,42 @@
       "writePolicy": "internal-service"
     },
     {
+      "service": "constraint-texture-analysis",
+      "kind": "workflow",
+      "defaultExpected": "constraint-texture",
+      "expectedEnv": [],
+      "credentialEnv": [],
+      "owner": "kuro",
+      "capabilities": ["token-roi-analysis", "waste-pattern-detection", "tension-navigation", "closed-loop-design", "capability-promotion"],
+      "trigger": {
+        "modes": ["reflect", "task", "act"],
+        "keywords": ["Constraint Texture", "token", "浪費", "空轉", "phantom", "PR 累積", "閉環", "效率", "pattern", "tension", "tradeoff", "stakeholder", "衝突", "張力", "取捨", "需求理解"],
+        "signals": ["no_action_cycles", "token_waste", "phantom_task", "pr_backlog", "middleware_failure", "requirement_tension", "stakeholder_conflict", "understanding_bottleneck", "repeated_success_path", "repeated_failure_path"],
+        "taskTypes": ["ops", "research", "plan", "debug", "design"],
+        "minPriority": 1
+      },
+      "requires": ["kg", "verification-before-completion"],
+      "combinesWith": ["kg-context-synthesis", "budget-aware-escalation", "task-decomposition", "autonomy-closure-workflow"],
+      "verifier": "analysis identifies thick/thin texture, names the highest-leverage constraint, and either closes it or records a promotion/repair candidate with evidence",
+      "contextFabric": {
+        "sources": ["KG", "skill-usage", "task-events", "middleware-events", "work-journal", "github-prs", "autonomy-closure"],
+        "writes": ["constraint-texture-report", "waste-pattern", "capability-promotion-candidate", "skill-usage"],
+        "learnsFrom": ["token-spend", "no-action-cycles", "phantom-tasks", "pr-backlog", "successful-repairs", "constraint-texture-paper:/Users/user/Workspace/constraint-texture-paper"],
+        "sharesWith": ["kg", "budget-aware-escalation", "task-decomposition", "autonomy-closure-workflow"],
+        "emergenceSignals": ["token_waste", "thin_texture_cycle", "requirement_tension", "stakeholder_conflict", "understanding_bottleneck", "cross_skill_pattern", "repeated_success_path", "repeated_failure_path"]
+      },
+      "iteration": {
+        "ledger": "memory/state/skill-usage.jsonl",
+        "minUses": 3,
+        "failureThreshold": 0.25,
+        "reviewCadenceDays": 3,
+        "updatePolicy": "self-edit-skill"
+      },
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service",
+      "notes": "Dogfood workflow grounded in /Users/user/Workspace/constraint-texture-paper. Use CT when understanding, integration, stakeholder tension, or competing requirements are the bottleneck. Prefer prescriptions/scripts/code when the task is deterministic, enumerative, safety-critical, or a known procedure."
+    },
+    {
       "service": "verification-before-completion",
       "kind": "skill",
       "defaultExpected": "verify-before-done",
