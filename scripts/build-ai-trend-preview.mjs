@@ -5,7 +5,6 @@
  * 變動：
  *   - 卡片式 → 密集列表（更高資訊密度）
  *   - 每來源 updated_at 精準到分（Asia/Taipei）
- *   - 加入 X (Twitter) 來源（容忍 stale，明示時間）
  *   - 用 summary.claim / summary.so_what 當中文摘要（fallback story_text 截斷）
  *   - 每項保留「閱讀原文 →」明確 outbound 連結
  */
@@ -296,7 +295,6 @@ async function main() {
   const latent = await loadLatest('latent-space-trend', DATE);
   const arxiv = await loadLatest('arxiv-trend', DATE);
   const gh = await loadLatest('github-trend', DATE);
-  const x = await loadLatest('x-trend', DATE);
   const trend = await loadTopicTrend(DATE);
   const archive = await listArchiveDates();
   const kpick = await loadKuroPick(DATE);
@@ -319,9 +317,6 @@ async function main() {
     (b.num_comments||0) - (a.num_comments||0)
   ).slice(0, 12);
 
-  const xPosts = (x.posts || []).slice().sort((a,b) =>
-    (b.points||0) - (a.points||0)
-  ).slice(0, 15);
 
   const html = `<!DOCTYPE html>
 <html lang="zh-Hant">
@@ -329,7 +324,7 @@ async function main() {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI Trend · ${DATE} — Kuro</title>
-<meta name="description" content="今日 AI 大事 / 新發布 / 值得讀 / 值得關注專案 / 熱門討論 / X 熱推 / 趨勢 / Kuro 點評。">
+<meta name="description" content="今日 AI 大事 / 新發布 / 值得讀 / 值得關注專案 / 熱門討論 / 趨勢 / Kuro 點評。">
 <style>${STYLE}</style>
 </head>
 <body>
@@ -342,7 +337,6 @@ async function main() {
     ${srcStamp('Latent', latent)}
     ${srcStamp('arXiv', arxiv)}
     ${srcStamp('GitHub', gh)}
-    ${srcStamp('X', x)}
     <span class="src-stamp"><b>頁面 build</b><span>${fmtTaipeiMinute(buildAt)}</span></span>
   </div>
 </header>
@@ -395,15 +389,6 @@ async function main() {
   <ul class="feed">${discs.map((p,i) => renderItem(p, i+1)).join('')}</ul>
 </section>
 
-${xPosts.length ? `<section>
-  <h2 class="sec">X (Twitter) 熱推 <span class="cnt">${xPosts.length}</span> ${srcUpd(x, 'X')}</h2>
-  <p class="lead">Grok x_search 抓的 AI 相關熱推。${x.daysOld != null && x.daysOld >= 1 ? `<strong style="color:var(--warn)">⚠️ 資料 ${x.daysOld} 天前</strong>，cron 修復中。` : ''}</p>
-  <ul class="feed">${xPosts.map((p,i) => renderItem(p, i+1)).join('')}</ul>
-</section>` : `<section>
-  <h2 class="sec">X (Twitter) 熱推 <span class="upd stale">未拉到資料</span></h2>
-  <p class="lead">X 來源資料缺 — 已知 grok x_search 環境變數未配，scripts/x-ai-trend.mjs 待修。</p>
-</section>`}
-
 <section>
   <h2 class="sec">7 日趨勢</h2>
   <p class="lead">過去 7 天 HN AI 圈話題分布。</p>
@@ -448,8 +433,7 @@ ${archive.length ? `<section>
   console.log(`  latent=${latent.key||'-'}/${latent.posts.length}@${latent.run_at?fmtTaipeiMinute(latent.run_at):'-'}`);
   console.log(`  arxiv=${arxiv.key||'-'}/${arxiv.posts.length}@${arxiv.run_at?fmtTaipeiMinute(arxiv.run_at):'-'}`);
   console.log(`  gh=${gh.key||'-'}/${gh.posts.length}@${gh.run_at?fmtTaipeiMinute(gh.run_at):'-'}`);
-  console.log(`  x=${x.key||'-'}/${x.posts.length}@${x.run_at?fmtTaipeiMinute(x.run_at):'-'} (${x.daysOld}d old)`);
-  console.log(`  sections: cross=${cross.length} new=${newReleases.length} reads=${reads.length} proj=${projects.length} disc=${discs.length} x=${xPosts.length}`);
+  console.log(`  sections: cross=${cross.length} new=${newReleases.length} reads=${reads.length} proj=${projects.length} disc=${discs.length}`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
