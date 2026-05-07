@@ -12,7 +12,7 @@ import { queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } f
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 import { getProcess } from './process-table.js';
-import { isCorrectionTask } from './correction-gate.js';
+import { evaluateCorrectionGate, isCorrectionTask, type CorrectionGateSnapshot } from './correction-gate.js';
 
 // =============================================================================
 // Types
@@ -379,6 +379,8 @@ export function schedulerPick(
     }
   }
 
+  const correctionSnapshot = evaluateCorrectionGate(memoryDir);
+  const activeCorrectionReasons = new Set(correctionSnapshot.reasons.map(reason => reason.type));
   const entries = queryMemoryIndexSync(memoryDir, {
     type: ['task'],
     status: ['pending', 'in_progress'],
@@ -389,6 +391,13 @@ export function schedulerPick(
   const phantomTitles = loadPhantomTaskTitles(memoryDir);
 
   const tasks: TaskSnapshot[] = entries.map(entryToSnapshot)
+    .filter(t => {
+      const entry = entries.find(item => item.id === t.id);
+      if (!entry || !isCorrectionTask(entry)) return true;
+      if (correctionTaskMatchesSnapshot(entry, correctionSnapshot, activeCorrectionReasons)) return true;
+      slog('SCHED', `dispatch-correction-stale: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)}`);
+      return false;
+    })
     .filter(t => {
       const proc = getProcess(t.id);
       return !proc || (proc.state !== 'completed' && proc.state !== 'abandoned');
@@ -408,7 +417,8 @@ export function schedulerPick(
       return true;
     });
   const decision = scheduler.decideNext(tasks, schedulerState, events);
-  const correctionTask = entries.find(isCorrectionTask);
+  const schedulableTaskIds = new Set(tasks.map(task => task.id));
+  const correctionTask = entries.find(entry => schedulableTaskIds.has(entry.id) && isCorrectionTask(entry));
   if (correctionTask && (!decision.taskId || decision.action === 'discovery' || decision.action === 'idle')) {
     const forced: SchedulingDecision = {
       taskId: correctionTask.id,
@@ -434,6 +444,26 @@ export function schedulerPick(
   recordSchedulerDecision(decision);
 
   return decision;
+}
+
+function correctionTaskMatchesSnapshot(
+  entry: MemoryIndexEntry,
+  snapshot: CorrectionGateSnapshot,
+  activeReasonTypes: Set<string>,
+): boolean {
+  if (!snapshot.needsCorrection) return false;
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  const payloadReason = typeof payload.correction_reason_type === 'string'
+    ? payload.correction_reason_type
+    : null;
+  const summaryReason = parseCorrectionReasonFromSummary(entry.summary ?? '');
+  const reason = payloadReason ?? summaryReason;
+  return reason ? activeReasonTypes.has(reason) : true;
+}
+
+function parseCorrectionReasonFromSummary(summary: string): string | null {
+  const match = summary.match(/correction gate: resolve ([a-z-]+)/i);
+  return match?.[1] ?? null;
 }
 
 function recordSchedulerDecision(decision: SchedulingDecision): void {
