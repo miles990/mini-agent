@@ -143,6 +143,10 @@ import {
   buildObservationHoldPayload,
   shouldUseCodeProbeForObservation,
 } from './observation-efficiency.js';
+import {
+  buildImprovementTelemetry,
+  recordImprovementTelemetry,
+} from './improvement-telemetry.js';
 
 // =============================================================================
 // Types
@@ -2491,6 +2495,21 @@ export class AgentLoop {
           trigger: observationDecision.reason,
           tags: ['OBSERVATION-HOLD', 'REALLOCATE'],
         });
+        recordImprovementTelemetry(buildImprovementTelemetry({
+          cycle: this.cycleCount,
+          trigger: currentTriggerReason,
+          action: `Observation efficiency hold: ${selectedTask.summary}`,
+          tags: ['OBSERVATION-HOLD', 'REALLOCATE'],
+          sideEffects: [],
+          noopStreak: this.noopStreak,
+          trueNoopStreak: this.trueNoopStreak,
+          autonomousTaskRatio: 'pending',
+          repeatRate: 'pending',
+          hasMainVisibleOutput: false,
+          hadForegroundAction: false,
+          outcomeOverride: 'reallocated-hold',
+          note: observationDecision.reason,
+        }));
         // This is not "do less"; it parks confirmed waits with a code recheck and spends
         // the same LLM budget on the next schedulable task.
         schedulerDecision = schedulerPick(memDir, schedulerEvents);
@@ -3367,6 +3386,20 @@ export class AgentLoop {
       if (this.noopStreak >= 3 && !hasMainVisibleOutput) {
         slog('LOOP', `#${this.cycleCount} 🪫 noop streak=${this.noopStreak} (trueNoop=${this.trueNoopStreak})`);
       }
+
+      recordImprovementTelemetry(buildImprovementTelemetry({
+        cycle: this.cycleCount,
+        trigger: currentTriggerReason,
+        action,
+        tags: cycleTagsProcessed,
+        sideEffects: cycleSideEffects,
+        noopStreak: this.noopStreak,
+        trueNoopStreak: this.trueNoopStreak,
+        autonomousTaskRatio: metrics.autonomousTaskRatio,
+        repeatRate: metrics.similarityRate,
+        hasMainVisibleOutput,
+        hadForegroundAction,
+      }));
       if (this.noopStreak >= 3 && action) {
         const summary = action.length > 300 ? action.slice(0, 300) + '…' : action;
         notifyTelegram(`🔄 #${this.cycleCount} (silent×${this.noopStreak}): ${summary}`).catch(() => {});

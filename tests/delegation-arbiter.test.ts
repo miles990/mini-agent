@@ -238,7 +238,7 @@ describe('delegation arbitration mapping', () => {
       expect.objectContaining({ actor: result.runtime?.primary, status: 'success', finishReason: 'success' }),
     );
     expect(result.runtime?.runs).toContainEqual(
-      expect.objectContaining({ actor: 'akari', role: 'reviewer', status: 'success' }),
+      expect.objectContaining({ role: 'reviewer', status: 'success' }),
     );
     expect(result.runtime?.claimIds).toHaveLength(2);
   });

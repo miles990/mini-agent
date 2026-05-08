@@ -153,6 +153,7 @@ import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
 import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
+import { formatImprovementLearning, readImprovementTelemetry } from './improvement-telemetry.js';
 import { killAllDelegations, listTasks as listDelegationTasks } from './delegation.js';
 import { forgeStatus } from './forge.js';
 import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry, createGoal, addTaskToGoal } from './memory-index.js';
@@ -2474,8 +2475,12 @@ export function createApi(port = 3001): express.Express {
         };
       })
       .filter(e => !!e.what || !!e.why || !!e.changed || !!e.verified);
+    const improvement = readImprovementTelemetry(date, 100).map(formatImprovementLearning);
 
-    res.json({ entries: digest, count: digest.length, date: date ?? new Date().toISOString().split('T')[0] });
+    const combined = [...improvement, ...digest]
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+    res.json({ entries: combined, count: combined.length, date: date ?? new Date().toISOString().split('T')[0] });
   });
 
   // Journal API — 從 topic memory 提取結構化學習紀錄
@@ -2505,6 +2510,19 @@ export function createApi(port = 3001): express.Express {
         }
       }
       if (currentEntry) parseEntry(currentEntry, topic, date, entries);
+    }
+
+    for (const telemetry of readImprovementTelemetry(date, 100)) {
+      const item = formatImprovementLearning(telemetry);
+      entries.push({
+        topic: 'agent-improvement',
+        date,
+        title: item.what,
+        summary: item.changed,
+        opinion: item.verified,
+        urls: [],
+        category: telemetry.outcome === 'no-action' ? 'issue' : 'lesson',
+      });
     }
 
     // Sort by date descending
