@@ -22,7 +22,6 @@ export function autonomyClosureSignature(snapshot: AutonomyClosureNotificationSn
   return JSON.stringify({
     status: snapshot.status,
     blockingStages: snapshot.blockingStages,
-    warningStages: snapshot.warningStages,
     recommendedTask: snapshot.recommendedTask?.title ?? null,
   });
 }
@@ -33,6 +32,23 @@ export function shouldNotifyAutonomyClosureBlock(
 ): boolean {
   if (snapshot.blockingStages.length === 0) return false;
   return autonomyClosureSignature(snapshot) !== previousSignature;
+}
+
+export function shouldNotifyAutonomyClosureResolved(
+  snapshot: AutonomyClosureNotificationSnapshot,
+  previousSignature: string | null,
+): boolean {
+  if (snapshot.blockingStages.length > 0) return false;
+  if (!previousSignature) return false;
+  return previousSignature !== autonomyClosureSignature(snapshot);
+}
+
+export function buildAutonomyClosureResolvedMessage(snapshot: AutonomyClosureNotificationSnapshot): string {
+  return [
+    `✅ Autonomy closure healthy (score ${snapshot.score})`,
+    snapshot.warningStages.length > 0 ? `warnings: ${snapshot.warningStages.join(', ')}` : 'warnings: none',
+    snapshot.recommendedTask ? `next: ${snapshot.recommendedTask.title}` : 'next: none',
+  ].join('\n');
 }
 
 export function buildAutonomyClosureBlockMessage(snapshot: AutonomyClosureNotificationSnapshot): string {

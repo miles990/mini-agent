@@ -135,8 +135,10 @@ import {
 import {
   autonomyClosureSignature,
   buildAutonomyClosureBlockMessage,
+  buildAutonomyClosureResolvedMessage,
   readAutonomyClosureNotificationSignature,
   shouldNotifyAutonomyClosureBlock,
+  shouldNotifyAutonomyClosureResolved,
   writeAutonomyClosureNotificationSignature,
 } from './autonomy-closure-notifier.js';
 import {
@@ -301,8 +303,12 @@ function notifyAutonomyClosureBlockIfChanged(
 ): void {
   try {
     const previous = readAutonomyClosureNotificationSignature(stateDir);
-    if (!shouldNotifyAutonomyClosureBlock(closure, previous)) return;
-    const message = buildAutonomyClosureBlockMessage(closure);
+    const shouldNotifyBlock = shouldNotifyAutonomyClosureBlock(closure, previous);
+    const shouldNotifyResolved = shouldNotifyAutonomyClosureResolved(closure, previous);
+    if (!shouldNotifyBlock && !shouldNotifyResolved) return;
+    const message = shouldNotifyBlock
+      ? buildAutonomyClosureBlockMessage(closure)
+      : buildAutonomyClosureResolvedMessage(closure);
     sendChat(message, { directReply: true });
     writeAutonomyClosureNotificationSignature(stateDir, autonomyClosureSignature(closure));
   } catch (err) {
@@ -2442,7 +2448,7 @@ export class AgentLoop {
           const refreshed = diagnostic.actionsRun.length > 0 ? evaluateAutonomyClosure(memDir) : closure;
           const task = await ensureAutonomyClosureTask(memDir, refreshed);
           slog('AUTONOMY', `closure ${refreshed.status} score=${refreshed.score} blocking=${refreshed.blockingStages.join(',') || 'none'} diagnostics=${diagnostic.cases.length} actions=${diagnostic.actionsRun.join(',') || 'none'} task=${task?.id.slice(0, 12) ?? 'none'}`);
-          notifyAutonomyClosureBlockIfChanged(getInstanceDir(getCurrentInstanceId()), closure);
+          notifyAutonomyClosureBlockIfChanged(getInstanceDir(getCurrentInstanceId()), refreshed);
         }
       } catch (e) { slog('WARN', `autonomy closure health failed: ${e}`); }
 

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   autonomyClosureSignature,
   buildAutonomyClosureBlockMessage,
+  buildAutonomyClosureResolvedMessage,
   shouldNotifyAutonomyClosureBlock,
+  shouldNotifyAutonomyClosureResolved,
 } from '../src/autonomy-closure-notifier.js';
 
 const blockedSnapshot = {
@@ -30,12 +32,36 @@ describe('autonomy closure notifier', () => {
     expect(shouldNotifyAutonomyClosureBlock(blockedSnapshot, autonomyClosureSignature(blockedSnapshot))).toBe(false);
   });
 
+  it('does not repeat a block notification when only warning stages change', () => {
+    const sameBlockDifferentWarnings = {
+      ...blockedSnapshot,
+      score: 70,
+      warningStages: ['operational-efficiency'],
+    };
+
+    expect(shouldNotifyAutonomyClosureBlock(sameBlockDifferentWarnings, autonomyClosureSignature(blockedSnapshot))).toBe(false);
+  });
+
   it('does not notify when there are no blocking stages', () => {
     expect(shouldNotifyAutonomyClosureBlock({
       ...blockedSnapshot,
       status: 'healthy',
       blockingStages: [],
     }, null)).toBe(false);
+  });
+
+  it('notifies once when a previously blocked closure becomes healthy', () => {
+    const healthySnapshot = {
+      ...blockedSnapshot,
+      status: 'healthy',
+      score: 100,
+      blockingStages: [],
+      warningStages: [],
+      recommendedTask: null,
+    };
+
+    expect(shouldNotifyAutonomyClosureResolved(healthySnapshot, autonomyClosureSignature(blockedSnapshot))).toBe(true);
+    expect(shouldNotifyAutonomyClosureResolved(healthySnapshot, autonomyClosureSignature(healthySnapshot))).toBe(false);
   });
 
   it('renders blocking evidence and next action', () => {
@@ -45,5 +71,19 @@ describe('autonomy closure notifier', () => {
     expect(message).toContain('blocking: task-execution');
     expect(message).toContain('next: P0 autonomy closure: repair task-execution');
     expect(message).toContain('idx-github-i hold');
+  });
+
+  it('renders resolved notification', () => {
+    const message = buildAutonomyClosureResolvedMessage({
+      ...blockedSnapshot,
+      status: 'healthy',
+      score: 100,
+      blockingStages: [],
+      warningStages: [],
+      recommendedTask: null,
+    });
+
+    expect(message).toContain('Autonomy closure healthy');
+    expect(message).toContain('warnings: none');
   });
 });
