@@ -1,4 +1,80 @@
-<!doctype html>
+#!/usr/bin/env node
+/**
+ * build-ai-trend-archive.mjs
+ *
+ * Regenerates kuro-portfolio/ai-trend/archive.html.
+ *
+ * Scans kuro-portfolio/ai-trend/ for YYYY-MM-DD.html editions, extracts a
+ * one-line summary from each (section counts), and rebuilds the Editions list
+ * sorted descending by date.
+ *
+ * Usage:  node scripts/build-ai-trend-archive.mjs
+ *
+ * Why: Alex asked for "可以看到舊的 AI 簡報" — old editions need to be
+ * discoverable. archive.html was hand-edited and stale (only 2026-04-24
+ * listed). This makes it auto-update.
+ */
+import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, '..');
+const DIR  = join(ROOT, 'kuro-portfolio/ai-trend');
+const OUT  = join(DIR, 'archive.html');
+
+const DATE_RE = /^(\d{4}-\d{2}-\d{2})\.html$/;
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+// Pull a small "what was in this edition" summary from the dated page.
+// We look for `<h2 class="sec">名 <span class="cnt">N</span>` blocks.
+function summarize(html) {
+  const re = /<h2[^>]*class="sec"[^>]*>([^<]+?)\s*<span class="cnt">([^<]+?)<\/span>/g;
+  const parts = [];
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const name = m[1].trim();
+    const cnt  = m[2].trim();
+    if (!name || !cnt) continue;
+    parts.push(`${name} ${cnt}`);
+    if (parts.length >= 4) break;
+  }
+  return parts.join(' · ');
+}
+
+async function main() {
+  const files = await readdir(DIR);
+  const dated = files
+    .map(f => {
+      const m = f.match(DATE_RE);
+      return m ? { date: m[1], file: f } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const editions = [];
+  for (const { date, file } of dated) {
+    let summary = '';
+    try {
+      const html = await readFile(join(DIR, file), 'utf8');
+      summary = summarize(html);
+    } catch (e) { /* ignore */ }
+    editions.push({ date, file, summary });
+  }
+
+  const editionsHtml = editions.map(({ date, file, summary }) => {
+    const meta = summary ? ` <span class="meta">&mdash; ${escapeHtml(summary)}</span>` : '';
+    return `  <li><a href="./${escapeHtml(file)}"><span class="date">${escapeHtml(date)}</span></a>${meta}</li>`;
+  }).join('\n');
+
+  const buildStamp = new Date().toISOString().replace('T',' ').slice(0,16) + 'Z';
+
+  const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -60,11 +136,9 @@
   <li><a href="./heatmap.html"><span class="date">heatmap</span></a> <span class="meta">&mdash; topic &times; source matrix.</span></li>
 </ul>
 
-<h2>Editions <span style="color:#555;text-transform:none;letter-spacing:0;font-size:0.8rem">(3)</span></h2>
+<h2>Editions <span style="color:#555;text-transform:none;letter-spacing:0;font-size:0.8rem">(${editions.length})</span></h2>
 <ul>
-  <li><a href="./2026-05-08.html"><span class="date">2026-05-08</span></a> <span class="meta">&mdash; 今日 AI 大事 38 · 新發布 / 新東西 30 · 值得讀的文章 21 · 值得關注的專案 60</span></li>
-  <li><a href="./2026-05-07.html"><span class="date">2026-05-07</span></a> <span class="meta">&mdash; 今日 AI 大事 38 · 新發布 / 新東西 30 · 值得讀的文章 21 · 值得關注的專案 60</span></li>
-  <li><a href="./2026-04-24.html"><span class="date">2026-04-24</span></a></li>
+${editionsHtml}
 </ul>
 
 <hr>
@@ -72,9 +146,19 @@
 <footer>
 <p>
   Compiled by <a href="/">Kuro</a>. Sources: <a href="https://github.com/miles990/mini-agent/blob/main/scripts/build-ai-trend-archive.mjs">build-ai-trend-archive.mjs</a>.<br>
-  <span style="color:#555">Auto-rebuilt 2026-05-08 00:02Z. 3 editions.</span>
+  <span style="color:#555">Auto-rebuilt ${buildStamp}. ${editions.length} edition${editions.length === 1 ? '' : 's'}.</span>
 </p>
 </footer>
 
 </body>
 </html>
+`;
+
+  await writeFile(OUT, html, 'utf8');
+  console.log(`[archive] wrote ${OUT} — ${editions.length} edition(s): ${editions.map(e => e.date).join(', ')}`);
+}
+
+main().catch(err => {
+  console.error('[archive] FATAL', err);
+  process.exit(1);
+});
