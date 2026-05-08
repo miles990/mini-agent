@@ -120,10 +120,12 @@ function summarisePosts(label, posts, maxItems = 8) {
 export function validate(content) {
   const issues = [];
 
-  // Word count 600-2000
-  const wordCount = content.split(/\s+/).filter(Boolean).length;
-  if (wordCount < 600) issues.push(`word count too low: ${wordCount} (min 600)`);
-  if (wordCount > 2000) issues.push(`word count too high: ${wordCount} (max 2000)`);
+  // Word count 600-2000 (CJK-aware: en tokens + ceil(cjk chars / 1.6))
+  const enWords = (content.match(/[a-zA-Z][a-zA-Z'\-]*/g) || []).length;
+  const cjkChars = (content.match(/[\u4e00-\u9fff]/g) || []).length;
+  const wordCount = enWords + Math.ceil(cjkChars / 1.6);
+  if (wordCount < 600) issues.push(`word count too low: ${wordCount} (min 600, en=${enWords} cjk=${cjkChars})`);
+  if (wordCount > 2000) issues.push(`word count too high: ${wordCount} (max 2000, en=${enWords} cjk=${cjkChars})`);
 
   // >=1 [text](url) link in kuro-take section
   const takeMatch = content.match(/## kuro-take([\s\S]*?)(?=\n## |\s*$)/);
@@ -350,7 +352,7 @@ async function main() {
   // Ensure the frontmatter date is correct (model might copy exemplar's date)
   generated = generated.replace(/^date:\s*.+$/m, `date: ${DATE}`);
 
-  console.log(`[kuro-content] generated ${generated.split(/\s+/).length} words`);
+  const _en=(generated.match(/[a-zA-Z][a-zA-Z'\-]*/g)||[]).length;const _cjk=(generated.match(/[\u4e00-\u9fff]/g)||[]).length;console.log(`[kuro-content] generated ${_en+Math.ceil(_cjk/1.6)} words (en=${_en} cjk=${_cjk})`);
 
   // 6. Validation gate
   const validationErrors = validate(generated);
