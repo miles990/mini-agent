@@ -3157,7 +3157,7 @@ async function fetchAll() {
       fetch(API + '/api/perception-streams').catch(() => null),
       fetch(API + '/api/activity?limit=30').catch(() => null),
       fetch(API + '/api/brain/runs?view=state&limit=30').catch(() => null),
-      fetch(API + '/api/delegation-failures?status=open,diagnosing,needs_human').catch(() => null),
+      fetch(API + '/api/delegation-failures?status=open,diagnosing,needs_human&guard=true').catch(() => null),
       fetch(API + '/api/myelin/status?window=500').catch(() => null),
     ]);
 

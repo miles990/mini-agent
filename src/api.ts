@@ -168,6 +168,7 @@ import { createDefaultMiddlewareProviders } from './middleware-provider.js';
 import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import { getCachedBrainHealthSnapshot, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
 import {
+  isActionableDelegationFailure,
   isDelegationFailureStatus,
   readDelegationFailureRecordsSync,
   transitionDelegationFailureStatus,
@@ -1947,8 +1948,10 @@ export function createApi(port = 3001): express.Express {
     try {
       const memDir = getMemoryRootDir();
       const statuses = queryList(req.query.status).filter(isDelegationFailureStatus);
+      const guardOnly = String(req.query.guard ?? '').toLowerCase() === 'true';
       let failures = readDelegationFailureRecordsSync(memDir);
       if (statuses.length > 0) failures = failures.filter(failure => statuses.includes(failure.status));
+      if (guardOnly) failures = failures.filter(isActionableDelegationFailure);
       res.json({ failures, total: failures.length });
     } catch (err) {
       res.status(500).json({ error: String(err) });

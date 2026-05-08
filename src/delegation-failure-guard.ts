@@ -224,6 +224,13 @@ export function isDelegationFailureStatus(value: unknown): value is DelegationFa
     && ['open', 'diagnosing', 'resolved', 'ignored', 'needs_human'].includes(value);
 }
 
+export function isActionableDelegationFailure(record: DelegationFailureRecord): boolean {
+  return record.frequency >= REPEAT_THRESHOLD
+    || record.status === 'diagnosing'
+    || record.status === 'needs_human'
+    || Boolean(record.diagnosticTaskId);
+}
+
 function shouldReopen(status: DelegationFailureStatus): boolean {
   return status === 'resolved' || status === 'ignored';
 }

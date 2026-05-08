@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   getDelegationFailureGuardPath,
+  isActionableDelegationFailure,
   markDelegationFailureDiagnosticCreated,
   readDelegationFailureRecordsSync,
   recordDelegationFailure,
@@ -48,6 +49,28 @@ describe('delegation failure guard', () => {
         status: 'open',
       }),
     ]);
+  });
+
+  it('keeps one-off telemetry out of the actionable guard view', () => {
+    const first = recordDelegationFailure(tmpDir, {
+      taskId: 'del-111-a',
+      taskType: 'code',
+      prompt: 'Try one delegated code task',
+      output: 'task task-123 failed: Claude Code returned an error result: Reached maximum number of turns (15)',
+    });
+
+    expect(first.record.frequency).toBe(1);
+    expect(isActionableDelegationFailure(first.record)).toBe(false);
+
+    const second = recordDelegationFailure(tmpDir, {
+      taskId: 'del-222-b',
+      taskType: 'code',
+      prompt: 'Try one delegated code task',
+      output: 'task task-456 failed: Claude Code returned an error result: Reached maximum number of turns (15)',
+    });
+
+    expect(second.record.frequency).toBe(2);
+    expect(isActionableDelegationFailure(second.record)).toBe(true);
   });
 
   it('does not request duplicate diagnostic tasks after one is linked', () => {
