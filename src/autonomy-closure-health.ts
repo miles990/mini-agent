@@ -25,7 +25,8 @@ export type AutonomyClosureStage =
   | 'memory-context'
   | 'memory-state-truth'
   | 'kg-context-fabric'
-  | 'middleware-quality';
+  | 'middleware-quality'
+  | 'operational-efficiency';
 
 export type AutonomyClosureStageStatus = 'ok' | 'warn' | 'blocked';
 export type AutonomyClosureStatus = 'healthy' | 'degraded' | 'blocked';
@@ -69,6 +70,8 @@ export function evaluateAutonomyClosure(
   const correction = evaluateCorrectionGate(memoryDir, repoRoot);
   const openTasks = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ACTIVE_STATUSES })
     .filter(task => !isAutonomyClosureTask(task));
+  const kgStage = kgContextFabricStage(memoryDir, options.now ?? new Date());
+  const middlewareStage = middlewareQualityStage(memoryDir, options.now ?? new Date());
   const stages: AutonomyClosureStageResult[] = [
     runtimeWorkspaceStage(correction),
     taskExecutionStage(openTasks),
@@ -80,8 +83,9 @@ export function evaluateAutonomyClosure(
     selfImprovementStage(openTasks),
     memoryContextStage(memoryDir, repoRoot),
     memoryStateTruthStage(memoryDir, repoRoot),
-    kgContextFabricStage(memoryDir, options.now ?? new Date()),
-    middlewareQualityStage(memoryDir, options.now ?? new Date()),
+    kgStage,
+    middlewareStage,
+    operationalEfficiencyStage(correction, kgStage, middlewareStage),
   ];
 
   const blockingStages = stages.filter(s => s.status === 'blocked').map(s => s.stage);
@@ -563,6 +567,56 @@ function middlewareQualityStage(memoryDir: string, now: Date): AutonomyClosureSt
     evidence: result.evidence,
     repair: result.repair,
   };
+}
+
+function operationalEfficiencyStage(
+  correction: CorrectionGateSnapshot,
+  kgStage: AutonomyClosureStageResult,
+  middlewareStage: AutonomyClosureStageResult,
+): AutonomyClosureStageResult {
+  const evidence: string[] = [];
+
+  if (correction.needsCorrection) {
+    evidence.push(`correction=${correction.reasons.map(reason => reason.type).join(',') || 'needs-correction'}`);
+    evidence.push(...correction.guidance.slice(0, 2));
+  }
+
+  const kgStale = extractEvidenceNumber(kgStage.evidence, 'staleOpenDiscussions');
+  const kgQueued = extractEvidenceNumber(kgStage.evidence, 'queuedStaleDiscussions');
+  if ((kgStale ?? 0) > 0) {
+    evidence.push(`kgStaleOpenDiscussions=${kgStale}`);
+    if ((kgQueued ?? 0) > 0) evidence.push(`kgQueuedStaleDiscussions=${kgQueued}`);
+  }
+
+  const middlewareStaleFailed = extractEvidenceNumber(middlewareStage.evidence, 'staleFailed');
+  const middlewareBuckets = middlewareStage.evidence.find(item => item.startsWith('failureBuckets='));
+  if ((middlewareStaleFailed ?? 0) > 0) evidence.push(`middlewareStaleFailed=${middlewareStaleFailed}`);
+  if (middlewareBuckets?.includes('max-turns')) evidence.push(middlewareBuckets);
+
+  if (evidence.length === 0) {
+    return {
+      stage: 'operational-efficiency',
+      status: 'ok',
+      summary: 'no unresolved efficiency advisories',
+      evidence: [],
+    };
+  }
+
+  return {
+    stage: 'operational-efficiency',
+    status: 'warn',
+    summary: `${evidence.length} efficiency signal(s) need autonomous convergence`,
+    evidence: evidence.slice(0, 8),
+    repair: 'Convert advisory signals into bounded autonomous work: split stale tasks, classify middleware max-turns into smaller retries/fallbacks, and close or refresh stale KG discussions until the next closure check has no efficiency advisories.',
+  };
+}
+
+function extractEvidenceNumber(evidence: string[], key: string): number | null {
+  const line = evidence.find(item => item.startsWith(`${key}=`));
+  if (!line) return null;
+  const raw = line.slice(key.length + 1);
+  const match = raw.match(/^\d+/);
+  return match ? Number(match[0]) : null;
 }
 
 function buildRecommendedTask(

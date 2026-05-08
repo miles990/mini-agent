@@ -40,6 +40,36 @@ describe('autonomy closure health', () => {
     expect(snapshot.stages.map(s => s.stage)).toContain('memory-context');
   });
 
+  it('degrades on correction advisories so healthy does not hide low-efficiency loops', () => {
+    writeFileSync(
+      path.join(tmpDir, 'state/task-events.jsonl'),
+      JSON.stringify({
+        id: 'idx-stale-work',
+        ts: new Date().toISOString(),
+        type: 'task',
+        status: 'pending',
+        summary: 'P1 stale implementation task',
+        refs: [],
+        payload: {
+          origin: 'github-issue',
+          priority: 1,
+          ticksSinceLastProgress: 10,
+        },
+      }) + '\n',
+      'utf-8',
+    );
+    writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+
+    const snapshot = evaluateAutonomyClosure(tmpDir, { repoRoot });
+
+    expect(snapshot.status).toBe('degraded');
+    expect(snapshot.warningStages).toContain('operational-efficiency');
+    expect(snapshot.stages.find(s => s.stage === 'operational-efficiency')).toEqual(expect.objectContaining({
+      status: 'warn',
+      summary: expect.stringContaining('efficiency signal'),
+    }));
+  });
+
   it('creates one repair task for exhausted autonomous execution', async () => {
     writeFileSync(
       path.join(tmpDir, 'state/task-events.jsonl'),
