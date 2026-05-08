@@ -78,6 +78,44 @@ async function loadKuroPick(date) {
   return { key: null, md: '' };
 }
 
+/**
+ * loadKuroContent(date) — parse memory/state/kuro-content/<date>.md
+ *
+ * Returns { take, spotlight, swot }. Each field is the raw text of its H2
+ * section, or null if the section / file is missing. Never throws.
+ *
+ * H2 matching is forgiving: accepts both canonical headings (## kuro-take,
+ * ## github-spotlight, ## swot) and the numbered variants used in the seed
+ * file (## ① Kuro take…, ## ⑤ 今日 GitHub 專案…, ## ④ SWOT…).
+ */
+async function loadKuroContent(date) {
+  const empty = { take: null, spotlight: null, swot: null };
+  try {
+    const raw = await readFile(
+      join(STATE_DIR, 'kuro-content', `${date}.md`), 'utf8'
+    );
+    // Split on H2 boundaries; keep delimiter via lookahead-style split
+    const sections = raw.split(/^(?=## )/m);
+    const result = { take: null, spotlight: null, swot: null };
+    for (const sec of sections) {
+      const firstLine = sec.split('\n')[0] || '';
+      const heading = firstLine.replace(/^##\s*/, '').toLowerCase();
+      const body = sec.split('\n').slice(1).join('\n').trim();
+      if (!body) continue;
+      if (/kuro.?take|①/.test(heading)) {
+        result.take = body;
+      } else if (/github.?spotlight|⑤|github.*專案/.test(heading)) {
+        result.spotlight = body;
+      } else if (/^swot|④/.test(heading)) {
+        result.swot = body;
+      }
+    }
+    return result;
+  } catch {
+    return empty;
+  }
+}
+
 function htmlEsc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -105,6 +143,199 @@ function fmtNum(n) {
   if (n == null) return '—';
   if (n >= 10000) return (n/1000).toFixed(1) + 'k';
   return String(n);
+}
+
+// ── v3 kuro-content render functions ────────────────────────────────────────
+
+/**
+ * renderTake(take) — Block ① Kuro 點評
+ * Converts raw paragraph text (from kuro-take section) into <section class="take">.
+ * Each blank-line-separated paragraph becomes a <p>. Inline [text](url) links rendered.
+ * If take is null, emits a placeholder banner.
+ */
+function renderTake(take, date) {
+  if (!take) {
+    return `<section class="take">
+  <div class="kuro-block-label">① KURO 點評</div>
+  <div class="kuro-placeholder">no kuro-content loaded for ${htmlEsc(date)}</div>
+</section>`;
+  }
+  const paras = take.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+  const rendered = paras.map(p => {
+    // Skip heading-like lines that may have leaked into body
+    if (p.startsWith('#')) return '';
+    // Convert **bold** to <b> for display
+    const withBold = p.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    return `<p>${renderInlineLinks(withBold)}</p>`;
+  }).filter(Boolean).join('\n  ');
+  return `<section class="take">
+  <div class="kuro-block-label">① KURO 點評</div>
+  ${rendered}
+</section>`;
+}
+
+/**
+ * renderTrendPlaceholder() — Block ② trend rise/fall (deferred to PR-B)
+ * Always emits a static placeholder per the spec.
+ */
+function renderTrendPlaceholder() {
+  return `<section class="trend">
+  <div class="kuro-block-label">② 趨勢方向（rise / fall）</div>
+  <div class="kuro-placeholder">待 PR-B 自動產出 — 目前由 trend-bars 區塊（7 日 HN 話題分布）代替</div>
+</section>`;
+}
+
+/**
+ * renderSpotlight(spotlight) — Block ③ GitHub 專案 spotlight
+ * Parses key:value fields from the section body. Forgiving: unknown fields ignored.
+ * If spotlight is null, emits a placeholder banner.
+ */
+function renderSpotlight(spotlight, date) {
+  if (!spotlight) {
+    return `<section class="spotlight">
+  <div class="kuro-block-label">③ GITHUB SPOTLIGHT</div>
+  <div class="kuro-placeholder">no kuro-content loaded for ${htmlEsc(date)}</div>
+</section>`;
+  }
+  // Parse simple key: value fields and bullet lists
+  const lines = spotlight.split('\n');
+  const fields = {};
+  let currentList = null;
+  const lists = {};
+  for (const line of lines) {
+    // Skip H3 markers / horizontal rules
+    if (/^#{1,6}\s/.test(line) || /^---+$/.test(line)) continue;
+    const kvMatch = line.match(/^([a-zA-Z\-]+):\s*(.*)$/);
+    if (kvMatch && !line.startsWith('- ')) {
+      const key = kvMatch[1].toLowerCase();
+      const val = kvMatch[2].trim();
+      if (val) {
+        fields[key] = val;
+        currentList = null;
+      } else {
+        currentList = key;
+        lists[key] = [];
+      }
+      continue;
+    }
+    if (line.match(/^\s*-\s+/) && currentList) {
+      lists[currentList] = lists[currentList] || [];
+      lists[currentList].push(line.replace(/^\s*-\s+/, '').trim());
+      continue;
+    }
+    // Non-empty text lines (paragraphs) that aren't bullets
+    if (line.trim() && !line.startsWith('- ') && !line.startsWith('`')) {
+      currentList = null;
+    }
+  }
+
+  const repo = fields['repo'] || '';
+  const license = fields['license'] || '';
+  const version = fields['version'] || '';
+  const why = fields['why-it-matters'] || '';
+  const goodBullets = (lists['why-good'] || []);
+  const riskBullets = (lists['risk'] || []);
+  const pathBullets = (lists['paths'] || []);
+
+  const repoUrl = repo ? `https://github.com/${repo}` : '';
+  const repoLink = repo
+    ? `<a href="${htmlEsc(repoUrl)}" target="_blank" rel="noopener"><code>${htmlEsc(repo)}</code></a>`
+    : '';
+
+  const metaParts = [
+    license ? `License: ${htmlEsc(license)}` : '',
+    version ? `版本: ${htmlEsc(version)}` : '',
+  ].filter(Boolean).join(' · ');
+
+  return `<section class="spotlight">
+  <div class="kuro-block-label">③ GITHUB SPOTLIGHT</div>
+  <div class="spotlight-inner">
+    ${repo ? `<h3 class="spotlight-repo">${repoLink}</h3>` : ''}
+    ${metaParts ? `<div class="spotlight-meta">${metaParts}</div>` : ''}
+    ${why ? `<p>${renderInlineLinks(why)}</p>` : ''}
+    ${goodBullets.length ? `<div class="spotlight-sub">為什麼好</div><ul>${goodBullets.map(b => `<li>${renderInlineLinks(b)}</li>`).join('')}</ul>` : ''}
+    ${riskBullets.length ? `<div class="spotlight-sub">風險</div><ul>${riskBullets.map(b => `<li>${renderInlineLinks(b)}</li>`).join('')}</ul>` : ''}
+    ${pathBullets.length ? `<div class="spotlight-sub">整合路徑</div><ul>${pathBullets.map(b => `<li>${renderInlineLinks(b)}</li>`).join('')}</ul>` : ''}
+  </div>
+</section>`;
+}
+
+/**
+ * renderSwot(swot) — Block ④ SWOT
+ * Parses strengths / weaknesses / opportunities / threats bullet lists.
+ * Also handles markdown table format (| S | content |) used in seed file.
+ * If swot is null, emits a placeholder banner.
+ */
+function renderSwot(swot, date) {
+  if (!swot) {
+    return `<section class="swot">
+  <div class="kuro-block-label">④ SWOT</div>
+  <div class="kuro-placeholder">no kuro-content loaded for ${htmlEsc(date)}</div>
+</section>`;
+  }
+
+  // Try to parse as markdown table (| 維度 | 內容 | format used in seed)
+  const tableMap = {};
+  const tableRe = /^\|\s*\*{0,2}([SWOT][^|]*?)\*{0,2}\s*\|\s*(.+?)\s*\|?\s*$/;
+  for (const line of swot.split('\n')) {
+    const m = line.match(tableRe);
+    if (m) {
+      const key = m[1].trim().slice(0, 1).toLowerCase(); // S/W/O/T → s/w/o/t
+      tableMap[key] = (tableMap[key] || '') + ' ' + m[2].trim();
+    }
+  }
+
+  // Try bullet-list format (strengths: / weaknesses: / opportunities: / threats:)
+  const lists = {};
+  let currentKey = null;
+  const keyMap = {
+    strengths: 's', weaknesses: 'w', opportunities: 'o', threats: 't'
+  };
+  for (const line of swot.split('\n')) {
+    const kvMatch = line.match(/^([a-zA-Z]+):\s*$/);
+    if (kvMatch && keyMap[kvMatch[1].toLowerCase()]) {
+      currentKey = keyMap[kvMatch[1].toLowerCase()];
+      lists[currentKey] = [];
+      continue;
+    }
+    if (line.match(/^\s*-\s+/) && currentKey) {
+      lists[currentKey] = lists[currentKey] || [];
+      lists[currentKey].push(line.replace(/^\s*-\s+/, '').trim());
+    }
+  }
+
+  const dims = [
+    { key: 's', label: 'S 優勢' },
+    { key: 'w', label: 'W 弱點' },
+    { key: 'o', label: 'O 機會' },
+    { key: 't', label: 'T 威脅' },
+  ];
+
+  const cells = dims.map(({ key, label }) => {
+    const bullets = lists[key];
+    const tableText = tableMap[key];
+    if (bullets && bullets.length) {
+      return `<div class="swot-cell">
+      <b>${htmlEsc(label)}</b>
+      <ul>${bullets.map(b => `<li>${renderInlineLinks(b)}</li>`).join('')}</ul>
+    </div>`;
+    } else if (tableText) {
+      // Split table text on numbered items or semicolons
+      const items = tableText.split(/；|;\s*\(\d+\)|\s*\(\d+\)/).map(s => s.trim()).filter(Boolean);
+      return `<div class="swot-cell">
+      <b>${htmlEsc(label)}</b>
+      <ul>${items.map(b => `<li>${renderInlineLinks(b)}</li>`).join('')}</ul>
+    </div>`;
+    }
+    return `<div class="swot-cell"><b>${htmlEsc(label)}</b></div>`;
+  }).join('\n  ');
+
+  return `<section class="swot">
+  <div class="kuro-block-label">④ SWOT</div>
+  <div class="swot-grid">
+  ${cells}
+  </div>
+</section>`;
 }
 
 const SRC_ZH = { WEB: '網頁', HN: 'HN', LATENT: 'Latent', ARXIV: 'arXiv', GITHUB: 'GitHub', X: 'X' };
@@ -284,6 +515,33 @@ footer a{color:var(--acc);text-decoration:none;border-bottom:1px solid #334}
 .nav-row a{color:var(--mute);text-decoration:none;border-bottom:1px solid #2a2f38}
 .nav-row a:hover{color:var(--fg)}
 .preview-note{background:rgba(154,184,255,.06);border:1px dashed #3a4a6e;color:var(--acc);font-size:.78rem;padding:.45rem .8rem;border-radius:3px;margin-bottom:1.3rem}
+
+/* ── v3 kuro-content blocks ──────────────────────────────────────────── */
+section.take,section.trend,section.spotlight,section.swot{margin:1.6rem 0;border:1px solid var(--line);border-radius:6px;padding:1rem 1.25rem}
+.kuro-block-label{font-size:.68rem;color:var(--acc);text-transform:uppercase;letter-spacing:.18em;font-weight:600;margin-bottom:.7rem}
+.kuro-placeholder{color:var(--dim);font-size:.82rem;font-style:italic;padding:.4rem 0}
+section.take p{margin:.45rem 0;padding-left:.9rem;border-left:2px solid var(--line);font-size:.9rem;line-height:1.6}
+section.take p b{color:var(--fg)}
+section.trend{background:rgba(255,255,255,.015)}
+section.spotlight{border-color:var(--warn)}
+.spotlight-inner{font-size:.87rem;line-height:1.6}
+.spotlight-inner h3.spotlight-repo{margin:0 0 .4rem;font-size:1rem;font-weight:500}
+.spotlight-inner .spotlight-meta{color:var(--mute);font-size:.78rem;margin-bottom:.6rem}
+.spotlight-inner p{margin:.4rem 0}
+.spotlight-inner ul{margin:.3rem 0;padding-left:1.3rem}
+.spotlight-inner li{margin:.22rem 0}
+.spotlight-sub{color:var(--acc2);font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin:.7rem 0 .2rem}
+.swot-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.swot-cell{border:1px solid var(--line);border-radius:4px;padding:.6rem .85rem;font-size:.83rem;line-height:1.55}
+.swot-cell b{color:var(--acc);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:.35rem}
+.swot-cell ul{margin:0;padding-left:1.1rem}
+.swot-cell li{margin:.18rem 0}
+/* freshness pill for TrendRadar zh-CN (Path 2 ship gate) */
+.src-stamp.trendradar-pill b{color:var(--acc2)}
+@media (max-width:640px){
+  .swot-grid{grid-template-columns:1fr}
+}
+
 @media (max-width:640px){
   body{padding:1.5rem 1rem 3rem}h1{font-size:1.35rem}.banner{padding:.95rem 1.05rem}
   ul.feed li{grid-template-columns:auto 1fr;gap:.3rem .6rem}
@@ -394,6 +652,7 @@ async function main() {
   const trend = await loadTopicTrend(DATE);
   const archive = await listArchiveDates();
   const kpick = await loadKuroPick(DATE);
+  const kuroContent = await loadKuroContent(DATE);
 
   // X 用「likes/1000」做 cross-source 可比分數，避免吞噬 HN/Latent
   const xNorm = (x.posts || []).map(p => ({ ...p, _xs: (p.points || 0) / 1000 }));
@@ -434,11 +693,17 @@ async function main() {
     ${srcStamp('X', x)}
     ${srcStamp('arXiv', arxiv)}
     ${srcStamp('GitHub', gh)}
+    <span class="src-stamp trendradar-pill"><b>TrendRadar zh-CN</b><span>Path 2 待 ship</span></span>
     <span class="src-stamp"><b>頁面 build</b><span>${fmtTaipeiMinute(buildAt)}</span></span>
   </div>
 </header>
 
 <div class="preview-note">資料每日自動拉新（cron 觸發）。stale 標 (Nd 前) 表示來源該日尚未刷新 — 多半是該來源沒有當日資料而非簡報沒更新。</div>
+
+${renderTake(kuroContent.take, DATE)}
+${renderTrendPlaceholder()}
+${renderSpotlight(kuroContent.spotlight, DATE)}
+${renderSwot(kuroContent.swot, DATE)}
 
 <div class="banner">
   <div class="lab">▎ KURO 今日點評</div>

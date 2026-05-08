@@ -19,6 +19,9 @@ memory/handoffs/*
 !memory/akari/
 !memory/digestions/
 !memory/topics/
+!memory/state/
+!memory/state/kuro-content/
+!memory/state/kuro-content/*
 sessions/
 .claude/*
 !.claude/settings.json
