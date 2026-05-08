@@ -298,7 +298,7 @@ export function getSkillsPrompt(hint?: string, cycleMode?: CycleMode): string {
 
   // Hard cap on total skills section. Skills are part of every prompt's non-context budget
   // (system prompt + skills + user prompt). When skills blow past this, the math
-  // breaks: PROMPT_HARD_CAP (45K) − non-context > 0 is required for any context at all.
+  // breaks: PROMPT_HARD_CAP (40K, #304) − non-context > 0 is required for any context at all.
   // Incident 2026-04-17 19:04: non-context=46333 chars → actualContextBudget=-1333 →
   // every cycle stalled because even context=0 couldn't fit under the hard cap.
   const SKILLS_SECTION_CAP = 12_000;
@@ -3848,7 +3848,7 @@ export class InstanceMemory {
     // cf8049e7 fix: enforce caller-supplied budget. Root cause of TIMEOUT:silent_exit
     // retry-inflation was that buildMinimalContext ignored contextBudget — 5 unbounded
     // sections (soul-minimal / inbox / bg-completed / next / working-memory) could
-    // regenerate a ~86k prompt on retry and silently bypass PROMPT_HARD_CAP=45k upstream.
+    // regenerate a ~86k prompt on retry and silently bypass PROMPT_HARD_CAP=40k upstream.
     // Hard-cap last resort: if still over budget, truncate with a tail marker so the
     // retry prompt is guaranteed to be strictly smaller than the attempt that just failed.
     if (typeof budget === 'number' && budget > 0 && joined.length > budget) {

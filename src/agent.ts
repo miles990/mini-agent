@@ -1852,10 +1852,15 @@ export async function callClaude(
   }
 
   // Pre-check: if prompt is too large, proactively reduce context before first attempt
-  // Lowered from 80K → 60K → 45K: data shows prompts >50K → 100% EXIT143.
+  // Lowered from 80K → 60K → 45K → 40K. Prior data: >50K → 100% EXIT143 crash.
+  // Issue #304 (silent_exit_void_40k): n=11 silent timeouts on instance 03bbc29a
+  // clustered at promptChars 41,411–43,379 (median ~42K), bimodal duration
+  // 180–540s — 100% loop lane / 100% callClaude / content-agnostic, size-driven.
+  // Cap lowered to 40K so the existing focused→compact→minimal cascade fires
+  // *before* the silent-timeout band, matching #304's proactive pre-flight ask.
   // Profile-based contextBudget (omlx-gate.ts) is the primary control;
   // this cap is the hard safety net ensuring CLI stability.
-  const PROMPT_HARD_CAP = 45_000;
+  const PROMPT_HARD_CAP = 40_000;
   const PROMPT_TARGET = 30_000; // Target for minimal mode — ensure Claude can process within timeout
   // Calculate actual context budget from known non-context sizes
   const nonContextSize = systemPrompt.length + prompt.length + 20; // 20 for separators
