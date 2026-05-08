@@ -1628,8 +1628,89 @@ export function buildCommitmentSection(memoryDir: string): string {
 
   if (gaps.length === 0) return '';
 
-  const lines = gaps.map(g => `- [${g.ts}] ${g.summary}`);
-  return `## ${gaps.length} untracked commitment${gaps.length > 1 ? 's' : ''} — convert to action (<kuro:task>, <kuro:delegate>, or <kuro:goal>)\n${lines.join('\n')}`;
+  // Issue #419: cross-check the structured commitment-ledger before emitting
+  // the "untracked commitment" callout. The two stores (memory-index.jsonl
+  // and commitments.jsonl) are written/resolved on different paths, so an
+  // active memory-index commitment can dangle long after the equivalent
+  // ledger entry reaches a terminal state (resolved/refuted/expired/etc.) —
+  // surfacing forever as a phantom "convert to action" instruction. Using
+  // the same 30%-overlap, CJK-aware token comparison `resolveActiveCommitments`
+  // already trusts (see line ~1604), suppress those gaps and lazily mark them
+  // resolved so the next cycle's queryMemoryIndexSync skips them entirely.
+  const filteredGaps = suppressGapsResolvedInLedger(memoryDir, gaps);
+
+  if (filteredGaps.length === 0) return '';
+
+  const lines = filteredGaps.map(g => `- [${g.ts}] ${g.summary}`);
+  return `## ${filteredGaps.length} untracked commitment${filteredGaps.length > 1 ? 's' : ''} — convert to action (<kuro:task>, <kuro:delegate>, or <kuro:goal>)\n${lines.join('\n')}`;
+}
+
+/**
+ * Issue #419 helper. Drop active memory-index commitments whose summary
+ * semantically matches a terminal-state structured-ledger prediction.
+ *
+ * Reads the append-only ledger file directly instead of importing
+ * commitment-ledger.ts; that module reaches through memory.ts, which already
+ * imports memory-index.ts and would otherwise create an ESM cycle.
+ */
+function suppressGapsResolvedInLedger(
+  memoryDir: string,
+  gaps: ReturnType<typeof queryMemoryIndexSync>,
+): ReturnType<typeof queryMemoryIndexSync> {
+  const terminal = readTerminalLedgerCommitments(memoryDir);
+  if (terminal.length === 0) return gaps;
+
+  const terminalTokenSets = terminal
+    .map(t => tokenizeForMatch(t.prediction ?? ''))
+    .filter(toks => toks.length > 0);
+  if (terminalTokenSets.length === 0) return gaps;
+
+  const out: typeof gaps = [];
+  for (const g of gaps) {
+    const gapTokens = tokenizeForMatch(g.summary ?? '');
+    if (gapTokens.length === 0) {
+      out.push(g);
+      continue;
+    }
+    const gapSet = new Set(gapTokens);
+    const matched = terminalTokenSets.some(termTokens => {
+      const overlap = termTokens.filter(
+        t => gapSet.has(t) || gapTokens.some(gt => gt.includes(t) || t.includes(gt)),
+      ).length;
+      // Same threshold as resolveActiveCommitments: ≥30% of terminal tokens, min 1.
+      return overlap >= Math.max(1, Math.floor(termTokens.length * 0.3));
+    });
+    if (matched) {
+      // Lazy GC: persist the suppression so future cycles don't re-scan.
+      // Fire-and-forget; failure just means we'll suppress again next cycle.
+      updateMemoryIndexEntry(memoryDir, g.id, { status: 'resolved' }).catch(() => {});
+      slog('COMMIT', `Suppressed (ledger-resolved): "${g.summary}"`);
+    } else {
+      out.push(g);
+    }
+  }
+  return out;
+}
+
+function readTerminalLedgerCommitments(memoryDir: string): { prediction: string }[] {
+  const file = path.join(memoryDir, 'state', 'commitments.jsonl');
+  if (!existsSync(file)) return [];
+
+  const latest = new Map<string, { prediction?: unknown; status?: unknown }>();
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const entry = JSON.parse(trimmed) as { id?: unknown; prediction?: unknown; status?: unknown };
+      if (typeof entry.id === 'string') latest.set(entry.id, entry);
+    } catch {
+      // Ignore malformed historical rows; the commitment callout should not fail closed.
+    }
+  }
+
+  return [...latest.values()]
+    .filter(entry => entry.status !== 'pending' && typeof entry.prediction === 'string')
+    .map(entry => ({ prediction: String(entry.prediction) }));
 }
 
 // =============================================================================

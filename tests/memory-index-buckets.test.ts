@@ -12,6 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   appendMemoryIndexEntry,
+  buildCommitmentSection,
   updateMemoryIndexEntry,
   deleteMemoryIndexEntry,
   queryMemoryIndexSync,
@@ -24,10 +25,12 @@ let tmpDir: string;
 
 beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mem-idx-bucket-'));
+  process.env.MINI_AGENT_MEMORY_DIR = tmpDir;
   invalidateIndexCache();
 });
 
 afterEach(() => {
+  delete process.env.MINI_AGENT_MEMORY_DIR;
   fs.rmSync(tmpDir, { recursive: true, force: true });
   invalidateIndexCache();
 });
@@ -206,5 +209,38 @@ describe('memory-index — bucket routing', () => {
     const found = queryMemoryIndexSync(tmpDir, { id: created.id });
     expect(found).toHaveLength(1);
     expect(found[0].type).toBe('task');
+  });
+
+  it('suppresses active memory-index commitments that match terminal ledger entries', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'commitment',
+      status: 'active',
+      summary: 'render all enriched AI trend source rows for 2026-05',
+      payload: { expiresAt: new Date(Date.now() + 60_000).toISOString() },
+    });
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'commitment',
+      status: 'active',
+      summary: 'keep unrelated active commitment visible',
+      payload: { expiresAt: new Date(Date.now() + 60_000).toISOString() },
+    });
+
+    const stateDir = path.join(tmpDir, 'state');
+    fs.mkdirSync(stateDir, { recursive: true });
+    fs.writeFileSync(path.join(stateDir, 'commitments.jsonl'), JSON.stringify({
+      id: 'cl-resolved',
+      cycle_id: 1,
+      prediction: 'render all enriched AI trend source rows for 2026-05',
+      falsifier: null,
+      ttl_cycles: 1,
+      status: 'resolved',
+      created_at: new Date().toISOString(),
+      resolved_at: new Date().toISOString(),
+    }) + '\n', 'utf8');
+
+    const section = buildCommitmentSection(tmpDir);
+
+    expect(section).not.toContain('render all enriched AI trend source rows');
+    expect(section).toContain('keep unrelated active commitment visible');
   });
 });
