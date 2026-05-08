@@ -191,6 +191,38 @@ describe('autonomous work closure', () => {
       payload: expect.objectContaining({ completed_by: 'autonomous-work-closure' }),
     }));
   });
+
+  it('closes dated product repair tasks against their original date instead of today', async () => {
+    const repairedDate = '2026-05-08';
+    const today = '2026-05-09';
+    writeAiTrendState(repoRoot, repairedDate, {
+      hn: ['HN 中文 claim'],
+      latent: ['Latent 中文 claim'],
+      arxiv: ['arXiv 中文 claim'],
+      github: ['GitHub 中文 claim'],
+      x: ['X 中文 claim'],
+    });
+    writeHtml(repoRoot, repairedDate, 'HN 中文 claim\nLatent 中文 claim\narXiv 中文 claim\nGitHub 中文 claim\nX 中文 claim\nX / 社群熱議');
+    const repair = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      summary: `Repair AI trend closure: render all enriched source items for ${repairedDate}`,
+      source: 'autonomous-work-closure',
+      payload: { origin: 'autonomous-work-closure', product: 'ai-trend', target_date: repairedDate },
+    });
+
+    expect(verifyAiTrendClosure(repoRoot, { date: today }).status).toBe('skip');
+    const result = await sweepAutonomousWorkClosure(memoryDir, { repoRoot, now: new Date(`${today}T01:00:00.000Z`) });
+
+    expect(result.productRepairsClosed).toBe(1);
+    expect(queryMemoryIndexSync(memoryDir, { id: repair.id })[0]).toEqual(expect.objectContaining({
+      status: 'completed',
+      payload: expect.objectContaining({
+        completed_by: 'autonomous-work-closure',
+        completed_target_date: repairedDate,
+      }),
+    }));
+  });
 });
 
 function taipeiDate(): string {
