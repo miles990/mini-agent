@@ -223,6 +223,19 @@ describe('autonomous work closure', () => {
       }),
     }));
   });
+
+  it('counts ai-trend source items rendered when their article URL is present but claim text was merged away', () => {
+    const date = taipeiDate();
+    writeAiTrendState(repoRoot, date, {
+      hn: ['HN 中文 claim'],
+    });
+    writeHtml(repoRoot, date, '<a href="https://example.com/hn/0">merged article title</a>\nX / 社群熱議');
+
+    const result = verifyAiTrendClosure(repoRoot, { date });
+
+    expect(result.status).toBe('pass');
+    expect(result.evidence).toContain('HN: posts=1 zh=1/1 rendered=1/1');
+  });
 });
 
 function taipeiDate(): string {

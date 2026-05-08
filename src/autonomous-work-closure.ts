@@ -71,6 +71,7 @@ export function verifyAiTrendClosure(repoRoot: string, options: { date?: string 
     return { product: 'ai-trend', targetDate: date, status: 'skip', summary: `AI trend page missing for ${date}`, evidence: [`missing=${htmlPath}`] };
   }
   const html = readFileSync(htmlPath, 'utf-8');
+  const renderedUrls = extractRenderedUrls(html);
   const sources = [
     ['HN', 'memory/state/hn-ai-trend'],
     ['Latent', 'memory/state/latent-space-trend'],
@@ -98,7 +99,7 @@ export function verifyAiTrendClosure(repoRoot: string, options: { date?: string 
         zhClaims++;
         sourceZh++;
       }
-      if (claim && html.includes(escapeHtml(claim))) {
+      if (isPostRendered(post, claim, html, renderedUrls)) {
         renderedClaims++;
         sourceRendered++;
       }
@@ -345,6 +346,54 @@ function readPosts(filePath: string): Array<Record<string, unknown>> {
 function extractClaim(post: Record<string, unknown>): string {
   const summary = post.summary as Record<string, unknown> | undefined;
   return typeof summary?.claim === 'string' && summary.claim !== 'pending-llm-pass' ? summary.claim.trim() : '';
+}
+
+function isPostRendered(
+  post: Record<string, unknown>,
+  claim: string,
+  html: string,
+  renderedUrls: Set<string>,
+): boolean {
+  if (claim && html.includes(escapeHtml(claim))) return true;
+  return extractPostUrls(post).some(url => renderedUrls.has(normalizeUrl(url)));
+}
+
+function extractRenderedUrls(html: string): Set<string> {
+  const urls = new Set<string>();
+  for (const match of html.matchAll(/\bhref=["']([^"']+)["']/gi)) {
+    const normalized = normalizeUrl(unescapeHtml(match[1] ?? ''));
+    if (normalized) urls.add(normalized);
+  }
+  return urls;
+}
+
+function extractPostUrls(post: Record<string, unknown>): string[] {
+  const keys = ['url', 'story_url', 'articleUrl', 'article_url', 'hnUrl', 'hn_url', 'comments_url'];
+  return keys
+    .map(key => post[key])
+    .filter((value): value is string => typeof value === 'string' && /^https?:\/\//i.test(value));
+}
+
+function normalizeUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = '';
+    url.search = '';
+    url.hostname = url.hostname.toLowerCase();
+    const text = url.toString();
+    return text.endsWith('/') ? text.slice(0, -1) : text;
+  } catch {
+    return '';
+  }
+}
+
+function unescapeHtml(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
 }
 
 function containsCjk(text: string): boolean {
