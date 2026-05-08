@@ -206,8 +206,9 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
 function isBackgroundMaintenanceTask(task: MemoryIndexEntry): boolean {
   const payload = (task.payload ?? {}) as Record<string, unknown>;
   if (payload.origin === 'kg-discussion-janitor') return true;
+  if (payload.origin === 'middleware-self-healing') return true;
   const priority = Number(payload.priority);
-  return Number.isFinite(priority) && priority >= 2 && Boolean(task.tags?.includes('discussion-lifecycle'));
+  return Number.isFinite(priority) && priority >= 2;
 }
 
 export async function ensureCorrectionTask(memoryDir: string, snapshot = evaluateCorrectionGate(memoryDir)): Promise<MemoryIndexEntry | null> {

@@ -111,6 +111,45 @@ describe('correction gate', () => {
     expect(snapshot.suppressedActions).not.toContain('self-research');
   });
 
+  it('does not escalate low-priority backlog into low-responsiveness correction', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P2 GitHub issue #368: investigate sub-threshold silent exit',
+      tags: ['github', 'issue', 'P2'],
+      payload: {
+        origin: 'github-issue',
+        priority: 2,
+        ticksSinceLastProgress: 50,
+      },
+    });
+    invalidateIndexCache();
+
+    const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+    expect(snapshot.reasons.map(r => r.type)).not.toContain('low-responsiveness');
+  });
+
+  it('does not let middleware self-healing fallback tasks open the correction gate', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Create fallback for middleware task task-123 after provider budget hold',
+      tags: ['middleware', 'self-healing', 'budget-or-quota'],
+      payload: {
+        origin: 'middleware-self-healing',
+        priority: 0,
+        middleware_failure_bucket: 'budget-or-quota',
+        ticksSinceLastProgress: 50,
+      },
+    });
+    invalidateIndexCache();
+
+    const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+    expect(snapshot.reasons.map(r => r.type)).not.toContain('low-responsiveness');
+  });
+
   it('does not let stale correction tasks create a self-referential responsiveness loop', async () => {
     await appendMemoryIndexEntry(tmpDir, {
       type: 'task',
