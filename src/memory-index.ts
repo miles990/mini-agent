@@ -1702,6 +1702,57 @@ export function getHighPriorityPendingCount(memDir: string): number {
   return tasks.filter(t => getTaskPriority(t) <= 1).length;
 }
 
+/**
+ * Read latest stack_rank events from task-events.jsonl, returning a set of
+ * task ids and a set of summary strings whose latest event marks them as
+ * resolved (any `to`/`rank` value starting with "resolved" or
+ * "P0-resolved-phantom"). Used by getP0TaskPreviews to honor the same
+ * resolution signal that scheduler/correction-gate already write, without
+ * waiting for memory-index status update propagation.
+ *
+ * Issue #365: previously only the `correction gate: resolve <name>` regex
+ * shape was reverified; plain "P0: <title>" items (e.g. "P0: stash-...:
+ * diagnose preserved stash", "P0: Repair AI trend closure: ...") bypassed
+ * the guard and re-injected verbatim every cycle even after a stack_rank
+ * resolved-phantom event was written.
+ */
+function loadResolvedTaskKeysFromEvents(memoryDir: string): {
+  ids: Set<string>;
+  summaries: Set<string>;
+} {
+  const ids = new Set<string>();
+  const summaries = new Set<string>();
+  const filePath = path.join(memoryDir, 'state', 'task-events.jsonl');
+  if (!existsSync(filePath)) return { ids, summaries };
+  let raw: string;
+  try { raw = readFileSync(filePath, 'utf8'); }
+  catch { return { ids, summaries }; }
+  const lines = raw.split('\n');
+  // Walk in reverse so the latest event per (task_id|task) wins.
+  const seen = new Set<string>();
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    let evt: {
+      kind?: string; event?: string;
+      task?: string; task_id?: string;
+      to?: string; rank?: string;
+    };
+    try { evt = JSON.parse(line); } catch { continue; }
+    const kind = evt.kind ?? evt.event ?? '';
+    if (kind !== 'stack_rank') continue;
+    const key = evt.task_id ?? evt.task ?? '';
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const dest = String(evt.to ?? evt.rank ?? '');
+    // Match `resolved`, `resolved-phantom`, `P0-resolved`, `P0-resolved-phantom`, etc.
+    if (!/(^|-)resolved(-|$|phantom)|^resolved$/i.test(dest)) continue;
+    if (typeof evt.task_id === 'string') ids.add(evt.task_id);
+    if (typeof evt.task === 'string') summaries.add(evt.task.trim());
+  }
+  return { ids, summaries };
+}
+
 /** Get P0 task preview strings for priority prefix injection. */
 export function getP0TaskPreviews(memoryDir: string): string[] {
   // Phantom guard (issue #186 / #257): task-type entries must exist in
@@ -1715,12 +1766,35 @@ export function getP0TaskPreviews(memoryDir: string): string[] {
   // suppresses dispatch.
   const holds = loadCorrectionHolds(memoryDir);
   const repoRoot = path.resolve(memoryDir, '..', '..');
+  // Issue #365: drop tasks whose latest stack_rank event marks them resolved
+  // (any shape, not just `correction gate:` items). Closes the bypass that
+  // let `P0: stash-…`, `P0: Repair …`, `P0: GitHub issue …` re-emit verbatim.
+  const resolved = loadResolvedTaskKeysFromEvents(memoryDir);
   return queryMemoryIndexSync(memoryDir, {
     type: ['task', 'goal'],
     status: ['pending', 'in_progress'],
   })
     .filter(t => t.type !== 'task' || taskEventIds.has(t.id))
     .filter(t => getTaskPriority(t) === 0)
+    .filter(t => {
+      // Issue #365: cross-check resolved task-events for any P0 shape.
+      if (resolved.ids.has(t.id)) return false;
+      const summary = (t.summary ?? '').trim();
+      if (summary && resolved.summaries.has(summary)) return false;
+      // Substring match: a stack_rank event recorded with a longer/shorter
+      // variant of the same task title (common with stash diagnose ids that
+      // accumulate hashes) should still match. Require >=24 chars to avoid
+      // false positives.
+      if (summary.length >= 24) {
+        for (const resolvedSummary of resolved.summaries) {
+          if (resolvedSummary.length < 24) continue;
+          if (summary.includes(resolvedSummary) || resolvedSummary.includes(summary)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    })
     .filter(t => {
       const summary = t.summary ?? '';
       const isCorrection = summary.includes('correction gate');
