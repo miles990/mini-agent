@@ -74,7 +74,7 @@ export function evaluateAutonomyClosure(
     taskExecutionStage(openTasks),
     testHealthStage(memoryDir),
     issueAutopilotStage(openTasks),
-    prReviewConsensusStage(memoryDir),
+    prReviewConsensusStage(memoryDir, options.now ?? new Date()),
     publicWriteIdentityStage(memoryDir),
     shipAndDeployStage(correction),
     selfImprovementStage(openTasks),
@@ -358,7 +358,7 @@ function issueAutopilotStage(openTasks: MemoryIndexEntry[]): AutonomyClosureStag
   };
 }
 
-function prReviewConsensusStage(memoryDir: string): AutonomyClosureStageResult {
+function prReviewConsensusStage(memoryDir: string, now: Date): AutonomyClosureStageResult {
   const activePath = path.join(memoryDir, 'handoffs', 'active.md');
   if (!existsSync(activePath)) {
     return {
@@ -370,7 +370,7 @@ function prReviewConsensusStage(memoryDir: string): AutonomyClosureStageResult {
   }
 
   const activeContent = readFileSync(activePath, 'utf-8');
-  const openPrGaps = evaluatePrClosureGaps(memoryDir, activeContent);
+  const openPrGaps = evaluatePrClosureGaps(memoryDir, activeContent, now);
   const handoffsRaw = parsePrReviewHandoffs(activeContent);
   const openPrSnapshot = readOpenPrSnapshot(memoryDir);
   const openPrNumbers = openPrSnapshot ? new Set(openPrSnapshot.prs.map(pr => pr.number)) : null;
