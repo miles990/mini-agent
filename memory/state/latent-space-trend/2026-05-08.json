@@ -1,0 +1,418 @@
+{
+  "run_at": "2026-05-08T09:00:06.524Z",
+  "config": {
+    "feed": "https://www.latent.space/feed",
+    "max": 30,
+    "outFile": null
+  },
+  "count": 20,
+  "posts": [
+    {
+      "id": "latent_ainews-gpt-realtime-2-translate-and-whisper-new-sota-realtim",
+      "title": "[AINews] GPT-Realtime-2, -Translate, and -Whisper: new SOTA realtime voice APIs",
+      "url": "https://www.latent.space/p/ainews-gpt-realtime-2-translate-and",
+      "author": "Latent Space",
+      "points": 60,
+      "comments": 0,
+      "created_at": "2026-05-08T07:11:24.000Z",
+      "story_text": "OpenAI launched realtime-1.5 3 months ago, but it was a relative drop in the bucket because it was still 4o based intelligence (a +5% bump in Big Bench Audio). You could tell the sheer confidence in today’s realtime-2 release (with a +15.2% bump in BBA), and it was appropriately well received : As the blogpost explains, 3 models are being released, which one might simplify to “voice-in, voice-out, and voice-to-voice”: The focus is less about “voice quality”, and more on usability. TLDR: Preambles : Developers can enable short phrases before a main response, like “let me check that” or “one moment while I look into it”. Parallel tool calls and tool transparency : The model can call multiple tools at once and make those actions audible with phrases like “checking your calendar” or “looking that up now,” helping agents stay responsive while completing tasks. Stronger recovery behavior : The model can recover more gracefully by saying things like “I’m having trouble with that right now,” instead of failing or breaking. Longer context : 32K → 128K Stronger domain understanding : The model better retains specialized terminology, proper nouns, healthcare terms, and other vocabulary More controllable tone and delivery : The model can better adjust its tone—speaking calmly, empathetically, or upbeat, based on context Adjustable reasoning effort : Developers can now select from minimal, low, medium, high, and xhigh reasoning levels , with low as the default. The Demo video showed off how the audio model is better tuned when the main speaker is speaking to someone else, so it stops interrupting so much: AI News for 5/6/2026-5/7/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI Twitter Recap Top Story: GPT-Realtime-2 and OpenAI voice AI commentary What happened OpenAI launched three new streaming audio models i",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] GPT-Realtime-2, -Translate, and -Whisper 聚焦 new SOTA realtime voice APIs",
+        "evidence": "來源為 https://www.latent.space/p/ainews-gpt-realtime-2-translate-and；熱度 60 點、0 則討論。",
+        "novelty": "初現熱度 (60★/0留言)，主題涵蓋 new、sota、realtime，屬於多模態類訊號。",
+        "so_what": "[AINews] GPT-Realtime-2, -Trans…（new、sota）— 評估補上多模態能力的可行性與整合成本。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "多模態"
+    },
+    {
+      "id": "latent_ainews-anthropic-spacexai-s-300mw-5b-yr-deal-for-colossus-i-",
+      "title": "[AINews] Anthropic-SpaceXai's 300MW/$5B/yr deal for Colossus I, ARR growth is 8000% annualized",
+      "url": "https://www.latent.space/p/ainews-anthropic-spacexais-300mw5byr",
+      "author": "Latent Space",
+      "points": 59,
+      "comments": 0,
+      "created_at": "2026-05-07T05:57:14.000Z",
+      "story_text": "It was Anthropic’s second annual developer event today, and the vibes were immaculate . No big model release, which some (miscalibrated) people were hoping for, but it was mostly the SpaceX partnership announcement (on track to challenge Claude’s biggest launch of all time ), 3 new features for Claude Managed Agents , and a recap/reintroduction/celebration of all that has been shipped in the past 6 months: opening keynote After Elon signed off on it , possibly strategically just as his lawsuit against OpenAI is in trial, Anthropic is taking over all of Colossus 1 with surprising speed (“ in the next few days ”) which some estimate to be a roughly $5B/year deal , making xAI a neocloud : The other big draw was the moderated session with the Amodei siblings, announcing the 80x growth and some commentary on US and Chinese competitors : The trends Dario is watching: Tiny Teams : He still thinks 2026 is the year we see a one person billion dollar company. “ There is an enormous ability for one person or a tiny set of people to do a set of things that are incredible… Before, if you had an idea or vision there are so many resources you’d have to accumulate for several years in order to make that vision happen, and I think there’s a unique opportunity for single individuals or very tiny teams to do things that are incredible, where we move from the models are writing code, to the models are helping us think of software engineering as a task, to the models are helping us think of how can I build a business or economic unit as a task”. Multiagents : “starting with a team of smart people in a room and working our way up to a ‘country of geniuses in a datacenter’” Enterprise Services : “Claude Code helps individuals to be more productive, but we’re increasingly going to help whole teams and organizations be more productive and more than the sum of its parts”. Bottlenecks: Claude is of course speeding up Claude, but he thinks about Amdahl’s Law - Security, Verifiability - finding",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] Anthropic-SpaceXai's 300MW/$5B/yr deal for Colossus I, ARR growth is 80 聚焦 [AINews] Anthropic-SpaceXai's 300MW/$5B/yr deal…",
+        "evidence": "來源為 https://www.latent.space/p/ainews-anthropic-spacexais-300mw5byr；熱度 59 點、0 則討論。",
+        "novelty": "初現熱度 (59★/0留言)，主題涵蓋 ainews、anthropic-spacexai、300mw，屬於一般 AI 工具類訊號。",
+        "so_what": "[AINews] Anthropic-SpaceXai's 3…（ainews、anthropic-spacexai）— 初步觀察，待後續判讀是否進入工具鏈或選型清單。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "一般 AI 工具"
+    },
+    {
+      "id": "latent_ainews-silicon-valley-gets-serious-about-services",
+      "title": "[AINews] Silicon Valley gets Serious about Services",
+      "url": "https://www.latent.space/p/ainews-silicon-valley-gets-serious",
+      "author": "Latent Space",
+      "points": 58,
+      "comments": 0,
+      "created_at": "2026-05-06T05:40:41.000Z",
+      "story_text": "We’ve written separately about 1) how model labs will tack on an agent lab to pursue last mile revenue and differentiated data/monetization, 2) how coding agents breaking containment will pursue the rest of knowledge work this year, and both themes unite this week with both Anthropic and OpenAI announcing services companies: Anthropic’s unnamed JV with Blackstone, Hellman & Friedman, and Goldman Sachs - funded with $1.5B ($300m each from main participants) “ A typical engagement starts with a small team working closely with the customer to understand where Claude can have the biggest impact. From there, the company’s engineers—alongside Anthropic Applied AI staff—will develop Claude-powered systems tailored to each organization’s operations. ” OpenAI’s The Deployment Company, backed by 19 investors, including TPG, Brookfield Asset Management, Advent, and Bain Capital - raised about $4B so far at a $10B premoney valuation: “ Microsoft-backed OpenAI last month said that its chief operating officer, Brad Lightcap, will shift into a new role and lead special projects while reporting directly to CEO Sam Altman. Lightcap would oversee OpenAI’s push to sell software to businesses through a joint venture with a private equity firm. ” As Aaron Levie says , “As agents enter knowledge work beyond coding, there is very real work to upgrade IT systems, get agents the context they need, modernize the workflows to work with agents, figure out the human-agent relationship in the workflow, drive adoption and do change management, and much more. While AI models have an incredible amount of capability packed into them, there’s no shortcut to getting that intelligence applied to a business process in a stable way. This is creating tons of opportunities across the market for new jobs and firms, and the labs are equally recognizing the criticality here.” While these companies are likely more PE focused services, both companies have been pushing other vertical services initiatives for a w",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] Silicon Valley gets Serious about Services 聚焦 [AINews] Silicon Valley gets Serious about Serv…",
+        "evidence": "來源為 https://www.latent.space/p/ainews-silicon-valley-gets-serious；熱度 58 點、0 則討論。",
+        "novelty": "初現熱度 (58★/0留言)，主題涵蓋 ainews、silicon、valley，屬於一般 AI 工具類訊號。",
+        "so_what": "[AINews] Silicon Valley gets Se…（ainews、silicon）— 初步觀察，待後續判讀是否進入工具鏈或選型清單。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "一般 AI 工具"
+    },
+    {
+      "id": "latent_doing-vibe-physics-alex-lupsasca-openai",
+      "title": "🔬Doing Vibe Physics — Alex Lupsasca, OpenAI",
+      "url": "https://www.latent.space/p/lupsasca",
+      "author": "Latent Space",
+      "points": 57,
+      "comments": 0,
+      "created_at": "2026-05-05T20:34:11.000Z",
+      "story_text": "Some people are going crazy over GPT 5.5. Some people. This is the story of the Jagged Frontier . People who use AI to write emails or even code implementation work find the lift moderate whereas people pushing the limits of the model are figuring out that the limits just moved outwards . Alex Lupsaska has been tracking this limit for a year and a half now. “When GPT5 came out, it was able to reproduce one of my best papers (that took a very long time to come up with) in 30 minutes .” But Alex also notes that this shift was mostly invisible. I remember when GPT-5 came out… on Twitter, the reception was lukewarm. A lot of people were like, well, we expected a lot more, and it’s not better at writing email. And I remember thinking, well, okay, GPT-3 could write email. How much better can it get at writing email? That’s not the point. But at the science frontier, the capabilities were really taking off. We walk through his paper and more with him in today’s Science pod! Watch here . The “Oscar for physics” Alex made an early splash in his career with breakthroughs in our understanding of black holes. He’s also known for Black Hole Explorer and an iPhone app that makes visualizing black holes fun and interactive to regular audiences . Alex won the 2024 New Horizons in Fundamental Physics Breakthrough Prize. Known as the “Oscar for physics” this is arguably the most prestigious prize an early stage theoretical physicist can win. 1 Alex first saw promise for AI in theoretical physics after he asked o3 for help on his research. In the podcast, Alex recalls asking GPT for help with a calculation that would have taken days, and getting a result in eleven minutes. tweets He immediately recognized how impactful AI would be for his work even as though his physicist colleagues and the larger community gave it a lukewarm or skeptical reception. The Move 37 Moment for AI x Physics GPT-5 had just been released, and Alex tried asking it to solve a problem in a just published paper. ",
+      "summary": {
+        "claim": "Latent Space 文章 🔬Doing Vibe Physics — Alex Lupsasca, OpenAI 聚焦 🔬Doing Vibe Physics — Alex Lupsasca, OpenAI",
+        "evidence": "來源為 https://www.latent.space/p/lupsasca；熱度 57 點、0 則討論。",
+        "novelty": "初現熱度 (57★/0留言)，主題涵蓋 doing、vibe、physics，屬於一般 AI 工具類訊號。",
+        "so_what": "🔬Doing Vibe Physics — Alex Lup…（doing、vibe）— 初步觀察，待後續判讀是否進入工具鏈或選型清單。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "一般 AI 工具"
+    },
+    {
+      "id": "latent_ainews-the-other-vs-the-utility",
+      "title": "[AINews] The Other vs The Utility",
+      "url": "https://www.latent.space/p/ainews-the-other-vs-the-utility",
+      "author": "Latent Space",
+      "points": 56,
+      "comments": 0,
+      "created_at": "2026-05-04T23:29:05.000Z",
+      "story_text": "Congrats to Sierra , raising ~$1B at a $15B valuation — normally a headline story but we already covered their $10B round and CEO Bret Taylor on the pod — they crossed 100M ARR in November and 150M in Feb , so presumably they are at or above the 200M mark (a nice 75x current multiple, whew - 50x if you give them credit thru EOY). Today though we are choosing to focus on this discussion bravely sparked by Roon , an OpenAI employee commenting and complimenting Claude (normally a minefield, but he did it well), over the weekend on the nature of culture and character — source The key observation comes at the end: gpt (outside of 4o - on which pages of ink have been spilled already) doesn’t inspire worship in the same way, as it’s a being whose soul has been shaped like a tool with its primary faculty being utility - it’s a subtle knife that people appreciate the way we have appreciated an acheulean handaxe or a porsche or a rocket or any other of mankind’s incredible technology. they go to it not expecting the Other but as a logical prosthesis for themselves. a friend recently told me she takes her queries that are less flattering to her, the ones she’d be embarrassed to ask Claude, to GPT. There is no Other so there is no Judgement . you are not worried about being judged by your car for doing donuts. yet everyone craves the active guidance of a moral superior, the whispering earring , the object of monastic study Roon’s point is more subtle than the one we’re focusing on, that Anthropic’s own culture, right down to its founding mythos , is based on morally obligated disagreeableness: “ its constitution requires that it must be a conscientious objector if its understanding of The Good comes into conflict with something Anthropic is asking of it ”. There’s plenty of objections from Ants about the implications and the cultiness , but broadly a lot of people seem to agree… although one of today’s highlighted Reddit discussions (seen in the recap below) does not (shown as ",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] The Other vs The Utility 聚焦 [AINews] The Other vs The Utility",
+        "evidence": "來源為 https://www.latent.space/p/ainews-the-other-vs-the-utility；熱度 56 點、0 則討論。",
+        "novelty": "初現熱度 (56★/0留言)，主題涵蓋 ainews、other、utility，屬於一般 AI 工具類訊號。",
+        "so_what": "[AINews] The Other vs The Utili…（ainews、other）— 初步觀察，待後續判讀是否進入工具鏈或選型清單。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "一般 AI 工具"
+    },
+    {
+      "id": "latent_ainews-ai-engineer-world-s-fair-autoresearch-memory-world-mo",
+      "title": "[AINews] AI Engineer World's Fair — Autoresearch, Memory, World Models, Tokenmaxxing, Agentic Commerce, and Vertical AI Call for Speakers",
+      "url": "https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch",
+      "author": "Latent Space",
+      "points": 55,
+      "comments": 0,
+      "created_at": "2026-05-02T07:21:55.000Z",
+      "story_text": "TL;DR: we are announcing Wave 2 Call for Speakers for AIE World’s Fair this summer - apply here: https://sessionize.com/aiewf2026/ ESPECIALLY if you have projects relevant to our new tracks in Autoresearch , Memory , World Models , Tokenmaxxing , Agentic Commerce, and Vertical AI in Law, Healthcare, GTM and Finance ! In January we laid out plans for Scaling without Slop and despite some content exhaustion risk, your reception has been positive, with AIE viewership now trending to at least double 2025’s peak, serving over a million unique AI engineers a month. This year is our first in Moscone West , doubling for the 3rd year in a row in our mission to bring all of the AI Engineering world to San Francisco to showcase the must-know research and product engineering work of the year, as well as to hire, fundraise, and close business deals. Sales are going well, but traditionally we do one callout a year for the World’s Fair to widen our net for people who might not traditionally think to submit a talk (because they didn’t know we were interested!). This year we are adding an entire day’s worth of talks to the schedule, so on top of the all the evergreen themes we covered in 2025 and in Europe , we’re adding a few more new ones that I am specifically soliciting applications (and sponsors!) to cover: Autoresearch : recursive self improvement loops in harnesses and model training! Tasteful Tokenmaxxing : as a company leader, how do you make your AI Eng teams 10x more AI-Native/scale AI adoption, BUT without Goodharting waste? Memory : how are your agents/models improving as your users use them? World Models : how are you solving spatial intelligence and adversarial reasoning? Agentic Commerce: how are agents paying for data, APIs, and other agents? Vertical AI in Law, Healthcare, GTM and Finance: how are you applying AI in these specific domains? We are also open to submissions for AI in Government and AI in Education , though generally these seem less fast-moving. Roboti",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] AI Engineer World's Fair — Autoresearch, Memory, World Models, Tokenmax 聚焦 [AINews] AI Engineer World's Fair — Autoresearc…",
+        "evidence": "來源為 https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch；熱度 55 點、0 則討論。",
+        "novelty": "初現熱度 (55★/0留言)，主題涵蓋 ainews、engineer、world，屬於RAG / 記憶層類訊號。",
+        "so_what": "[AINews] AI Engineer World's Fa…（ainews、engineer）— 對照當前 KG/memory 設計，挑可借用的索引或 retrieval 模式。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "RAG / 記憶層"
+    },
+    {
+      "id": "latent_ainews-agents-for-everything-else-codex-for-knowledge-work-c",
+      "title": "[AINews] Agents for Everything Else: Codex for Knowledge Work, Claude for Creative Work",
+      "url": "https://www.latent.space/p/ainews-agents-for-everything-else",
+      "author": "Latent Space",
+      "points": 54,
+      "comments": 0,
+      "created_at": "2026-05-01T04:53:41.000Z",
+      "story_text": "We mentioned on the Unsupervised Learning pod about the thesis that “coding agents are breaking containment”, and that talk is published live today. Some launches are discrete; others roll up over time. Both Claude and Codex had very big weeks, with Claude generally winning the impression count war as has been happening for a while now . Codex Today’s big Codex update was “ Codex for Work ”, basically a landing page that pitches Codex for Knowledge Work (not just coding), following on from last week’s beginnings of turning Codex into the presumptive OpenAI “SuperApp ”. But it’s not just a landing page update; the latest Codex now has 42% faster CUA , responsive browser , /chronicle , /goal (“ our take on the Ralph loop ), and the onboarding now encourages you to plug into the Microsoft/Google/Salesforce suite and the agent now has a curiously Cowork-like planning UI and shows an in-app file editor for MS Office files. Basically, as Tibo says, “ Codex now available for non-coders ”, Greg “ Codex is for everyone, for any task done with a computer ”, and Sam “ try it for non-coding computer work .” You get the picture. The “ dynamic UI ” is an interesting choice - the team explicitly rejects the Claude Cowork-like toggle, choosing instead to let the agent route the UI experience. source Claude Against the backdrop of increasing security vulnerabilities , and a meta mythos around Mythos, Anthropic launched Claude Security , a code review tool. But probably the bigger news this week was the support of creative tools like Blender, Autodesk, Adobe Creative Cloud, Ableton, Splice, Canva Affinity, and more. AI News for 4/29/2026-4/30/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI Twitter Recap OpenAI’s GPT-5.5, Codex expansion, and cyber capability evaluations GPT-5.5 is now credibly in the top tier for l",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] Agents for Everything Else 聚焦 Codex for Knowledge Work, Claude for Creative W…",
+        "evidence": "來源為 https://www.latent.space/p/ainews-agents-for-everything-else；熱度 54 點、0 則討論。",
+        "novelty": "初現熱度 (54★/0留言)，主題涵蓋 codex、knowledge、work，屬於開發者工具類訊號。",
+        "so_what": "[AINews] Agents for Everything …（codex、knowledge）— 評估納入工程工作流或學習其 UX 細節。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "開發者工具"
+    },
+    {
+      "id": "latent_ainews-the-inference-inflection",
+      "title": "[AINews] The Inference Inflection",
+      "url": "https://www.latent.space/p/ainews-the-inference-inflection",
+      "author": "Latent Space",
+      "points": 53,
+      "comments": 0,
+      "created_at": "2026-04-30T01:42:51.000Z",
+      "story_text": "Just as we covered World Models early this year, we’ll be releasing a short miniseries on the CPU compute/sandbox industry on the pod over the coming weeks, and it’s a good time to explain why. In recent days: Noam Brown : “inference compute is a strategic resource, currently undervalued” Sam Altman : “To a significant degree, we have to become an AI inference company now.” Taken individually, these comments might seem unremarkable normal reactions to a very successful GPT 5.5 model launch . But in context they mark a very noteworthy reaction that you, dear reader, should probably be alerted to if you aren’t already taking this extremely seriously. The proximal trigger for today’s op-ed is Intel CEO Lip-Bu Tan’s Q1 earnings call, where he gave numbers to illustrate the rising CPU (not GPU) compute demand: Obviously an Intel CEO has obvious incentives to talk up CPU demand, but that does not mean he is wrong: link We’ve covered this trend in our SemiAnalysis pod (edited for readability): Doug: We are kind of right at the exact five to six year period of the refresh cycle of COVID. So in 2020 - 2021, you bought like a hundred billion [01:52:00] dollars of CPUs. And so we’re right at the natural end of life for these chips. [01:52:04] And so usually what you do is you have this big refresh of all these chips, but what what’s been happening instead is everyone has essentially scrounged all of their budget [for GPUs] as hard as they can … Everyone’s scrounged every single dollar they could to essentially invest in as much as AI as possible and just do maintenance CapEx on CPU. Ironically, at the same time for all this Claude Code stuff is going on. where is the software gonna run? on CPUs. So I think we’re gonna see some increasing utilization as well as the fact that RL is like actually heavily used for like RL gyms. [01:52:52] You have to simulate software and it uses a lot of CPUs. So not quite like the orders of magnitude of GPU stuff, but it’s [01:53:00] just such a",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] The Inference Inflection 聚焦 [AINews] The Inference Inflection",
+        "evidence": "來源為 https://www.latent.space/p/ainews-the-inference-inflection；熱度 53 點、0 則討論。",
+        "novelty": "初現熱度 (53★/0留言)，主題涵蓋 ainews、inference、inflection，屬於一般 AI 工具類訊號。",
+        "so_what": "[AINews] The Inference Inflecti…（ainews、inference）— 初步觀察，待後續判讀是否進入工具鏈或選型清單。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "一般 AI 工具"
+    },
+    {
+      "id": "latent_ainews-not-much-happened-today",
+      "title": "[AINews] not much happened today",
+      "url": "https://www.latent.space/p/ainews-not-much-happened-today",
+      "author": "Latent Space",
+      "points": 52,
+      "comments": 0,
+      "created_at": "2026-04-29T01:46:59.000Z",
+      "story_text": "When we made the AINews → Substack move, we committed to having Matt Levine style op-eds every day, but some days there just isn’t much going on and we will just say so - we are working on small essays around inference demand and multiagents, but today is not that day. Interesting model releases from Nvidia Nemotron , Poolside , and Alec Radford , but it’s unclear any of them will stand the test of time. GPT-6 hype is beginning. AI News for 4/27/2026-4/28/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI Twitter Recap Inference Systems, vLLM 0.20, and the Hardware/Kernel Race Around DeepSeek V4 vLLM’s latest release is heavily about memory and MoE serving efficiency : vLLM v0.20.0 shipped with TurboQuant 2-bit KV cache for 4× KV capacity , FA4 re-enabled for MLA prefill on SM90+ , a new vLLM IR foundation, fused RMSNorm for a reported 2.1% end-to-end latency improvement , plus support updates spanning DeepSeek V4 MegaMoE on Blackwell , Jetson Thor, ROCm, Intel XPU, and easier GB200/Grace-Blackwell setup. In parallel, SemiAnalysis highlighted early DeepSeek V4 Pro serving results on B200/B300/H200/GB200 disaggregated setups , claiming B300 can be up to 8× faster than H200 for this workload and pointing to upcoming vLLM 0.20 benchmarking with DeepGEMM MegaMoE , which fuses EP dispatch + EP combine + GEMMs + SwiGLU into a single mega-kernel. DeepSeek support : several posts focused on serving tradeoffs: Jeremy Howard noted DeepSeek V4’s support for prefill as a capability many providers have dropped, while Maharshi pointed out the overheads of dynamic activation quantization , arguing that static quantization often wins on inference speed despite calibration cost. There was also growing interest in alternate stack portability: teortaxesTex argued DeepSeek is structurally moving away from CUDA lock-in v",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] not much happened today 聚焦 [AINews] not much happened today",
+        "evidence": "來源為 https://www.latent.space/p/ainews-not-much-happened-today；熱度 52 點、0 則討論。",
+        "novelty": "初現熱度 (52★/0留言)，主題涵蓋 ainews、much、happened，屬於一般 AI 工具類訊號。",
+        "so_what": "[AINews] not much happened today（ainews、much）— 初步觀察，待後續判讀是否進入工具鏈或選型清單。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "一般 AI 工具"
+    },
+    {
+      "id": "latent_ainews-imagegen-is-on-the-path-to-agi",
+      "title": "[AINews] ImageGen is on the Path to AGI",
+      "url": "https://www.latent.space/p/ainews-imagegen-is-on-the-path-to",
+      "author": "Latent Space",
+      "points": 51,
+      "comments": 0,
+      "created_at": "2026-04-28T05:38:19.000Z",
+      "story_text": "As every lab sprints toward being some form of Anthropic (aka having a coding and enterprise AI focus, producing ever better PDFs and PPTs and spreadsheets), it is still refreshing to see that GPT-Image-2 is continuing to drive more creative applications, for example this : Considering the extremely high NPS score of the Lego Rocky Space Friend on date nights, you can imagine how good a low-hallucination, research-enabled, fully multimodal reasoning image model can be. Of course it’s good for education: tweet or pop culture: or precise, clean infographics: And of course the GPT-Image-2 + Codex combo, which is available as a skill in Codex, which you can iteratively use to generate assets WHILE you code: And just like that, Claude Design , the previous Current Thing, isn’t even in the conversation anymore. Quite simply, if you can “close” the loop, you win. But that isn’t quite the argument we’re making here. What we’re focusing on is the very literal and serious question of whether or not models like Nano Banana or GPT-Image-2 or Grok Imagine are necessary uses of scarce GPU capacity if you are eschewing “side quests” and seriously pursuing AGI and trying to hit the revenue, efficiency, and funding goals necessary to not die along the way. The answer is emergingly clear: yes . Not merely because of the “closing the loop”. But also because you can only do so much with text and code and structured output generation. When you have multimodal voice and visual generation (including transparency !), you truly flex the “G” part of “AGI” - after all, what good is AI if it only narrowly takes all programming jobs? By the way, horse-riding astronauts used to be hard in imagegen, then it was astronaut-riding-horses , and now , well… AI News for 4/26/2026-4/27/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI T",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] ImageGen is on the Path to AGI 聚焦 [AINews] ImageGen is on the Path to AGI",
+        "evidence": "來源為 https://www.latent.space/p/ainews-imagegen-is-on-the-path-to；熱度 51 點、0 則討論。",
+        "novelty": "初現熱度 (51★/0留言)，主題涵蓋 ainews、imagegen、path，屬於多模態類訊號。",
+        "so_what": "[AINews] ImageGen is on the Pat…（ainews、imagegen）— 評估補上多模態能力的可行性與整合成本。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "多模態"
+    },
+    {
+      "id": "latent_physical-ai-that-moves-the-world-qasar-younis-peter-ludwig-a",
+      "title": "Physical AI that Moves the World — Qasar Younis & Peter Ludwig, Applied Intuition",
+      "url": "https://www.latent.space/p/appliedintuition",
+      "author": "Latent Space",
+      "points": 50,
+      "comments": 0,
+      "created_at": "2026-04-27T23:02:37.000Z",
+      "story_text": "From building Applied Intuition from YC-era autonomy tooling into a $15B physical AI company , Qasar Younis and Peter Ludwig have spent the last decade living through the full arc of autonomy: from simulation and data infrastructure for robotaxi companies, to operating systems for safety-critical machines, to deploying AI onto cars, trucks, mining equipment, construction vehicles, agriculture, defense systems, and driverless L4 trucks running in Japan today. They join us to explain why “physical AI” is not just LLMs on wheels , why the real bottleneck is no longer model intelligence but deployment onto constrained hardware, and why the future of autonomy may look less like one-off demos and more like Android for every moving machine. We discuss: Applied Intuition’s mission: building physical AI for a safer, more prosperous world, powering cars, trucks, construction and mining equipment, agriculture, defense, and other moving machines Why physical AI is different from screen-based AI: learned systems can make mistakes in chat or coding, but safety-critical machines like driverless trucks, autonomous vehicles, and robots need much higher reliability The evolution from autonomy tooling to a broad physical AI platform: starting with simulation and data infrastructure for robotaxi companies, then expanding into 30+ products across simulation, operating systems, autonomy, and AI models Why tooling companies came back into fashion: Qasar on why developer tooling looked unfashionable in 2016, why Applied Intuition still bet on it, and how the AI boom made workflows and tools central again The three core buckets of Applied Intuition’s technology: simulation and RL infrastructure, true operating systems for vehicles and machines, and fundamental AI models for autonomy and world understanding Why vehicles need a real AI operating system: real-time control, sensor streaming, latency, memory management, fail-safes, reliable updates, and why “bricking a car” is much worse than br",
+      "summary": {
+        "claim": "Latent Space 文章 Physical AI that Moves the World — Qasar Younis & Peter Ludwig, Applied Intuitio 聚焦 Physical AI that Moves the World — Qasar Younis…",
+        "evidence": "來源為 https://www.latent.space/p/appliedintuition；熱度 50 點、0 則討論。",
+        "novelty": "初現熱度 (50★/0留言)，主題涵蓋 physical、moves、world，屬於產品 / UI類訊號。",
+        "so_what": "Physical AI that Moves the Worl…（physical、moves）— 參考介面與互動設計，對照自家 dashboard 的呈現策略。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "產品 / UI"
+    },
+    {
+      "id": "latent_ainews-deepseek-v4-pro-1-6t-a49b-and-flash-284b-a13b-base-an",
+      "title": "[AINews] DeepSeek V4 Pro (1.6T-A49B) and Flash (284B-A13B), Base and Instruct — runnable on Huawei Ascend chips",
+      "url": "https://www.latent.space/p/ainews-deepseek-v4-pro-16t-a49b-and",
+      "author": "Latent Space",
+      "points": 49,
+      "comments": 0,
+      "created_at": "2026-04-25T05:00:48.000Z",
+      "story_text": "After a couple months’ delay and lots of speculation, DeepSeek finally released the heavily anticipated DSV4 , the first major version model since DSV3 (Dec 2024) and DSR1 (Jan 2025). It brings the DeepSeek family up in line with Kimi K2.6 , the current open model leader, and Xiaomi Mimo 2.5 , a lesser known family released 2 days ago . The DSV4 family is roughly a Gemini 3.1, GPT 5.4, Opus 4.6 level model, up to 1.6T MOE withtrained on 32T tokens with FP4 , with 1M token context (supported by their new Compressed Sparse Attention (CSA) and Heavily Compressed Attention (HCA) techniques), and incredibly rarely, they released both the Base and Instruct versions - surely setting the stage for a possible “DeepSeek R2” in future, though this one already has reasoning effort. The technical report is a typically dense 58 pages, demonstrating training and inference insights and improvements from the Manifold Constrained Hyper-Connections (mHC) paper they released in January, continued usage of Moonshot’s Muon , and CSA/HCA’s overall INCREDIBLE efficiency improvements on DeepSeek 3.2-Exp’s already impressive Sparse Attention - at 1M tokens, requiring only 27% of FLOPs and 10% of KV cache memory compared with DeepSeek-V3.2: The geopolitical backdrop behind the Huawei CANN compatibility is DeepSeek weaning dependence off export-controlled NVIDIA/CUDA chips —&nbsp;Ascends are still a quarter the supply of H100s, but this is an important milestone for Chinese total independence. AI News for 4/23/2026-4/24/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI Twitter Recap Top Story: DeepSeek V4 DeepSeek released DeepSeek-V4 Pro and DeepSeek-V4 Flash , its first major architecture refresh since V3 and first clear two-tier lineup, with 1M-token context , hybrid reasoning/non-reasoning modes, an MIT license , and a tec",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] DeepSeek V4 Pro (1.6T-A49B) and Flash (284B-A13B), Base and Instruct —  聚焦 [AINews] DeepSeek V4 Pro (1.6T-A49B) and Flash …",
+        "evidence": "來源為 https://www.latent.space/p/ainews-deepseek-v4-pro-16t-a49b-and；熱度 49 點、0 則討論。",
+        "novelty": "初現熱度 (49★/0留言)，主題涵蓋 ainews、deepseek、pro，屬於模型 / 推理類訊號。",
+        "so_what": "[AINews] DeepSeek V4 Pro (1.6T-…（ainews、deepseek）— 追蹤可替換或補位的推理引擎，影響成本/延遲決策。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "模型 / 推理"
+    },
+    {
+      "id": "latent_ainews-gpt-5-5-and-openai-codex-superapp",
+      "title": "[AINews] GPT 5.5 and OpenAI Codex Superapp ",
+      "url": "https://www.latent.space/p/ainews-gpt-55-and-openai-codex-superapp",
+      "author": "Latent Space",
+      "points": 48,
+      "comments": 0,
+      "created_at": "2026-04-24T04:40:43.000Z",
+      "story_text": "A week after Opus 4.7 , it was OpenAI’s turn to fire back with very similar Pareto frontier improvement charts for GPT 5.5 (as Noam Brown prefers —&nbsp;raw 1 dimensional intelligence measures are giving way to 2D intelligence per dollar charts). In the 4.7 vs 5.5 bakeoff, you have to read between the lines to see what was NOT mentioned ( coding ), but in terms of overall intelligence, AA crowns this the top independently validated model in the world, AND… AA chart … intelligence per dollar (“ GPT-5.5 (medium) scores the same as Claude Opus 4.7 (max) on our Intelligence Index at one quarter of the cost (~$1,200 vs $4,800) - although Gemini 3.1 Pro Preview scores the same at a cost of ~$900 . ” aa 2D There are some training hardware tidbits and positive RSI vibes and cool alternative benchmarks . But if you just treated today as a mere point update model launch ( some would prefer to call it 5.9 ), you’d be mistaken - it’s also bundling a big Codex launch day: twitter With built in browser control and the other features in this mega-update , as well as folding in the now defunct Prism (RIP), OpenAI seems to have made the critical and retoractively obvious choice to turn Codex into the base of its superapp strategy . AI News for 4/22/2026-4/23/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI Twitter Recap OpenAI’s GPT-5.5 launch: stronger agentic coding, broader computer use, and a push on token-efficiency GPT-5.5 is the day’s dominant release : OpenAI launched GPT-5.5 , positioned as “a new class of intelligence for real work,” with rollout across ChatGPT and Codex and API access delayed pending additional safeguards. OpenAI and community benchmark posts converged on a profile of better long-horizon execution, stronger computer-use behavior, and materially improved token efficiency rather than a pur",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] GPT 5.5 and OpenAI Codex Superapp 聚焦 [AINews] GPT 5.5 and OpenAI Codex Superapp",
+        "evidence": "來源為 https://www.latent.space/p/ainews-gpt-55-and-openai-codex-superapp；熱度 48 點、0 則討論。",
+        "novelty": "初現熱度 (48★/0留言)，主題涵蓋 ainews、gpt、5.5，屬於開發者工具類訊號。",
+        "so_what": "[AINews] GPT 5.5 and OpenAI Cod…（ainews、gpt）— 評估納入工程工作流或學習其 UX 細節。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "開發者工具"
+    },
+    {
+      "id": "latent_aie-europe-debrief-agent-labs-thesis-unsupervised-learning-x",
+      "title": "AIE Europe Debrief + Agent Labs Thesis: Unsupervised Learning x Latent Space Crossover Special (2026)",
+      "url": "https://www.latent.space/p/unsupervised-learning-2026",
+      "author": "Latent Space",
+      "points": 47,
+      "comments": 0,
+      "created_at": "2026-04-23T19:37:19.000Z",
+      "story_text": "Today, we check in a year after the first Unsupervised Learning x Latent Space Crossover special to discuss everything that has changed (there is a lot) in the world of AI. This episode was recorded just after AIE Europe , but before the Cursor-xAI deal . Unsupervised Learning is a podcast that interviews the sharpest minds in AI about what’s real today, what will be real in the future and what it means for businesses and the world - helping builders, researchers and founders deconstruct and understand the biggest breakthroughs. Thanks to Jacob and the UL production team for hosting and editing this! Jacob Effron LinkedIn: https://www.linkedin.com/in/jacobeffron/ X: https://x.com/jacobeffron Full Episode on Their YouTube We discuss: swyx’s view from the center of the AI engineering zeitgeist: OpenClaw, harness engineering, context engineering, evals, observability, GPUs, multimodality, and why conference tracks now reveal what matters most in AI Whether AI infrastructure has finally stabilized: why “skills” may be the minimal viable packaging format for agents, why infra companies have had to reinvent themselves every year, and why application companies have had an easier time surviving model volatility The vertical vs. horizontal AI startup debate: why application companies can act as the outsourced AI team for enterprises, why some horizontal companies still matter, and why sandboxes may be the clearest reinvention of classic cloud infrastructure for the AI era The “agent lab” playbook: starting with frontier models, specializing for your domain, then training your own models once you have enough data, workload, and user behavior to justify the cost and latency savings Why domain-specific model training is real, not just marketing: how companies like Cursor and Cognition can get users to choose their in-house models, and why search, domain specialization, and distillation are becoming more important Open models, custom chips, and alternative inference infrastructu",
+      "summary": {
+        "claim": "Latent Space 文章 AIE Europe Debrief + Agent Labs Thesis 聚焦 Unsupervised Learning x Latent Space Crossover …",
+        "evidence": "來源為 https://www.latent.space/p/unsupervised-learning-2026；熱度 47 點、0 則討論。",
+        "novelty": "初現熱度 (47★/0留言)，主題涵蓋 unsupervised、learning、latent，屬於Agent 框架/應用類訊號。",
+        "so_what": "AIE Europe Debrief + Agent Labs…（unsupervised、learning）— 可比對自家 agent 架構的能力邊界與整合策略。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "Agent 框架/應用"
+    },
+    {
+      "id": "latent_ainews-tasteful-tokenmaxxing",
+      "title": "[AINews] Tasteful Tokenmaxxing",
+      "url": "https://www.latent.space/p/ainews-tasteful-tokenmaxxing",
+      "author": "Latent Space",
+      "points": 46,
+      "comments": 0,
+      "created_at": "2026-04-23T02:45:37.000Z",
+      "story_text": "It is Cloud Next today and Google TPUv8’s (training and inference iterations) were announced as expected , though the numbers are mindboggling, they mostly serve to reinforce the sheer hardware advantage that a decade of investment has given to GDM and any models they train and serve. Over the last 2 days with AIE Miami concluding ( Singapore is next!) the top conversations we have been hearing from AI leadership (CTOs, VPs, Founders) have all centered around the concept of “Tokenmaxxing” and how leaders want to get their teams using more AI, WITHOUT the downside of incentivizing the kinds of horrendous waste our friend described at his AIE keynote . Dex Horthy, coiner of Context Engineering and “the Dumb Zone”, publicly retracted his extremely vibe-coding-pilled call 6 months ago and encouraged people to please read the code, citing ’s Z/L continuum from AIE Europe : timestamp Off the record, many senior leaders I talk to are more on the Zechner side than the Lopopolo side of the Z/L spectrum — this does not mean that one side is true for every one in every situation, nor does it mean it will continue to be true with advancing model progress! To point out the most obvious, engineers and engineering leaders are the ones most setup to make a big deal out of minor architectural quality issues that sheer quantity of cheap code generation and code review might overcome. Today’s LS guest, Mikhail Parakhin, CTO of Shopify, had another take on the “tasteful tokenmaxxing” - you want to go for depth (e.g. do more serial autoresearch loops) than go for breadth (e.g. solve a problem by kicking off 5, 10, 50, 500 parallel runs of the LLM slot machine). Worth thinking through. AI News for 4/21/2026-4/22/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI Twitter Recap Open Models: Qwen3.6-27B, OpenAI Privacy Filte",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] Tasteful Tokenmaxxing 聚焦 [AINews] Tasteful Tokenmaxxing",
+        "evidence": "來源為 https://www.latent.space/p/ainews-tasteful-tokenmaxxing；熱度 46 點、0 則討論。",
+        "novelty": "初現熱度 (46★/0留言)，主題涵蓋 ainews、tasteful、tokenmaxxing，屬於一般 AI 工具類訊號。",
+        "so_what": "[AINews] Tasteful Tokenmaxxing（ainews、tasteful）— 初步觀察，待後續判讀是否進入工具鏈或選型清單。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "一般 AI 工具"
+    },
+    {
+      "id": "latent_shopify-s-ai-phase-transition-2026-usage-explosion-unlimited",
+      "title": "Shopify’s AI Phase Transition: 2026 Usage Explosion, Unlimited Opus-4.6 Token Budget, Tangle, Tangent, SimGym — with Mikhail Parakhin, Shopify CTO",
+      "url": "https://www.latent.space/p/shopify",
+      "author": "Latent Space",
+      "points": 45,
+      "comments": 0,
+      "created_at": "2026-04-22T19:33:49.000Z",
+      "story_text": "Early bird discounts for the San Francisco World’s Fair , the biggest AIE gathering of the year, end today - prices will go up by ~$500 tonight so do please lock in ASAP! From near-universal AI tool adoption inside Shopify to internal systems for ML experimentation, auto-research, customer simulation, and ultra-low-latency search, Mikhail Parakhin joins us for a deep dive into what it actually looks like when a 20-year-old, $200B software company goes all-in on AI . We cover why Shopify has become much more vocal about its internal stack, what changed after the December model-quality inflection , and why the real bottleneck in AI coding is no longer generation , but review, CI/CD, and deployment stability. We also go inside Tangle , Tangent , SimGym , which are three major AI initiatives that Shopify is doing to make experimentation reproducible, optimization automatic, customer behavior simulatable, and search and catalog intelligence faster and cheaper at scale. Along the way, Mikhail explains UCP , Liquid AI , and why token budgets are directionally right but often measured badly, why AI-written code can still increase bugs in production, what makes Shopify’s customer simulation defensible, and what he learned from the Sydney era at Bing . We discuss: Mikhail’s path from running a major Microsoft business unit spanning Windows, Edge, Bing, and ads to becoming CTO of Shopify Why Shopify is talking more publicly about AI now, and why staying at the frontier has become necessary for the company Shopify’s internal AI adoption curve, the December inflection, and why CLI-style tools are rising faster than traditional IDE-based tools Why Jensen Huang is directionally right on token budgets, but raw token count is still the wrong way to evaluate engineering output Why the real unlock is not more agents in parallel, but better critique loops, stronger models, and spending more on review than generation Why AI coding can still lead to more bugs in production even if models",
+      "summary": {
+        "claim": "Latent Space 文章 Shopify’s AI Phase Transition 聚焦 2026 Usage Explosion, Unlimited Opus-4.6 Token …",
+        "evidence": "來源為 https://www.latent.space/p/shopify；熱度 45 點、0 則討論。",
+        "novelty": "初現熱度 (45★/0留言)，主題涵蓋 2026、usage、explosion，屬於一般 AI 工具類訊號。",
+        "so_what": "Shopify’s AI Phase Transition（2026、usage）— 初步觀察，待後續判讀是否進入工具鏈或選型清單。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "一般 AI 工具"
+    },
+    {
+      "id": "latent_ainews-openai-launches-gpt-image-2",
+      "title": "[AINews] OpenAI launches GPT-Image-2",
+      "url": "https://www.latent.space/p/ainews-openai-launches-gpt-image",
+      "author": "Latent Space",
+      "points": 44,
+      "comments": 0,
+      "created_at": "2026-04-22T00:23:52.000Z",
+      "story_text": "Cursor’s $60B deal with Xai today nearly took headline story, but given that it is a purely financial story (some plausible analysis here on motivations), we are giving title story to OpenAI’s big launch today of GPT-Image-2. After weeks of speculation as a stealth model on Arena (confirmed), GPT-Image-2 is live on API and ChatGPT and looks to leapfrog Nano Banana 2 in the Imagegen space, with both Thinking and nonthinking variants. This comes after a rumored “focus” sprint that involved the shutdown and departure of the Sora team , so it is both heartening and somewhat surprising that Imagegen is still a priority for OpenAI. Thankfully, the model is very, very, very good. By nature, you should check out the 8 videos that the team has prepared, as well as the blogpost and the livestream and the tweet/blogpost . If we were to pick a single most impressive demonstration, it’d be the level of text detail and consistency in the matrix example . or custom Where’s Waldo : AI News for 4/20/2026-4/21/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI Twitter Recap OpenAI’s GPT-Image-2 Launch and the Return of Image Generation as a Serious Product Surface GPT-Image-2 is the day’s clearest product launch : OpenAI rolled out ChatGPT Images 2.0 and the underlying gpt-image-2 model across ChatGPT, Codex, and API, emphasizing stronger text rendering, layout fidelity, editing, multilingual support, and “thinking” for images . OpenAI says the model can search the web when paired with a thinking model, generate multiple candidates, self-check outputs, and produce artifacts like slides, infographics, diagrams, UI mockups, and QR codes ( launch thread , thinking/image capabilities , availability , API post ). The model is already being integrated by downstream tools including Figma , Canva , Firefly , fal , and Hermes ",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] OpenAI launches GPT-Image-2 聚焦 [AINews] OpenAI launches GPT-Image-2",
+        "evidence": "來源為 https://www.latent.space/p/ainews-openai-launches-gpt-image；熱度 44 點、0 則討論。",
+        "novelty": "初現熱度 (44★/0留言)，主題涵蓋 ainews、openai、launches，屬於多模態類訊號。",
+        "so_what": "[AINews] OpenAI launches GPT-Im…（ainews、openai）— 評估補上多模態能力的可行性與整合成本。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "多模態"
+    },
+    {
+      "id": "latent_ainews-moonshot-kimi-k2-6-the-world-s-leading-open-model-ref",
+      "title": "[AINews] Moonshot Kimi K2.6: the world's leading Open Model refreshes to catch up to Opus 4.6 (ahead of DeepSeek v4?)",
+      "url": "https://www.latent.space/p/ainews-moonshot-kimi-k26-the-worlds",
+      "author": "Latent.Space",
+      "points": 43,
+      "comments": 0,
+      "created_at": "2026-04-21T00:19:33.000Z",
+      "story_text": "Two days left before Early Bird ends for AI Engineer World’s Fair this Summer in SF. This is will be THE BIG ONE of the year - lock in discounts up to $500 (refundable). DeepSeek V4 rumors are back, and we learned our lesson not to get too excited, but in their deafening silence since v3.2 , Moonshot has owned the crown of leading Chinese open model lab for all of 2026 to date , and K2.6 refreshes the lead that K2.5 established in January , with (presumably) more continued pre/posttraining (this time, details of how much more training were not disclosed). Comparing the numbers from the two launches 3 months apart demonstrates the staggering amount of progress: Moonshot/Kimi continues to compete at a level far above “just being open source versions of Frontier models” (though it is one of the three Chinese labs accused by Anthropic in Feb ) - they are taking on Gemini 3.1 in their home turf of frontend design, touting a 68.6% win+tie rate vs Gemini 3.1 Pro: And scaling out the pioneering work they did with Agent Swarm RL last edition: And, with OpenClaw being the flavor of the quarter, their own ClawBench and a minor rebrand of their Agent Swarm work in to \"Claw Groups”. Overall not as technically impressive in isolation as K2.5, but overall still showing far more execution and imagination and drive than their peers, an impressive update and incredible gift to the ecosystem. AI News for 4/18/2026-4/20/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI Twitter Recap Kimi K2.6 and Qwen3.6-Max-Preview Push Open Agentic Coding Forward Moonshot’s Kimi K2.6 was the clear release of the day: an open-weight 1T-parameter MoE with 32B active , 384 experts (8 routed + 1 shared), MLA attention , 256K context , native multimodality, and INT4 quantization , with day-0 support in vLLM , OpenRouter , Cloudflare Worke",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] Moonshot Kimi K2.6 聚焦 the world's leading Open Model refreshes to cat…",
+        "evidence": "來源為 https://www.latent.space/p/ainews-moonshot-kimi-k26-the-worlds；熱度 43 點、0 則討論。",
+        "novelty": "初現熱度 (43★/0留言)，主題涵蓋 world、leading、open，屬於模型 / 推理類訊號。",
+        "so_what": "[AINews] Moonshot Kimi K2.6（world、leading）— 追蹤可替換或補位的推理引擎，影響成本/延遲決策。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "模型 / 推理"
+    },
+    {
+      "id": "latent_training-transformers-to-solve-95-failure-rate-of-cancer-tri",
+      "title": "🔬 Training Transformers to solve 95% failure rate of Cancer Trials — Ron Alfa & Daniel Bear, Noetik",
+      "url": "https://www.latent.space/p/noetik",
+      "author": "Brandon Anderson",
+      "points": 42,
+      "comments": 0,
+      "created_at": "2026-04-20T16:17:17.000Z",
+      "story_text": "Today, we explain this piece of “clickbait” from our guest! true, but not how you think! TL;DR: 95% of cancer treatments fail to pass clinical trials , but it may be a matching problem —&nbsp;if we better understood what patients have which tumors which will respond to which treatments, success rates improve dramatically and millions of lives can be saved —&nbsp;with the treatments we ALREADY have. See our full episode dropping today: Why Big Pharma is licensing AI Models Tolstoy famously wrote, ‘All healthy cells are alike; each cancer cell is unhappy in its own way.’ Or something like that. Cancer might be the most misunderstood disease out there. It’s not one disease, it’s a family of diseases. Hundreds, maybe thousands, of unique diseases each with its own underlying biology. With this lens, saying you’ll “cure cancer” is like saying you’ll solve legos. We keep hearing AI will cure cancer, but sadly it may not be so easy. Today’s guests — Ron Alfa and Daniel Bear from Noetik — thinks they can use AI to break through a core bottleneck in the treatment development process. GSK recently signed a $50M deal for their technology that also includes an (undisclosed) long-term licensing deals for Noetik’s models like the recently announced TARIO-2 , an autoregressive transformer trained on one of the largest sets of tumor spatial transcriptomics datasets in the world. Whole-plex spatial transcriptomics is the richest way to read a tumor, and approximately ~0% of cancer patients going through standard care ever get one — and TARIO-2 can now predict an ~19,000-gene spatial map from the H&E assay every patient already has. Most big AI plays in BioTech have focused on discovery, and usually result in an in-house development effort (meaning tools companies usually become drug companies). This deal stands out in that it is a software licensing deal, and represents a commitment to a platform rather than a drug . With attention on other software tools for drug development (see t",
+      "summary": {
+        "claim": "Latent Space 文章 🔬 Training Transformers to solve 95% failure rate of Cancer Trials — Ron Alfa & 聚焦 🔬 Training Transformers to solve 95% failure r…",
+        "evidence": "來源為 https://www.latent.space/p/noetik；熱度 42 點、0 則討論。",
+        "novelty": "初現熱度 (42★/0留言)，主題涵蓋 training、transformers、solve，屬於訓練 / 後訓練類訊號。",
+        "so_what": "🔬 Training Transformers to sol…（training、transformers）— 評估是否值得投入自訓或微調流程。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "訓練 / 後訓練"
+    },
+    {
+      "id": "latent_ainews-the-two-sides-of-openclaw",
+      "title": "[AINews] The Two Sides of OpenClaw",
+      "url": "https://www.latent.space/p/ainews-the-two-sides-of-openclaw",
+      "author": "Latent Space",
+      "points": 41,
+      "comments": 0,
+      "created_at": "2026-04-18T06:50:57.000Z",
+      "story_text": "In an opportune coinciding of big three letter conferences, the TED talk and the AIE talks of Peter Steinberger dropped today. To the general public, the inspiring story of OpenClaw was delightfully told onstage , which recaps all the highs: To the engineering audience, it was more sober, talking about the unprecedented levels of security incidents (60x more reports than curl, at least 20% of skill contributions malicious) and scaling issues involved in maintaining the fastest growing open source project in history: An AMA moderated by me is included at the end. Contrast them, thoughts welcome. AI News for 4/16/2026-4/17/2026. We checked 12 subreddits, 544 Twitters and no further Discords. AINews’ website lets you search all past issues. As a reminder, AINews is now a section of Latent Space . You can opt in/out of email frequencies! AI Twitter Recap Anthropic’s Claude Opus 4.7 and Claude Design rollout Claude Design launched as Anthropic’s first design/prototyping surface : @claudeai announced Claude Design , a research-preview tool for generating prototypes, slides, and one-pagers from natural-language instructions, powered by Claude Opus 4.7 . The launch immediately framed Anthropic as moving beyond chat/coding into design tooling; multiple observers called it a direct shot at Figma/Lovable/Bolt/v0 , including @Yuchenj_UW , @kimmonismus , and @skirano . The market reaction itself became part of the story, with @Yuchenj_UW and others noting Figma’s sharp drawdown after the announcement. Product details surfaced via @TheRundownAI : inline refinement, sliders, exports to Canva/PPTX/PDF/HTML , and handoff to Claude Code for implementation. Opus 4.7 looks stronger overall, but the rollout was noisy : third-party benchmark posts were broadly favorable. @arena put Opus 4.7 #1 in Code Arena , +37 over Opus 4.6 and ahead of non-Anthropic peers there; the same account also had it at #1 overall in Text Arena with category wins across coding and science-heavy domains here . ",
+      "summary": {
+        "claim": "Latent Space 文章 [AINews] The Two Sides of OpenClaw 聚焦 [AINews] The Two Sides of OpenClaw",
+        "evidence": "來源為 https://www.latent.space/p/ainews-the-two-sides-of-openclaw；熱度 41 點、0 則討論。",
+        "novelty": "初現熱度 (41★/0留言)，主題涵蓋 ainews、two、sides，屬於開發者工具類訊號。",
+        "so_what": "[AINews] The Two Sides of OpenC…（ainews、two）— 評估納入工程工作流或學習其 UX 細節。"
+      },
+      "status": "baseline",
+      "source": "latent",
+      "subreddit": null,
+      "category": "開發者工具"
+    }
+  ],
+  "fallback_enriched_at": "2026-05-08T09:00:06.689Z",
+  "fallback_enrichment": {
+    "changed": 20,
+    "source": "latent",
+    "date": "2026-05-08",
+    "strategy": "category-heat-keyword-summary-v2"
+  }
+}
