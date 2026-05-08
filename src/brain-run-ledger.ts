@@ -114,7 +114,7 @@ export function readBrainRunEventsSync(memoryDir: string, query: BrainRunQuery =
   if (kinds.length > 0) events = events.filter(event => kinds.includes(event.event));
   if (statuses.length > 0) events = events.filter(event => statuses.includes(event.status));
 
-  events.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  events.sort(compareBrainRunEventsDesc);
   if (query.limit !== undefined) events = events.slice(0, query.limit);
   return events;
 }
@@ -158,6 +158,23 @@ export function readBrainRunStatesSync(memoryDir: string, query: BrainRunQuery =
   states.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   if (query.limit !== undefined) states = states.slice(0, query.limit);
   return states;
+}
+
+function compareBrainRunEventsDesc(a: BrainRunEvent, b: BrainRunEvent): number {
+  const time = b.createdAt.localeCompare(a.createdAt);
+  if (time !== 0) return time;
+  return brainRunEventRank(b.event, b.status) - brainRunEventRank(a.event, a.status);
+}
+
+function brainRunEventRank(event: BrainRunEventKind, status: BrainRunStatus): number {
+  if (event === 'runtime_finished') return 70;
+  if (event === 'claim_written') return 65;
+  if (event === 'actor_finished') return 60;
+  if (event === 'context_injected') return 45;
+  if (event === 'actor_started') return 40;
+  if (event === 'actor_queued') return 30;
+  if (event === 'runtime_started') return status === 'skipped' ? 55 : 20;
+  return 0;
 }
 
 function ensureBrainRunLedger(memoryDir: string): string {

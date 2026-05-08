@@ -2,8 +2,10 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import path from 'node:path';
 import { appendMemoryIndexEntry, queryMemoryIndexSync, updateMemoryIndexEntry } from './memory-index.js';
 import { classifyProviderResourceHold, type ProviderResourceHold } from './provider-resource-guard.js';
+import { forgeStatus } from './forge.js';
 import {
   recordDelegationFailure,
+  readDelegationFailureRecordsSync,
   transitionDelegationFailureStatus,
   type DelegationFailureStatus,
 } from './delegation-failure-guard.js';
@@ -60,6 +62,8 @@ export interface MiddlewareFailureSweepResult {
   classified: number;
   held: number;
   skippedKnown: number;
+  recoveredOffline: number;
+  recoveredWorkspaceIsolation: number;
 }
 
 export async function sweepMiddlewareFailures(
@@ -67,13 +71,19 @@ export async function sweepMiddlewareFailures(
   options: {
     tasks?: MiddlewareTaskRecord[];
     baseUrl?: string;
+    workdir?: string;
     timeoutMs?: number;
     now?: Date;
   } = {},
 ): Promise<MiddlewareFailureSweepResult> {
   const now = options.now ?? new Date();
   const tasks = options.tasks ?? await fetchMiddlewareTasks(options.baseUrl, options.timeoutMs ?? 2500);
-  return classifyMiddlewareFailures(memoryDir, tasks, now);
+  const result = await classifyMiddlewareFailures(memoryDir, tasks, now);
+  if (tasks.length > 0) result.recoveredOffline += reconcileRecoveredOfflineDelegationFailures(memoryDir, now);
+  if (options.workdir) {
+    result.recoveredWorkspaceIsolation += reconcileRecoveredWorkspaceIsolationDelegationFailures(memoryDir, options.workdir, now);
+  }
+  return result;
 }
 
 export async function classifyMiddlewareFailures(
@@ -90,6 +100,8 @@ export async function classifyMiddlewareFailures(
     classified: 0,
     held: 0,
     skippedKnown: 0,
+    recoveredOffline: 0,
+    recoveredWorkspaceIsolation: 0,
   };
 
   for (const task of failedTasks) {
@@ -170,6 +182,47 @@ export async function classifyMiddlewareFailures(
     slog('MIDDLEWARE-SELF-HEAL', `classified ${result.classified}/${result.failed} failed middleware task(s), held=${result.held}`);
   }
   return result;
+}
+
+export function reconcileRecoveredOfflineDelegationFailures(memoryDir: string, now = new Date()): number {
+  let resolved = 0;
+  for (const failure of readDelegationFailureRecordsSync(memoryDir)) {
+    if (!['open', 'diagnosing', 'needs_human'].includes(failure.status)) continue;
+    if (classifyMiddlewareFailureBucket(failure.error) !== 'offline') continue;
+    const updated = transitionDelegationFailureStatus(
+      memoryDir,
+      failure.signature,
+      'resolved',
+      'middleware health probe is reachable again; historical offline delegation failure closed by self-healing sweep',
+      now,
+    );
+    if (updated) resolved++;
+  }
+  return resolved;
+}
+
+export function reconcileRecoveredWorkspaceIsolationDelegationFailures(
+  memoryDir: string,
+  workdir: string,
+  now = new Date(),
+): number {
+  const status = forgeStatus(workdir);
+  if (!status || status.free <= 0) return 0;
+
+  let resolved = 0;
+  for (const failure of readDelegationFailureRecordsSync(memoryDir)) {
+    if (!['open', 'diagnosing', 'needs_human'].includes(failure.status)) continue;
+    if (classifyMiddlewareFailureBucket(failure.error) !== 'workspace-isolation') continue;
+    const updated = transitionDelegationFailureStatus(
+      memoryDir,
+      failure.signature,
+      'resolved',
+      `forge status reports ${status.free}/${status.total} free slot(s); historical workspace-isolation failure closed by self-healing sweep`,
+      now,
+    );
+    if (updated) resolved++;
+  }
+  return resolved;
 }
 
 export async function closeTerminalBrainMaxTurnFollowUps(memoryDir: string, now = new Date()): Promise<number> {

@@ -118,4 +118,33 @@ describe('brain run ledger', () => {
     ]);
     expect(readBrainRunStatesSync(tmpDir, { actor: 'codex', status: 'running' })).toEqual([]);
   });
+
+  it('prefers terminal actor events when coarse timestamps tie', () => {
+    appendBrainRunEvent(tmpDir, {
+      id: 'evt-1',
+      taskId: 'del-1',
+      event: 'actor_started',
+      status: 'running',
+      actor: 'kuro',
+      role: 'coordinator',
+      createdAt: '2026-05-05T00:00:00.000Z',
+    });
+    appendBrainRunEvent(tmpDir, {
+      id: 'evt-2',
+      taskId: 'del-1',
+      event: 'actor_finished',
+      status: 'success',
+      actor: 'kuro',
+      role: 'coordinator',
+      createdAt: '2026-05-05T00:00:00.000Z',
+    });
+
+    expect(readBrainRunStatesSync(tmpDir, { actor: 'kuro' })).toEqual([
+      expect.objectContaining({
+        key: 'del-1:kuro',
+        status: 'success',
+        lastEvent: 'actor_finished',
+      }),
+    ]);
+  });
 });

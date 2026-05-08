@@ -737,7 +737,7 @@ export async function runHousekeeping(): Promise<void> {
     await reconcileMiddlewareCommitmentsSafe().catch(err => {
       slog('MIDDLEWARE-TRUTH', `reconcile skipped: ${err instanceof Error ? err.message : String(err)}`);
     });
-    await sweepMiddlewareFailures(getMemoryRootDir()).catch(err => {
+    await sweepMiddlewareFailures(getMemoryRootDir(), { workdir: process.cwd() }).catch(err => {
       slog('MIDDLEWARE-SELF-HEAL', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
     });
     await sweepKgDiscussionLifecycle(getMemoryRootDir()).catch(err => {

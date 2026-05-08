@@ -1,14 +1,24 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { appendMemoryIndexEntry, queryMemoryIndexSync } from '../src/memory-index.js';
-import { readDelegationFailureRecordsSync } from '../src/delegation-failure-guard.js';
+import {
+  readDelegationFailureRecordsSync,
+  recordDelegationFailure,
+  transitionDelegationFailureStatus,
+} from '../src/delegation-failure-guard.js';
+
+vi.mock('../src/forge.js', () => ({
+  forgeStatus: vi.fn(() => ({ total: 3, busy: 0, free: 1, source: 'bundled' })),
+}));
+
 import {
   classifyMiddlewareFailureBucket,
   classifyMiddlewareFailures,
   closeTerminalBrainMaxTurnFollowUps,
   readMiddlewareFailureClassificationsSync,
+  sweepMiddlewareFailures,
 } from '../src/middleware-failure-self-healing.js';
 
 let memoryDir: string;
@@ -271,6 +281,72 @@ describe('middleware failure self-healing', () => {
     expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
       taskId: 'task-timeout',
       status: 'needs_human',
+    }));
+  });
+
+  it('closes historical offline delegation failures once middleware is reachable again', async () => {
+    await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-offline',
+      worker: 'shell',
+      status: 'failed',
+      task: 'Graphify context',
+      error: 'middleware offline at http://localhost:3200',
+    }], new Date('2026-05-06T16:30:00.000Z'));
+
+    expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-offline',
+      status: 'needs_human',
+    }));
+
+    const result = await sweepMiddlewareFailures(memoryDir, {
+      tasks: [{
+        id: 'task-healthy',
+        worker: 'shell',
+        status: 'completed',
+        task: 'Health probe completed',
+      }],
+      now: new Date('2026-05-06T16:35:00.000Z'),
+    });
+
+    expect(result).toEqual(expect.objectContaining({ recoveredOffline: 1 }));
+    expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-offline',
+      status: 'resolved',
+      resolution: expect.stringContaining('reachable again'),
+    }));
+  });
+
+  it('closes historical workspace-isolation failures once forge has a free slot', async () => {
+    const decision = recordDelegationFailure(memoryDir, {
+      taskId: 'task-forge',
+      taskType: 'code',
+      prompt: 'Implement code change',
+      output: 'blocked by workspace isolation policy: forge worktree allocation failed for /repo',
+    }, new Date('2026-05-06T16:30:00.000Z'));
+    transitionDelegationFailureStatus(
+      memoryDir,
+      decision.record.signature,
+      'needs_human',
+      'historical diagnostic hold',
+      new Date('2026-05-06T16:30:00.000Z'),
+    );
+
+    expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-forge',
+      status: 'needs_human',
+    }));
+
+    const result = await sweepMiddlewareFailures(memoryDir, {
+      tasks: [],
+      workdir: '/repo',
+      now: new Date('2026-05-06T16:35:00.000Z'),
+    });
+
+    expect(result).toEqual(expect.objectContaining({ recoveredWorkspaceIsolation: 1 }));
+    expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-forge',
+      status: 'resolved',
+      resolution: expect.stringContaining('free slot'),
     }));
   });
 
