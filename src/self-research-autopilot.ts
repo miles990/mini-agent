@@ -7,9 +7,10 @@
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { eventBus } from './event-bus.js';
-import { createTask, queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
+import { createTask, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
 import { createSelfResearchPlan, saveSelfResearchPlan, type SelfResearchRun } from './self-research-loop.js';
 import { evaluateCorrectionGate } from './correction-gate.js';
 
@@ -17,6 +18,7 @@ export interface SelfResearchAutopilotOptions {
   triggerReason?: string | null;
   now?: Date;
   repoRoot?: string;
+  prStateLookup?: PrStateLookup;
 }
 
 export interface SelfResearchAutopilotResult {
@@ -36,6 +38,13 @@ export interface MaintenanceDebt {
   reason: string;
 }
 
+export interface MaintenancePrState {
+  state: string;
+  mergeable?: string | null;
+}
+
+export type PrStateLookup = (prNumber: number) => MaintenancePrState | null;
+
 export async function maybeQueueSelfResearch(
   memoryDir: string,
   opts: SelfResearchAutopilotOptions = {},
@@ -54,7 +63,7 @@ export async function maybeQueueSelfResearch(
     type: ['task'],
     status: ['pending', 'in_progress', 'needs-decomposition', 'blocked', 'hold'],
   });
-  const queuedMaintenance = await maybeQueueMaintenance(memoryDir, openTasks);
+  const queuedMaintenance = await maybeQueueMaintenance(memoryDir, openTasks, opts.prStateLookup);
   if (queuedMaintenance) return queuedMaintenance;
 
   const activeTasks = queryMemoryIndexSync(memoryDir, {
@@ -97,8 +106,10 @@ export async function maybeQueueSelfResearch(
 async function maybeQueueMaintenance(
   memoryDir: string,
   openTasks: MemoryIndexEntry[],
+  prStateLookup: PrStateLookup = readPrState,
 ): Promise<SelfResearchAutopilotResult | null> {
-  const debt = findTopMaintenanceDebt(memoryDir);
+  await closeObsoleteMaintenanceTasks(memoryDir, openTasks, prStateLookup);
+  const debt = findTopMaintenanceDebt(memoryDir, prStateLookup);
   if (!debt) return null;
 
   const marker = `autonomous maintenance PR #${debt.prNumber}`;
@@ -132,14 +143,44 @@ async function maybeQueueMaintenance(
   return { queued: true, reason: 'maintenance-queued', maintenance: debt, task };
 }
 
-function findTopMaintenanceDebt(memoryDir: string): MaintenanceDebt | null {
+async function closeObsoleteMaintenanceTasks(
+  memoryDir: string,
+  openTasks: MemoryIndexEntry[],
+  prStateLookup: PrStateLookup,
+): Promise<void> {
+  for (const task of openTasks) {
+    const match = (task.summary ?? '').match(/autonomous maintenance PR #(\d+)/);
+    if (!match) continue;
+    const prNumber = Number(match[1]);
+    if (!Number.isFinite(prNumber)) continue;
+    const state = prStateLookup(prNumber);
+    if (!state || isActiveConflictPr(state)) continue;
+    await updateMemoryIndexEntry(memoryDir, task.id, {
+      status: 'completed',
+      payload: {
+        ...((task.payload ?? {}) as Record<string, unknown>),
+        closed_by: 'autonomous-maintenance-pr-state-sweep',
+        pr_state: state.state,
+        pr_mergeable: state.mergeable ?? null,
+        completed_at: new Date().toISOString(),
+      },
+      tags: [...new Set([...(task.tags ?? []), 'autonomous-maintenance', 'obsolete-pr-closed'])],
+    });
+  }
+}
+
+function findTopMaintenanceDebt(memoryDir: string, prStateLookup: PrStateLookup): MaintenanceDebt | null {
   const activePath = path.join(memoryDir, 'handoffs', 'active.md');
   if (!existsSync(activePath)) return null;
 
   const debts = readFileSync(activePath, 'utf-8')
     .split('\n')
     .map(parseConflictDebtRow)
-    .filter((debt): debt is MaintenanceDebt => debt !== null);
+    .filter((debt): debt is MaintenanceDebt => {
+      if (debt === null) return false;
+      const state = prStateLookup(debt.prNumber);
+      return state === null || isActiveConflictPr(state);
+    });
 
   return debts.sort((a, b) => maintenancePriority(b) - maintenancePriority(a))[0] ?? null;
 }
@@ -178,9 +219,33 @@ function prConflictVerifyCommand(prNumber: number): string {
   return [
     'test "$(',
     `gh pr view ${prNumber} --repo miles990/mini-agent --json state,mergeable --jq `,
-    shellQuote('if .state == "MERGED" or .mergeable != "CONFLICTING" then "ok" else "blocked" end'),
+    shellQuote('if .state != "OPEN" or .mergeable != "CONFLICTING" then "ok" else "blocked" end'),
     ')" = ok',
   ].join('');
+}
+
+function isActiveConflictPr(state: MaintenancePrState): boolean {
+  return String(state.state).toUpperCase() === 'OPEN'
+    && String(state.mergeable ?? '').toUpperCase() === 'CONFLICTING';
+}
+
+function readPrState(prNumber: number): MaintenancePrState | null {
+  try {
+    const stdout = execFileSync('gh', [
+      'pr', 'view', String(prNumber),
+      '--repo', 'miles990/mini-agent',
+      '--json', 'state,mergeable',
+    ], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 10_000,
+    }).trim();
+    if (!stdout) return null;
+    const parsed = JSON.parse(stdout) as MaintenancePrState;
+    return parsed && typeof parsed.state === 'string' ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function unescapeTable(value: string): string {

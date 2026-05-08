@@ -117,6 +117,7 @@ describe('external memory health', () => {
 
     expect(result.status).toBe('warn');
     expect(result.summary).toContain('unreachable');
+    expect(result.evidence).toContain('probeAttempts=3');
     expect(result.repair).toContain('context exchange');
   });
 });

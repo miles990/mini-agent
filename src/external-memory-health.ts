@@ -13,6 +13,7 @@ export interface ExternalMemoryHealthResult {
 export interface KgExternalMemoryOptions {
   kgUrl?: string;
   timeoutSeconds?: number;
+  probeAttempts?: number;
   staleDiscussionDays?: number;
 }
 
@@ -95,12 +96,13 @@ export function evaluateKgExternalMemoryTruth(memoryDir: string, now = new Date(
 
   const kgUrl = (options.kgUrl ?? process.env.KG_URL ?? 'http://127.0.0.1:3300').replace(/\/+$/, '');
   const timeout = options.timeoutSeconds ?? 2;
-  const health = curlJson(`${kgUrl}/health`, timeout);
+  const probeAttempts = options.probeAttempts ?? 3;
+  const health = curlJsonWithRetry(`${kgUrl}/health`, timeout, probeAttempts);
   if (!health.ok) {
     return {
       status: 'warn',
       summary: 'KG context fabric service is unreachable',
-      evidence: [`kgUrl=${kgUrl}`, health.error ?? 'unknown curl failure'],
+      evidence: [`kgUrl=${kgUrl}`, `probeAttempts=${probeAttempts}`, health.error ?? 'unknown curl failure'],
       repair: 'Start knowledge-graph or disable KG-backed context exchange until the service is intentionally unavailable.',
     };
   }
@@ -343,6 +345,21 @@ function curlJson(url: string, timeoutSeconds: number): { ok: true; value: unkno
   } catch (err) {
     return { ok: false, error: String(err).slice(0, 200) };
   }
+}
+
+function curlJsonWithRetry(
+  url: string,
+  timeoutSeconds: number,
+  attempts: number,
+): { ok: true; value: unknown } | { ok: false; error?: string } {
+  const count = Math.max(1, Math.floor(attempts));
+  let lastError: string | undefined;
+  for (let i = 0; i < count; i++) {
+    const result = curlJson(url, timeoutSeconds);
+    if (result.ok) return result;
+    lastError = result.error;
+  }
+  return { ok: false, error: lastError };
 }
 
 function findStaleOpenDiscussions(value: unknown, now: Date, staleDays: number): Array<Record<string, unknown>> {
