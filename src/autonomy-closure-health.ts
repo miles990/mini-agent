@@ -154,8 +154,6 @@ export async function ensureAutonomyClosureTask(
     return null;
   }
 
-  if (snapshot.correction.needsCorrection) return null;
-
   const existing = queryMemoryIndexSync(memoryDir, {
     type: ['task'],
     status: ACTIVE_STATUSES,
@@ -163,6 +161,10 @@ export async function ensureAutonomyClosureTask(
 
   const recommendation = snapshot.recommendedTask;
   if (!recommendation) return null;
+
+  if (snapshot.correction.needsCorrection && !recommendation.title.includes('operational-efficiency')) {
+    return null;
+  }
 
   if (existing) {
     const existingPayload = (existing.payload ?? {}) as Record<string, unknown>;

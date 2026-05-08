@@ -40,7 +40,7 @@ describe('autonomy closure health', () => {
     expect(snapshot.stages.map(s => s.stage)).toContain('memory-context');
   });
 
-  it('degrades on correction advisories so healthy does not hide low-efficiency loops', () => {
+  it('degrades and queues operational-efficiency repair when correction advisories are the remaining closure gap', async () => {
     writeFileSync(
       path.join(tmpDir, 'state/task-events.jsonl'),
       JSON.stringify({
@@ -68,6 +68,10 @@ describe('autonomy closure health', () => {
       status: 'warn',
       summary: expect.stringContaining('efficiency signal'),
     }));
+
+    const task = await ensureAutonomyClosureTask(tmpDir, snapshot);
+    expect(task?.summary).toBe('P1 autonomy closure: repair operational-efficiency');
+    expect(task?.payload?.closure_status).toBe('degraded');
   });
 
   it('creates one repair task for exhausted autonomous execution', async () => {
