@@ -22,6 +22,7 @@ describe('self research autopilot', () => {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
       repoRoot: tmpDir,
+      prStateLookup: prNumber => ({ state: 'OPEN', mergeable: prNumber === 90 ? 'CONFLICTING' : 'MERGEABLE' }),
     });
 
     expect(result.queued).toBe(true);
@@ -62,6 +63,7 @@ describe('self research autopilot', () => {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
       repoRoot: tmpDir,
+      prStateLookup: () => ({ state: 'OPEN', mergeable: 'CONFLICTING' }),
     });
 
     expect(result).toEqual({ queued: false, reason: 'active-tasks-present' });
@@ -86,6 +88,7 @@ describe('self research autopilot', () => {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
       repoRoot: tmpDir,
+      prStateLookup: () => ({ state: 'OPEN', mergeable: 'CONFLICTING' }),
     });
 
     expect(result.queued).toBe(true);
@@ -134,6 +137,7 @@ describe('self research autopilot', () => {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
       repoRoot: tmpDir,
+      prStateLookup: () => ({ state: 'OPEN', mergeable: 'CONFLICTING' }),
     });
 
     expect(result).toEqual({
@@ -141,6 +145,72 @@ describe('self research autopilot', () => {
       reason: 'maintenance-task-exists',
       maintenance: expect.objectContaining({ prNumber: 90 }),
     });
+  });
+
+  it('filters closed PR conflict rows before queuing phantom maintenance', async () => {
+    mkdirSync(path.join(tmpDir, 'handoffs'), { recursive: true });
+    writeFileSync(
+      path.join(tmpDir, 'handoffs/active.md'),
+      [
+        '| From | To | Task | Status | Created | Done |',
+        '| github | kuro | PR #351 conflict diagnostic: obsolete branch (needs-decomposition; conflict spans broad scope) | blocked | 05-08 | - |',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    const result = await maybeQueueSelfResearch(tmpDir, {
+      triggerReason: 'heartbeat',
+      now: new Date('2026-05-05T00:00:00.000Z'),
+      repoRoot: tmpDir,
+      prStateLookup: () => ({ state: 'CLOSED', mergeable: 'UNKNOWN' }),
+    });
+
+    expect(result.queued).toBe(true);
+    expect(result.reason).toBe('queued');
+    expect(result.maintenance).toBeUndefined();
+    expect(result.task?.summary).toContain('P2 execute self-research');
+  });
+
+  it('completes existing autonomous maintenance tasks once the referenced PR is closed', async () => {
+    mkdirSync(path.join(tmpDir, 'handoffs'), { recursive: true });
+    mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
+    writeFileSync(
+      path.join(tmpDir, 'handoffs/active.md'),
+      [
+        '| From | To | Task | Status | Created | Done |',
+        '| github | kuro | PR #351 conflict diagnostic: obsolete branch (needs-decomposition; conflict spans broad scope) | blocked | 05-08 | - |',
+      ].join('\n'),
+      'utf-8',
+    );
+    writeFileSync(
+      path.join(tmpDir, 'state/task-events.jsonl'),
+      JSON.stringify({
+        id: 'idx-maintenance-351',
+        ts: '2026-05-08T00:00:00.000Z',
+        type: 'task',
+        status: 'pending',
+        summary: 'P1 autonomous maintenance PR #351: rebuild or split conflicting broad PR from current main',
+        refs: [],
+        payload: { origin: 'scheduler', priority: 1 },
+      }) + '\n',
+      'utf-8',
+    );
+
+    const result = await maybeQueueSelfResearch(tmpDir, {
+      triggerReason: 'heartbeat',
+      now: new Date('2026-05-05T00:00:00.000Z'),
+      repoRoot: tmpDir,
+      prStateLookup: () => ({ state: 'CLOSED', mergeable: 'UNKNOWN' }),
+    });
+    const task = queryMemoryIndexSync(tmpDir, { id: 'idx-maintenance-351' })[0];
+
+    expect(result.queued).toBe(true);
+    expect(result.reason).toBe('queued');
+    expect(task?.status).toBe('completed');
+    expect(task?.payload).toEqual(expect.objectContaining({
+      closed_by: 'autonomous-maintenance-pr-state-sweep',
+      pr_state: 'CLOSED',
+    }));
   });
 
   it('does not queue more than one proposal per day', async () => {
