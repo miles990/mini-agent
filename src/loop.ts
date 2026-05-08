@@ -2732,12 +2732,12 @@ export class AgentLoop {
         ? buildIdlePrompt()
         : prompt + (selectedSkillPrompt ? `\n\n${selectedSkillPrompt}` : '');
 
-      // Pre-flight observability (issue #304 phase 1) — silent_exit_void_40k risk surface.
-      // Measure ≥35K prompt rate before deciding rebuild/drain strategy in phase 2.
-      // Issue #368 (Step B): lower threshold 35K→25K when _midprompt seen in last 24h,
-      // so cycles in the 25-35K band are flagged while the instance is still in the stall window.
-      // Issue #414: also lower threshold when _http or _40k variants seen in last 24h,
-      // so the 25-35K band is flagged regardless of which silent_exit_void variant is recent.
+      // Pre-flight size gate (issue #304 phase 1 + issue #414 phase 2).
+      // Phase 1: measure ≥35K prompt rate (observability). Issue #368: lower 35K→25K when
+      // any silent_exit_void variant (_midprompt/_http/_40k) was seen in last 24h.
+      // Issue #414 Gap 1: all three variants now included in the OR check.
+      // Phase 2 (issue #414 Gap 2): when threshold fires, rebuild context in minimal mode
+      // so the total token budget stays well under the HTTP-stall trigger zone.
       // lastSeen is YYYY-MM-DD; treat "today or yesterday" as within 24h window.
       let PREFLIGHT_SIZE_THRESHOLD = 35_000;
       try {
@@ -2755,8 +2755,18 @@ export class AgentLoop {
         }
       } catch { /* best-effort: fall back to default 35K */ }
       if (effectivePrompt.length >= PREFLIGHT_SIZE_THRESHOLD) {
-        slog('LOOP', `[preflight.observe] prompt size ${effectivePrompt.length} >= ${PREFLIGHT_SIZE_THRESHOLD} (drain not yet wired; observability only)`);
-        eventBus.emit('action:loop', { event: 'preflight.observe', promptSize: effectivePrompt.length, threshold: PREFLIGHT_SIZE_THRESHOLD, cycleMode, trigger: currentTriggerReason ?? null });
+        // Phase-2 drain (issue #414): rebuild context in minimal mode to reduce total token load
+        // and avoid the HTTP-stall pattern (25K+ prompt × 800s+ duration → CLI silent exit).
+        const contextBefore = context.length;
+        try {
+          context = await memory.buildContext({ mode: 'minimal', cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined });
+          slog('LOOP', `[preflight.drain] effectivePrompt ${effectivePrompt.length} >= ${PREFLIGHT_SIZE_THRESHOLD} — context rebuilt minimal: ${contextBefore} → ${context.length}`);
+          eventBus.emit('action:loop', { event: 'preflight.drain', promptSize: effectivePrompt.length, threshold: PREFLIGHT_SIZE_THRESHOLD, contextBefore, contextAfter: context.length, cycleMode, trigger: currentTriggerReason ?? null });
+        } catch (drainErr) {
+          // Drain failed — fall back to observability-only; call proceeds with original context.
+          slog('LOOP', `[preflight.observe] context rebuild failed, proceeding with original context: ${String(drainErr)}`);
+          eventBus.emit('action:loop', { event: 'preflight.observe', promptSize: effectivePrompt.length, threshold: PREFLIGHT_SIZE_THRESHOLD, cycleMode, trigger: currentTriggerReason ?? null });
+        }
       }
 
       // Intelligent model routing: decide Opus vs Sonnet based on cycle characteristics

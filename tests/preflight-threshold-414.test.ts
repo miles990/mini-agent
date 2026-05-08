@@ -90,15 +90,22 @@ describe('preflight threshold — issue #414', () => {
     })).toBe(25_000);
   });
 
-  // Gap 2 regression: slog tag must be [preflight.observe], not [preflight.drain]
-  it('loop.ts slog tag is [preflight.observe] not [preflight.drain] (Gap 2 fix)', () => {
+  // Gap 2 phase-2 drain: [preflight.drain] tag must be present (wired) and
+  // [preflight.observe] must appear as the fallback path when drain fails.
+  it('loop.ts has [preflight.drain] wired (Gap 2 phase-2 fix, issue #414)', () => {
     const loopSrc = readFileSync(resolve(import.meta.dirname!, '../src/loop.ts'), 'utf8');
-    expect(loopSrc).toContain('[preflight.observe]');
-    expect(loopSrc).not.toContain('[preflight.drain]');
+    expect(loopSrc).toContain('[preflight.drain]');
   });
 
-  it('loop.ts eventBus event name is preflight.observe (Gap 2 fix)', () => {
+  it('loop.ts retains [preflight.observe] as drain-failure fallback (issue #414)', () => {
     const loopSrc = readFileSync(resolve(import.meta.dirname!, '../src/loop.ts'), 'utf8');
+    expect(loopSrc).toContain('[preflight.observe]');
     expect(loopSrc).toContain("event: 'preflight.observe'");
+  });
+
+  it('loop.ts drain uses minimal context rebuild (issue #414)', () => {
+    const loopSrc = readFileSync(resolve(import.meta.dirname!, '../src/loop.ts'), 'utf8');
+    expect(loopSrc).toContain("mode: 'minimal'");
+    expect(loopSrc).toContain("event: 'preflight.drain'");
   });
 });
