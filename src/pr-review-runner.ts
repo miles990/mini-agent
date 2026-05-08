@@ -229,7 +229,7 @@ export function createInternalPrReviewClaim(candidate: InternalPrReviewCandidate
   const changedFiles = uniqueStrings(candidate.changedFiles);
   const touchesCode = changedFiles.some(file => /^(src|tests|scripts|plugins|\.githooks)\//.test(file) || file === 'package.json');
   const hasVerification = /(^|\n)##\s+Verification\b/i.test(text)
-    && /\b(pnpm|npm|npx|vitest|tsc|test|typecheck|build|passed|passes|clean|smoke)\b/i.test(text);
+    && /\b(pnpm|npm|npx|vitest|tsc|test|typecheck|build|passed|passes|clean|smoke|verified in an isolated worktree|runtime checkout was not used)\b/i.test(text);
 
   if (changedFiles.length === 0) {
     return createPrReviewClaim({

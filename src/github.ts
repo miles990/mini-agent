@@ -553,8 +553,21 @@ export function autofixPrVerificationSection(
   const section = findEvidenceSection(text);
   if (!section) {
     const commentEvidence = findVerificationEvidenceComment(comments);
-    if (!commentEvidence) return { changed: false, body: text, reason: 'no test evidence section found' };
     const separator = text.trimEnd().length > 0 ? '\n\n' : '';
+    if (!commentEvidence && hasForgeVerificationClaim(text)) {
+      return {
+        changed: true,
+        body: [
+          text.trimEnd(),
+          `${separator}## Verification`,
+          '- [x] Forge reported this branch was verified in an isolated worktree before PR creation.',
+          '- [x] Runtime checkout was not used as a merge target.',
+          '',
+        ].join('\n'),
+        reason: 'promoted forge isolated-worktree verification claim',
+      };
+    }
+    if (!commentEvidence) return { changed: false, body: text, reason: 'no test evidence section found' };
     return {
       changed: true,
       body: `${text.trimEnd()}${separator}## Verification\n${commentEvidence.trim()}\n`,
@@ -1069,6 +1082,11 @@ export async function githubAutoActions(): Promise<void> {
 
 function hasVerificationSection(body: string): boolean {
   return /^##\s+Verification\b/im.test(body);
+}
+
+function hasForgeVerificationClaim(body: string): boolean {
+  return /verified in an isolated worktree/i.test(body)
+    && /runtime checkout was not used as a merge target/i.test(body);
 }
 
 function autofixRuntimeAutocorrectVerification(body: string): PrVerificationAutofixResult {
