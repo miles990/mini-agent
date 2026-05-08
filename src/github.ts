@@ -538,7 +538,10 @@ export interface PrVerificationAutofixResult {
   reason: string;
 }
 
-export function autofixPrVerificationSection(body?: string | null): PrVerificationAutofixResult {
+export function autofixPrVerificationSection(
+  body?: string | null,
+  comments: Array<{ body?: string | null }> = [],
+): PrVerificationAutofixResult {
   const text = body ?? '';
   const runtimeAutocorrectFix = autofixRuntimeAutocorrectVerification(text);
   if (runtimeAutocorrectFix.changed) return runtimeAutocorrectFix;
@@ -549,7 +552,14 @@ export function autofixPrVerificationSection(body?: string | null): PrVerificati
 
   const section = findEvidenceSection(text);
   if (!section) {
-    return { changed: false, body: text, reason: 'no test evidence section found' };
+    const commentEvidence = findVerificationEvidenceComment(comments);
+    if (!commentEvidence) return { changed: false, body: text, reason: 'no test evidence section found' };
+    const separator = text.trimEnd().length > 0 ? '\n\n' : '';
+    return {
+      changed: true,
+      body: `${text.trimEnd()}${separator}## Verification\n${commentEvidence.trim()}\n`,
+      reason: 'promoted completed verification evidence from PR comment',
+    };
   }
   if (!sectionHasCompletedEvidence(section.content)) {
     return { changed: false, body: text, reason: 'test evidence section has no completed evidence' };
@@ -623,7 +633,7 @@ export async function autoRepairPrVerificationEvidence(): Promise<void> {
       const pr = await viewPullRequest(consensus.prNumber);
       if (!pr || pr.isDraft) continue;
       if (pr.labels?.some(label => label.name === 'hold')) continue;
-      const fix = autofixPrVerificationSection(pr.body);
+      const fix = autofixPrVerificationSection(pr.body, await listPrComments(consensus.prNumber));
       if (!fix.changed) continue;
       await updatePullRequestBody(consensus.prNumber, fix.body);
       slog('github', `auto-repaired PR #${consensus.prNumber} verification evidence: ${fix.reason}`);
@@ -837,6 +847,15 @@ async function addPrComment(prNumber: number, body: string): Promise<void> {
     await gh(['api', `repos/miles990/mini-agent/issues/${prNumber}/comments`, '-X', 'POST', '--input', file], 20000);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+async function listPrComments(prNumber: number): Promise<Array<{ body?: string }>> {
+  try {
+    const { stdout } = await gh(['api', `repos/miles990/mini-agent/issues/${prNumber}/comments`, '--paginate']);
+    return JSON.parse(stdout) as Array<{ body?: string }>;
+  } catch {
+    return [];
   }
 }
 
@@ -1106,4 +1125,21 @@ function sectionHasCompletedEvidence(section: string): boolean {
   const hasVerificationCommand = /\b(?:pnpm|npm|npx|vitest|tsc|typecheck|build|test|smoke|grep)\b/i.test(section);
   const hasPassSignal = /\b(?:pass(?:ed|es)?|clean|0 lines|verified|ok|success)\b/i.test(section);
   return hasCompletedMarker && hasVerificationCommand && hasPassSignal;
+}
+
+function findVerificationEvidenceComment(comments: Array<{ body?: string | null }>): string | null {
+  for (const comment of comments) {
+    const body = comment.body ?? '';
+    const verifiedIndex = body.search(/\bVerified\b\s*:/i);
+    const section = verifiedIndex >= 0 ? body.slice(verifiedIndex) : body;
+    if (!sectionHasCompletedEvidence(section)) continue;
+    const lines = section
+      .split('\n')
+      .filter(line => !line.trim().startsWith('<!--'))
+      .filter(line => !/^#+\s*/.test(line.trim()))
+      .filter(line => !/cannot self-approve/i.test(line))
+      .filter(line => !/ready for .*merge/i.test(line));
+    return lines.join('\n').trim();
+  }
+  return null;
 }

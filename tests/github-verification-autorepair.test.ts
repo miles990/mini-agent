@@ -39,6 +39,24 @@ describe('GitHub PR verification autorepair', () => {
     expect(result.body.startsWith('## Verification')).toBe(true);
   });
 
+  it('promotes completed verification evidence from a PR comment', () => {
+    const result = autofixPrVerificationSection('## Summary\n- Wrapper fallback fix.', [{
+      body: [
+        '**Self-review (cannot self-approve on GH) — ready for Alex merge.**',
+        '',
+        'Verified:',
+        '- [x] `pnpm typecheck` passed',
+        '- [x] `pnpm test` passed',
+      ].join('\n'),
+    }]);
+
+    expect(result.changed).toBe(true);
+    expect(result.reason).toBe('promoted completed verification evidence from PR comment');
+    expect(result.body).toContain('## Verification');
+    expect(result.body).toContain('- [x] `pnpm typecheck` passed');
+    expect(result.body).not.toContain('cannot self-approve');
+  });
+
   it('does not fabricate verification when the test plan is still pending', () => {
     const body = [
       '## Test plan',

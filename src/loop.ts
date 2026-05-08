@@ -2436,8 +2436,11 @@ export class AgentLoop {
             slog('AUTONOMY', `closure healthy; closed ${closed.length} repair task(s)`);
           }
         } else {
-          const task = await ensureAutonomyClosureTask(memDir, closure);
-          slog('AUTONOMY', `closure ${closure.status} score=${closure.score} blocking=${closure.blockingStages.join(',') || 'none'} task=${task?.id.slice(0, 12) ?? 'none'}`);
+          const { diagnoseAndRepairAutonomyClosure } = await import('./autonomy-closure-diagnostics.js');
+          const diagnostic = await diagnoseAndRepairAutonomyClosure(memDir, closure);
+          const refreshed = diagnostic.actionsRun.length > 0 ? evaluateAutonomyClosure(memDir) : closure;
+          const task = await ensureAutonomyClosureTask(memDir, refreshed);
+          slog('AUTONOMY', `closure ${refreshed.status} score=${refreshed.score} blocking=${refreshed.blockingStages.join(',') || 'none'} diagnostics=${diagnostic.cases.length} actions=${diagnostic.actionsRun.join(',') || 'none'} task=${task?.id.slice(0, 12) ?? 'none'}`);
           notifyAutonomyClosureBlockIfChanged(getInstanceDir(getCurrentInstanceId()), closure);
         }
       } catch (e) { slog('WARN', `autonomy closure health failed: ${e}`); }
