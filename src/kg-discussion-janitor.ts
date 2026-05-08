@@ -33,6 +33,7 @@ export interface KgDiscussionLifecycleRecord {
 export interface KgDiscussionSweepResult {
   scanned: number;
   stale: number;
+  closed: number;
   queued: number;
   skippedKnown: number;
 }
@@ -47,6 +48,7 @@ export async function sweepKgDiscussionLifecycle(
     roomStaleDays?: number;
     maxQueuedPerSweep?: number;
     maxActiveLifecycleTasks?: number;
+    maxAutoCloseRoomsPerSweep?: number;
   } = {},
 ): Promise<KgDiscussionSweepResult> {
   const now = options.now ?? new Date();
@@ -58,7 +60,14 @@ export async function classifyKgDiscussions(
   memoryDir: string,
   discussions: KgDiscussionRecord[],
   now = new Date(),
-  options: { staleDays?: number; roomStaleDays?: number; maxQueuedPerSweep?: number; maxActiveLifecycleTasks?: number } = {},
+  options: {
+    staleDays?: number;
+    roomStaleDays?: number;
+    maxQueuedPerSweep?: number;
+    maxActiveLifecycleTasks?: number;
+    maxAutoCloseRoomsPerSweep?: number;
+    kgUrl?: string;
+  } = {},
 ): Promise<KgDiscussionSweepResult> {
   const known = new Set(readKgDiscussionLifecycleRecords(memoryDir).map(record => record.discussionId));
   const stale = discussions
@@ -69,9 +78,28 @@ export async function classifyKgDiscussions(
   const result: KgDiscussionSweepResult = {
     scanned: discussions.length,
     stale: stale.length,
+    closed: 0,
     queued: 0,
     skippedKnown: 0,
   };
+
+  const maxAutoCloseRooms = options.maxAutoCloseRoomsPerSweep ?? 5;
+  for (const item of stale) {
+    if (result.closed >= maxAutoCloseRooms) break;
+    if (item.bucket !== 'stale-room') continue;
+    if (known.has(item.discussion.id)) continue;
+    const closed = await closeStaleRoomDiscussion(item.discussion, options.kgUrl);
+    if (!closed) continue;
+    appendLifecycleRecord(memoryDir, {
+      discussionId: item.discussion.id,
+      topic: item.discussion.topic ?? item.discussion.description ?? item.discussion.id,
+      bucket: item.bucket,
+      seenAt: now.toISOString(),
+      followUpTaskId: 'auto-closed',
+    });
+    known.add(item.discussion.id);
+    result.closed++;
+  }
 
   const maxActiveLifecycleTasks = options.maxActiveLifecycleTasks ?? DEFAULT_MAX_ACTIVE_LIFECYCLE_TASKS;
   await rebalanceActiveLifecycleTasks(memoryDir, maxActiveLifecycleTasks);
@@ -101,6 +129,9 @@ export async function classifyKgDiscussions(
 
   if (result.queued > 0) {
     slog('KG-DISCUSSION-JANITOR', `queued ${result.queued}/${result.stale} stale KG discussion follow-up(s); active=${activeLifecycleTasks}, budget=${queueBudget}`);
+  }
+  if (result.closed > 0) {
+    slog('KG-DISCUSSION-JANITOR', `closed ${result.closed}/${result.stale} stale room discussion(s)`);
   }
   return result;
 }
@@ -246,6 +277,28 @@ async function fetchOpenDiscussions(kgUrl?: string): Promise<KgDiscussionRecord[
     return Array.isArray(body.discussions) ? body.discussions as KgDiscussionRecord[] : [];
   } catch {
     return [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function closeStaleRoomDiscussion(discussion: KgDiscussionRecord, kgUrl?: string): Promise<boolean> {
+  const base = (kgUrl ?? process.env.KG_URL ?? 'http://127.0.0.1:3300').replace(/\/+$/, '');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2500);
+  try {
+    const response = await fetch(`${base}/api/discussion/${encodeURIComponent(discussion.id)}/close`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        source_agent: 'system',
+        summary: `Auto-closed stale Kuro room discussion ${discussion.topic ?? discussion.id}; room context has aged past the lifecycle window and remains available in KG history.`,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
   } finally {
     clearTimeout(timeout);
   }

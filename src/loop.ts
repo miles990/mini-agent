@@ -61,7 +61,7 @@ import { claimMessage, isMessageClaimed, releaseMessage } from './message-claime
 import type { PendingPriorityState } from './event-wal.js';
 import { snapshotTelegramMsgs, matchReplyTarget, recordReply } from './reply-context.js';
 import type { TelegramMsgSnapshot } from './reply-context.js';
-import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
+import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection, startExternalMemorySnapshotDaemon } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
 import { writeRoomMessage, sendChat } from './observability.js';
 import { truncateAtSectionBoundary } from './context-pipeline.js';
@@ -1251,6 +1251,7 @@ export class AgentLoop {
 
     // Sentinel: watch file-based event sources not covered by API handlers
     startSentinel(process.cwd());
+    startExternalMemorySnapshotDaemon();
 
     // KG Discussions: auto-subscribe to discussions where Kuro is participant
     import('./kg-discussions.js').then(m => m.subscribeToKGDiscussions()).catch(err => {

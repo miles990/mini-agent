@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   classifyKgDiscussions,
@@ -16,6 +16,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   rmSync(memoryDir, { recursive: true, force: true });
 });
 
@@ -29,7 +30,7 @@ describe('KG discussion lifecycle janitor', () => {
       updated_at: '2026-04-25T00:00:00.000Z',
     }], new Date('2026-05-07T00:00:00.000Z'));
 
-    expect(result).toEqual({ scanned: 1, stale: 1, queued: 1, skippedKnown: 0 });
+    expect(result).toEqual({ scanned: 1, stale: 1, closed: 0, queued: 1, skippedKnown: 0 });
     expect(readKgDiscussionLifecycleRecords(memoryDir)[0]).toEqual(expect.objectContaining({
       discussionId: 'disc-old',
       bucket: 'stale-discussion',
@@ -55,7 +56,7 @@ describe('KG discussion lifecycle janitor', () => {
     await classifyKgDiscussions(memoryDir, [discussion], new Date('2026-05-07T00:00:00.000Z'));
     const second = await classifyKgDiscussions(memoryDir, [discussion], new Date('2026-05-07T01:00:00.000Z'));
 
-    expect(second).toEqual({ scanned: 1, stale: 1, queued: 0, skippedKnown: 1 });
+    expect(second).toEqual({ scanned: 1, stale: 1, closed: 0, queued: 0, skippedKnown: 1 });
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(1);
   });
 
@@ -73,7 +74,7 @@ describe('KG discussion lifecycle janitor', () => {
       maxActiveLifecycleTasks: 8,
     });
 
-    expect(result).toEqual({ scanned: 8, stale: 8, queued: 3, skippedKnown: 0 });
+    expect(result).toEqual({ scanned: 8, stale: 8, closed: 0, queued: 3, skippedKnown: 0 });
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(3);
   });
 
@@ -94,7 +95,7 @@ describe('KG discussion lifecycle janitor', () => {
     });
 
     expect(first.queued).toBe(2);
-    expect(second).toEqual({ scanned: 2, stale: 2, queued: 0, skippedKnown: 0 });
+    expect(second).toEqual({ scanned: 2, stale: 2, closed: 0, queued: 0, skippedKnown: 0 });
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(2);
   });
 
@@ -121,5 +122,36 @@ describe('KG discussion lifecycle janitor', () => {
       priority: 2,
       hold_reason: expect.stringContaining('maintenance lane capped'),
     }));
+  });
+
+  it('auto-closes stale Kuro room discussions instead of queueing manual lifecycle tasks', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ status: 'closed' }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await classifyKgDiscussions(memoryDir, [{
+      id: 'room-disc',
+      namespace: 'kuro',
+      topic: 'room-2026-05-01',
+      status: 'open',
+      position_count: 2,
+      updated_at: '2026-05-01T00:00:00.000Z',
+    }], new Date('2026-05-08T00:00:00.000Z'), {
+      kgUrl: 'http://kg.test',
+    });
+
+    expect(result).toEqual({ scanned: 1, stale: 1, closed: 1, queued: 0, skippedKnown: 1 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://kg.test/api/discussion/room-disc/close',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('source_agent'),
+      }),
+    );
+    expect(readKgDiscussionLifecycleRecords(memoryDir)[0]).toEqual(expect.objectContaining({
+      discussionId: 'room-disc',
+      bucket: 'stale-room',
+      followUpTaskId: 'auto-closed',
+    }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(0);
   });
 });
