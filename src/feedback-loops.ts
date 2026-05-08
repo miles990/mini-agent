@@ -206,10 +206,14 @@ export function extractErrorSubtype(errorMsg: string): string {
     if (lower.includes('auth') || lower.includes('unauthorized') || lower.includes('401')) return 'silent_exit_auth';
     if (lower.includes('overloaded') || lower.includes('529')) return 'silent_exit_overload';
     if (lower.includes('stdout=empty')) {
-      // 2026-05-07 (Issue #233): silent_exit_void now has >= 3 distinct failure classes.
-      //   - #191 HTTP-stall class: ~970-1007s, prompt 13-16K => already non-retryable in classifyError
-      //   - #77 baseline class:    ~260s, prompt 22-25K => retryable
-      //   - #233 new class:        ~357s, prompt >= 35K  => prompt bloat causing first-token stall
+      // 2026-05-08 (Issue #370 + arxiv 2605.05724 4-class typed-failure schema):
+      // silent_exit_void splits into 4 typed failure classes. Each class needs its own
+      // recovery recipe (paper's "lineage feedback on typed failures" insight — typed
+      // labels that drive different recipe edits, not collapse into one opaque bucket):
+      //   - #191 HTTP-stall:       ~970-1007s, prompt 13-16K  => budget-overrun (non-retryable)
+      //   - #233 prompt-bloat:     ~357s,      prompt >= 35K  => size-fail      (pre-flight drained)
+      //   - #370 midprompt-stall:  ~300-799s,  prompt 20-35K  => first-token stall (NEW bucket)
+      //   - #77  baseline:         ~260s,      prompt 22-25K  => crash-class    (retryable)
       //
       // Bucket by promptChars extracted from the logged error message
       // (format: "prompt NNN chars" from agent.ts:2010 logger call).
@@ -217,8 +221,9 @@ export function extractErrorSubtype(errorMsg: string): string {
       // P1 task instead of all collapsing to TIMEOUT:silent_exit_void::callClaude.
       //
       // Duration band also extracted where present:
-      //   >=800s => silent_exit_void_http  (HTTP-stall / #191 class, non-retryable server hold)
+      //   >=800s => silent_exit_void_http        (HTTP-stall / #191 class, non-retryable server hold)
       //   <800s + >=35K chars => silent_exit_void_40k  (prompt-bloat stall / #233 new class)
+      //   <800s + 20-35K chars + >=300s => silent_exit_void_midprompt  (#370 first-token stall)
       //   <800s + <35K chars => silent_exit_void        (CLI internal hang / #77 baseline)
       const promptMatch = /prompt (\d+) chars/.exec(errorMsg);
       const promptChars = promptMatch ? Number(promptMatch[1]) : 0;
@@ -230,6 +235,13 @@ export function extractErrorSubtype(errorMsg: string): string {
       const totalMs = durationMs || durSec * 1000;
       if (totalMs >= 800_000) return 'silent_exit_void_http';
       if (promptChars >= 35_000) return 'silent_exit_void_40k';
+      // Issue #370 (2026-05-08): 24K-prompt @ ~365s cluster (count=10 on instance 03bbc29a).
+      // Distinct from #77 baseline (~260s) — the longer 300-800s duration band with mid-size
+      // prompt (20K-35K) signals a first-token stall pattern, not the CLI internal hang.
+      // Separating gives this class its own error-patterns key so recovery (e.g. lower
+      // pre-flight drain threshold from 35K to 20K conditional on >=300s history) can be tuned
+      // independently without affecting #77 baseline retry behavior.
+      if (promptChars >= 20_000 && totalMs >= 300_000) return 'silent_exit_void_midprompt';
       return 'silent_exit_void';
     }
     return 'silent_exit';

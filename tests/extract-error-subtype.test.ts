@@ -36,3 +36,40 @@ describe('extractErrorSubtype — transient band split (#318)', () => {
     expect(extractErrorSubtype(msg)).toBe('no_diag');
   });
 });
+
+describe('extractErrorSubtype — silent_exit_void 4-class typed-failure schema (#370 + arxiv 2605.05724)', () => {
+  // Format from agent.ts:249 + extractErrorSubtype regex:
+  //   "CLI 靜默中斷（exit N/A，{durSec}s 無 stderr）. stdout=empty"
+  //   plus appended " prompt {N} chars" so promptMatch picks it up.
+  const mkSilentMsg = (durSec: number, promptChars: number) =>
+    `CLI 靜默中斷（exit N/A，${durSec}s 無 stderr）. stdout=empty prompt ${promptChars} chars`;
+
+  it('routes >=800s HTTP-stall to silent_exit_void_http (#191 budget-overrun class)', () => {
+    expect(extractErrorSubtype(mkSilentMsg(970, 14000))).toBe('silent_exit_void_http');
+    expect(extractErrorSubtype(mkSilentMsg(1007, 16000))).toBe('silent_exit_void_http');
+  });
+
+  it('routes >=35K prompt to silent_exit_void_40k (#233 size-fail class)', () => {
+    expect(extractErrorSubtype(mkSilentMsg(357, 35000))).toBe('silent_exit_void_40k');
+    expect(extractErrorSubtype(mkSilentMsg(450, 42000))).toBe('silent_exit_void_40k');
+  });
+
+  it('routes 20-35K prompt + 300-799s duration to silent_exit_void_midprompt (#370 first-token stall)', () => {
+    // Observed cluster: 24K @ 365s, count=10 on instance 03bbc29a 2026-05-08
+    expect(extractErrorSubtype(mkSilentMsg(365, 24419))).toBe('silent_exit_void_midprompt');
+    expect(extractErrorSubtype(mkSilentMsg(300, 20000))).toBe('silent_exit_void_midprompt');
+    expect(extractErrorSubtype(mkSilentMsg(799, 34999))).toBe('silent_exit_void_midprompt');
+  });
+
+  it('keeps short-duration mid-size cluster on silent_exit_void baseline (#77 crash-class)', () => {
+    // #77 baseline: prompt 22-25K @ ~260s — must NOT promote to midprompt
+    expect(extractErrorSubtype(mkSilentMsg(260, 22000))).toBe('silent_exit_void');
+    expect(extractErrorSubtype(mkSilentMsg(260, 25000))).toBe('silent_exit_void');
+    expect(extractErrorSubtype(mkSilentMsg(299, 24000))).toBe('silent_exit_void');
+  });
+
+  it('keeps tiny-prompt cases on silent_exit_void baseline regardless of duration', () => {
+    expect(extractErrorSubtype(mkSilentMsg(500, 10000))).toBe('silent_exit_void');
+    expect(extractErrorSubtype(mkSilentMsg(150, 5000))).toBe('silent_exit_void');
+  });
+});
