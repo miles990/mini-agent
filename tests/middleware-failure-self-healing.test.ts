@@ -16,10 +16,12 @@ vi.mock('../src/forge.js', () => ({
 import {
   classifyMiddlewareFailureBucket,
   classifyMiddlewareFailures,
+  getMiddlewareFailureClassificationPath,
   closeTerminalBrainMaxTurnFollowUps,
   readMiddlewareFailureClassificationsSync,
   sweepMiddlewareFailures,
 } from '../src/middleware-failure-self-healing.js';
+import { appendFileSync, mkdirSync } from 'node:fs';
 
 let memoryDir: string;
 
@@ -50,7 +52,8 @@ describe('middleware failure self-healing', () => {
         taskId: 'task-budget',
         bucket: 'budget-or-quota',
         status: 'held',
-        lifecycleAction: 'provider-hold',
+        lifecycleAction: 'provider-hold-fallback',
+        followUpTaskId: expect.any(String),
       }),
     ]);
 
@@ -59,6 +62,12 @@ describe('middleware failure self-healing', () => {
     expect(holds[0].payload?.provider_resource_hold).toEqual(expect.objectContaining({
       provider: 'claude',
       resumeAt: '2026-05-06T18:40:00.000Z',
+    }));
+    const fallbacks = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
+    expect(fallbacks).toHaveLength(1);
+    expect(fallbacks[0].payload?.retry_envelope).toEqual(expect.objectContaining({
+      strategy: 'compressed-provider-resume',
+      maxTurns: 6,
     }));
 
     expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
@@ -103,7 +112,12 @@ describe('middleware failure self-healing', () => {
     }));
     const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
     expect(followUps).toHaveLength(1);
-    expect(followUps[0].summary).toContain('Decompose middleware task task-turns');
+    expect(followUps[0].summary).toContain('bounded slices after max-turns failure');
+    expect(followUps[0].payload?.retry_envelope).toEqual(expect.objectContaining({
+      strategy: 'decompose-and-retry',
+      maxTurns: 8,
+      timeoutMs: 240_000,
+    }));
   });
 
   it('treats agent-brain max-turn failures as terminal telemetry', async () => {
@@ -181,7 +195,7 @@ describe('middleware failure self-healing', () => {
     const existing = await appendMemoryIndexEntry(memoryDir, {
       type: 'task',
       status: 'pending',
-      summary: 'Decompose middleware task task-turns after max-turns failure',
+      summary: 'Retry middleware task task-turns as bounded slices after max-turns failure',
       source: 'test',
       payload: {
         middleware_failure_task_id: 'older-task-id',
@@ -231,9 +245,39 @@ describe('middleware failure self-healing', () => {
     expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
       taskId: 'task-budget-2',
       providerHoldTaskId: holdId,
-      lifecycleAction: 'provider-hold',
+      lifecycleAction: 'provider-hold-fallback',
     }));
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] })).toHaveLength(1);
+  });
+
+  it('backfills retry playbooks for known failures classified by older code', async () => {
+    const ledger = getMiddlewareFailureClassificationPath(memoryDir);
+    mkdirSync(path.dirname(ledger), { recursive: true });
+    appendFileSync(ledger, JSON.stringify({
+      taskId: 'task-legacy-budget',
+      worker: 'agent-brain',
+      bucket: 'budget-or-quota',
+      status: 'held',
+      seenAt: '2026-05-06T16:30:00.000Z',
+      lifecycleAction: 'provider-hold',
+    }) + '\n', 'utf-8');
+
+    const result = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-legacy-budget',
+      worker: 'agent-brain',
+      status: 'failed',
+      task: 'Review delegated work as claude',
+      error: "Claude Code returned an error result: You're out of extra usage · resets 2:40am (Asia/Taipei)",
+    }], new Date('2026-05-06T16:31:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ skippedKnown: 1, playbookUpgraded: 1 }));
+    expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-legacy-budget',
+      lifecycleAction: 'provider-hold-fallback',
+      followUpTaskId: expect.any(String),
+    }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })[0].payload?.retry_envelope)
+      .toEqual(expect.objectContaining({ strategy: 'compressed-provider-resume' }));
   });
 
   it('reclassifies a known task when better error-only signal changes the bucket', async () => {
@@ -258,16 +302,16 @@ describe('middleware failure self-healing', () => {
       taskId: 'task-reclassify',
       bucket: 'budget-or-quota',
       status: 'held',
-      lifecycleAction: 'provider-hold',
+      lifecycleAction: 'provider-hold-fallback',
     }));
   });
 
-  it('routes offline and timeout failures into lane recovery instead of blind retry', async () => {
+  it('routes offline and timeout failures into bounded recovery instead of blind retry', async () => {
     await classifyMiddlewareFailures(memoryDir, [{
       id: 'task-timeout',
-      worker: 'researcher',
+      worker: 'shell',
       status: 'failed',
-      task: 'Research context',
+      task: 'pnpm tsx scripts/kg-extract-chunks.ts --write && pnpm tsx scripts/kg-extract-entities.ts --write',
       error: 'Worker stall: no activity timeout',
     }], new Date('2026-05-06T16:30:00.000Z'));
 
@@ -277,6 +321,16 @@ describe('middleware failure self-healing', () => {
       bucket: 'stall-or-timeout',
       lifecycleAction: 'recover-lane',
       followUpTaskId: expect.any(String),
+    }));
+    const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
+    expect(followUps[0].payload?.retry_envelope).toEqual(expect.objectContaining({
+      strategy: 'bounded-shell-probe',
+      timeoutMs: 120_000,
+      progressTimeoutMs: 60_000,
+      commandSlices: [
+        'pnpm tsx scripts/kg-extract-chunks.ts --write',
+        'pnpm tsx scripts/kg-extract-entities.ts --write',
+      ],
     }));
     expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
       taskId: 'task-timeout',

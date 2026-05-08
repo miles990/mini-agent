@@ -37,6 +37,7 @@ export type MiddlewareFailureBucket =
 
 export type MiddlewareFailureLifecycleAction =
   | 'provider-hold'
+  | 'provider-hold-fallback'
   | 'decompose'
   | 'recover-lane'
   | 'repair-workspace'
@@ -56,12 +57,25 @@ export interface MiddlewareFailureClassification {
   lifecycleAction?: MiddlewareFailureLifecycleAction;
 }
 
+export interface MiddlewareFailureRetryEnvelope {
+  strategy: 'decompose-and-retry' | 'compressed-provider-resume' | 'bounded-shell-probe' | 'lane-recovery' | 'workspace-retry' | 'triage';
+  worker: string;
+  prompt: string;
+  acceptance: string;
+  maxTurns?: number;
+  timeoutMs?: number;
+  progressTimeoutMs?: number;
+  commandSlices?: string[];
+  notes: string[];
+}
+
 export interface MiddlewareFailureSweepResult {
   scanned: number;
   failed: number;
   classified: number;
   held: number;
   skippedKnown: number;
+  playbookUpgraded: number;
   recoveredOffline: number;
   recoveredWorkspaceIsolation: number;
 }
@@ -100,6 +114,7 @@ export async function classifyMiddlewareFailures(
     classified: 0,
     held: 0,
     skippedKnown: 0,
+    playbookUpgraded: 0,
     recoveredOffline: 0,
     recoveredWorkspaceIsolation: 0,
   };
@@ -112,6 +127,9 @@ export async function classifyMiddlewareFailures(
     const status: MiddlewareFailureClassification['status'] = providerHold ? 'held' : 'classified';
     const existing = known.get(taskId);
     if (existing && existing.bucket === bucket && existing.status === status) {
+      if (await upgradeMissingFailurePlaybook(memoryDir, existing, task, now)) {
+        result.playbookUpgraded++;
+      }
       result.skippedKnown++;
       continue;
     }
@@ -131,9 +149,10 @@ export async function classifyMiddlewareFailures(
 
     if (providerHold) {
       providerHoldTaskId = await ensureProviderHoldTask(memoryDir, providerHold, task, now);
+      followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
       result.held++;
-      lifecycleAction = 'provider-hold';
-      resolution = `${resolution}; provider held until ${providerHold.resumeAt}; holdTask=${providerHoldTaskId}`;
+      lifecycleAction = 'provider-hold-fallback';
+      resolution = `${resolution}; provider held until ${providerHold.resumeAt}; holdTask=${providerHoldTaskId}; fallbackTask=${followUpTaskId}`;
     } else if (bucket === 'max-turns' && isTerminalBrainMaxTurnTask(task)) {
       lifecycleAction = 'terminal-cancelled';
       resolution = `${resolution}; brain-provider max-turns is terminal telemetry, not a decomposable work item`;
@@ -182,6 +201,37 @@ export async function classifyMiddlewareFailures(
     slog('MIDDLEWARE-SELF-HEAL', `classified ${result.classified}/${result.failed} failed middleware task(s), held=${result.held}`);
   }
   return result;
+}
+
+async function upgradeMissingFailurePlaybook(
+  memoryDir: string,
+  existing: MiddlewareFailureClassification,
+  task: MiddlewareTaskRecord,
+  now: Date,
+): Promise<boolean> {
+  if (existing.followUpTaskId) return false;
+  if (existing.bucket === 'cancelled') return false;
+  if (existing.bucket === 'max-turns' && isTerminalBrainMaxTurnTask(task)) return false;
+
+  const followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, existing.bucket, task, now);
+  appendMiddlewareFailureClassification(memoryDir, {
+    ...existing,
+    seenAt: now.toISOString(),
+    followUpTaskId,
+    lifecycleAction: upgradedLifecycleAction(existing.bucket, existing.lifecycleAction),
+  });
+  return true;
+}
+
+function upgradedLifecycleAction(
+  bucket: MiddlewareFailureBucket,
+  current: MiddlewareFailureLifecycleAction | undefined,
+): MiddlewareFailureLifecycleAction {
+  if (bucket === 'budget-or-quota') return 'provider-hold-fallback';
+  if (bucket === 'max-turns') return 'decompose';
+  if (bucket === 'offline' || bucket === 'stall-or-timeout') return 'recover-lane';
+  if (bucket === 'workspace-isolation') return 'repair-workspace';
+  return current ?? 'triage';
 }
 
 export function reconcileRecoveredOfflineDelegationFailures(memoryDir: string, now = new Date()): number {
@@ -320,6 +370,7 @@ function parseClassification(line: string): MiddlewareFailureClassification | nu
 
 function isMiddlewareFailureLifecycleAction(value: unknown): value is MiddlewareFailureLifecycleAction {
   return value === 'provider-hold'
+    || value === 'provider-hold-fallback'
     || value === 'decompose'
     || value === 'recover-lane'
     || value === 'repair-workspace'
@@ -358,6 +409,7 @@ async function ensureMiddlewareFailureFollowUpTask(
         middleware_failure_bucket: bucket,
         failed_task_excerpt: String(task.task ?? '').slice(0, 500),
         acceptance_criteria: plan.acceptance,
+        retry_envelope: plan.retryEnvelope,
         createdAt: now.toISOString(),
       },
     });
@@ -392,34 +444,144 @@ function findMiddlewareFailureFollowUp(
 function middlewareFailureRepairPlan(
   bucket: MiddlewareFailureBucket,
   task: MiddlewareTaskRecord,
-): { status: 'pending' | 'hold'; summary: string; acceptance: string } {
+): { status: 'pending' | 'hold'; summary: string; acceptance: string; retryEnvelope: MiddlewareFailureRetryEnvelope } {
   const worker = task.worker ?? 'unknown worker';
+  const taskId = task.id ?? 'unknown';
+  const excerpt = compactTaskText(task.task ?? '');
   if (bucket === 'max-turns') {
+    const acceptance = 'A bounded retry plan exists with 1-3 independent slices, each slice has its own verification, and the original broad prompt is not retried unchanged.';
     return {
       status: 'pending',
-      summary: `Decompose middleware task ${task.id ?? 'unknown'} after max-turns failure`,
-      acceptance: 'Original delegation is split into smaller tasks or retry policy marks it terminal with evidence.',
+      summary: `Retry middleware task ${taskId} as bounded slices after max-turns failure`,
+      acceptance,
+      retryEnvelope: {
+        strategy: 'decompose-and-retry',
+        worker,
+        prompt: [
+          'Do not retry the failed broad task unchanged.',
+          'First identify the smallest independently verifiable slice, then execute only that slice.',
+          'If code changes are needed, name exact files before editing and stop after one coherent patch.',
+          excerpt,
+        ].filter(Boolean).join('\n\n'),
+        acceptance,
+        maxTurns: 8,
+        timeoutMs: 240_000,
+        notes: [
+          'max-turns means the task was too broad for the selected actor, not that more waiting helps',
+          'prefer a mechanical probe or file-scope slice over another full-context LLM pass',
+        ],
+      },
     };
   }
-  if (bucket === 'offline' || bucket === 'stall-or-timeout') {
+  if (bucket === 'budget-or-quota') {
+    const acceptance = 'Provider-bound work is resumed only after quota reset with compressed context, or a cheaper/local fallback produces the next concrete artifact.';
     return {
       status: 'pending',
-      summary: `Recover middleware ${worker} lane after ${bucket} failure`,
-      acceptance: 'Middleware lane health probe passes, circuit breaker/backoff is updated, or lane is intentionally held.',
+      summary: `Create fallback for middleware task ${taskId} after provider budget hold`,
+      acceptance,
+      retryEnvelope: {
+        strategy: 'compressed-provider-resume',
+        worker,
+        prompt: [
+          'Do not spend another full provider run on the same context.',
+          'Summarize prior state into <=1200 chars, list the next single action, and prefer local/shell evidence before LLM work.',
+          excerpt,
+        ].filter(Boolean).join('\n\n'),
+        acceptance,
+        maxTurns: 6,
+        timeoutMs: 180_000,
+        notes: [
+          'budget exhaustion is a resource constraint; useful work should continue via compression, local probes, or waiting for reset',
+          'resume task must not duplicate the held provider request',
+        ],
+      },
+    };
+  }
+  if (bucket === 'stall-or-timeout') {
+    const acceptance = 'The failed shell/task chain is split into bounded probes with checkpoints; no single silent step may run for 1800s again.';
+    return {
+      status: 'pending',
+      summary: `Retry middleware ${worker} lane with bounded probes after timeout`,
+      acceptance,
+      retryEnvelope: {
+        strategy: worker === 'shell' ? 'bounded-shell-probe' : 'lane-recovery',
+        worker,
+        prompt: [
+          'Break the failed work into bounded probes. Emit progress after each probe.',
+          'For shell commands, run each command slice separately and persist intermediate artifacts before continuing.',
+          excerpt,
+        ].filter(Boolean).join('\n\n'),
+        acceptance,
+        timeoutMs: 120_000,
+        progressTimeoutMs: 60_000,
+        commandSlices: splitShellCommand(task.task ?? ''),
+        notes: [
+          'timeout/stall requires shorter probes and progress checkpoints, not a longer timeout',
+          'only increase timeout after a probe proves the command is making progress',
+        ],
+      },
+    };
+  }
+  if (bucket === 'offline') {
+    const acceptance = 'Middleware health probe passes and the original task is retried only after lane availability is confirmed.';
+    return {
+      status: 'pending',
+      summary: `Recover middleware ${worker} lane after offline failure`,
+      acceptance,
+      retryEnvelope: {
+        strategy: 'lane-recovery',
+        worker,
+        prompt: 'Probe middleware /health and worker availability, then release or recreate the original task with the smallest safe retry envelope.',
+        acceptance,
+        timeoutMs: 60_000,
+        progressTimeoutMs: 30_000,
+        notes: ['offline failures should close automatically once health is back; repeated offline means service supervision is broken'],
+      },
     };
   }
   if (bucket === 'workspace-isolation') {
+    const acceptance = 'Forge has a free slot and the retry uses an isolated worktree; if allocation still fails, the forge error is captured with stderr.';
     return {
       status: 'pending',
-      summary: `Repair middleware workspace isolation for task ${task.id ?? 'unknown'}`,
-      acceptance: 'Worker retry uses an isolated worktree with required dependencies or records a durable bypass policy.',
+      summary: `Repair middleware workspace isolation for task ${taskId}`,
+      acceptance,
+      retryEnvelope: {
+        strategy: 'workspace-retry',
+        worker,
+        prompt: 'Probe forge status, allocate a fresh worktree, and retry only after the isolated worktree is available.',
+        acceptance,
+        timeoutMs: 180_000,
+        notes: ['workspace write retries must never fall back to runtime checkout writes'],
+      },
     };
   }
+  const acceptance = 'Failure is assigned to a known bucket, retried safely, held with a resume condition, or closed as terminal.';
   return {
     status: 'pending',
-    summary: `Triage middleware failed task ${task.id ?? 'unknown'} (${bucket})`,
-    acceptance: 'Failure is assigned to a known bucket, retried safely, held with a resume condition, or closed as terminal.',
+    summary: `Triage middleware failed task ${taskId} (${bucket})`,
+    acceptance,
+    retryEnvelope: {
+      strategy: 'triage',
+      worker,
+      prompt: `Classify this failure and produce one mechanical next action:\n\n${excerpt}`,
+      acceptance,
+      timeoutMs: 120_000,
+      notes: ['unknown failures must become a named bucket before broad retry'],
+    },
   };
+}
+
+function compactTaskText(task: string): string {
+  return String(task).replace(/\s+/g, ' ').trim().slice(0, 1200);
+}
+
+function splitShellCommand(task: string): string[] | undefined {
+  const slices = String(task)
+    .split(/\s+&&\s+|\s*;\s*/g)
+    .map(part => part.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  return slices.length > 1 ? slices : undefined;
 }
 
 function isTerminalBrainMaxTurnTask(task: MiddlewareTaskRecord): boolean {
