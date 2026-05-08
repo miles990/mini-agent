@@ -23,7 +23,7 @@ export interface DelegationFailureDiagnosis {
   signature: string;
   code: string;
   status: DelegationFailureStatus;
-  category: 'missing_environment' | 'provider_quota' | 'shell_prompt_injection' | 'command_failed' | 'middleware_failed' | 'unknown';
+  category: 'missing_environment' | 'provider_quota' | 'max_turns' | 'shell_prompt_injection' | 'command_failed' | 'middleware_failed' | 'unknown';
   summary: string;
   recommendedAction: string;
   reportPath: string;
@@ -80,7 +80,10 @@ export async function diagnosePendingDelegationFailures(
   limit = 5,
 ): Promise<DelegationFailureDiagnosis[]> {
   const failures = readDelegationFailureRecordsSync(memoryDir)
-    .filter(failure => failure.status === 'diagnosing' && Boolean(failure.diagnosticTaskId))
+    .filter(failure =>
+      (failure.status === 'diagnosing' && Boolean(failure.diagnosticTaskId))
+      || (failure.status === 'open' && failure.frequency >= 2)
+    )
     .slice(0, limit);
   const results: DelegationFailureDiagnosis[] = [];
   for (const failure of failures) {
@@ -115,6 +118,18 @@ function buildDiagnosis(memoryDir: string, record: DelegationFailureRecord): Del
       category: 'provider_quota',
       summary: 'The repeated failure is provider quota/resource exhaustion, not a task defect.',
       recommendedAction: 'Hold the origin task with a date-after provider resource condition and retry after reset.',
+      reportPath,
+    };
+  }
+
+  if (/maximum number of turns|reached max(?:imum)? turns|max turns/.test(lower)) {
+    return {
+      signature: record.signature,
+      code,
+      status: 'resolved',
+      category: 'max_turns',
+      summary: 'The repeated failure is a provider turn-budget exhaustion pattern, usually caused by an oversized delegated task.',
+      recommendedAction: 'Do not retry the same prompt unchanged; split the origin task into smaller probes or implementation slices.',
       reportPath,
     };
   }
