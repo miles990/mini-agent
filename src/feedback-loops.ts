@@ -249,6 +249,33 @@ export function extractErrorCode(errorMsg: string): string {
 }
 
 /**
+ * Issue #333: Circuit-breaker gate for transient_fast_band errors.
+ *
+ * Fast-band = API errored back in <10s. Sleeping 90s and retrying gives upstream
+ * nothing to recover from (these are likely deterministic provider-side rejections —
+ * auth/rate-limit/payload — not transient capacity gaps). Exponential backoff (#166)
+ * targets slow-band only; fast-band needs fail-fast so caller can switch model /
+ * route to delegation / report blocker.
+ *
+ * Returns true ONLY for the first attempt — once we're past attempt 0 we've already
+ * paid the retry cost and want the existing path to run to completion.
+ *
+ * Threshold tunable via env: KURO_FAST_FAIL_THRESHOLD_MS (default 10_000).
+ */
+export function shouldFastFailFastBand(args: {
+  attempt: number;
+  attemptDurationMs: number;
+  errorMsg: string;
+  thresholdMs?: number;
+}): boolean {
+  const threshold =
+    args.thresholdMs ?? (Number(process.env.KURO_FAST_FAIL_THRESHOLD_MS) || 10_000);
+  if (args.attempt !== 0) return false;
+  if (args.attemptDurationMs >= threshold) return false;
+  return extractErrorSubtype(args.errorMsg) === 'transient_fast_band';
+}
+
+/**
  * 掃描今天的 error log，按 (code + subtype + context) 分群。
  * 同模式 >= 3 次 → 寫入 HEARTBEAT.md 作為 P1 task。
  * 已建過的模式不重複建。
