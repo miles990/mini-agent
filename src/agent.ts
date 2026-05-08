@@ -12,7 +12,7 @@ import { getMemory } from './memory.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
-import { extractErrorSubtype } from './feedback-loops.js';
+import { extractErrorSubtype, shouldFastFailFastBand } from './feedback-loops.js';
 import { getSystemPrompt } from './dispatcher.js';
 import type { CycleMode } from './memory.js';
 import { eventBus, debounce } from './event-bus.js';
@@ -2021,8 +2021,24 @@ export async function callClaude(
 
       lastErrorMessage = `${classified.message}\n[Model Guidance: ${classified.modelGuidance}]`;
 
+      // Issue #333: circuit-breaker for transient_fast_band — fail-fast instead of
+      // sleeping 90s × 2^attempt on errors that came back in <10s. The "wait it out"
+      // assumption only fits slow-band; fast-band repeats are deterministic and the
+      // sleep is wasted budget. Caller decides next step (switch model / delegate).
+      const fastFailFastBand = shouldFastFailFastBand({
+        attempt,
+        attemptDurationMs: attemptDuration,
+        errorMsg: stderr || classified.message || '',
+      });
+      if (fastFailFastBand) {
+        slog(
+          'RETRY',
+          `circuit-breaker (#333): transient_fast_band on attempt ${attempt + 1}, dur=${attemptDuration}ms — failing fast, skipping exp-backoff sleep`,
+        );
+      }
+
       // 如果可重試且還有機會，等待後重試
-      if (classified.retryable && attempt < maxRetries) {
+      if (classified.retryable && attempt < maxRetries && !fastFailFastBand) {
         // OOM-likely errors (exit 143 = SIGTERM) need longer backoff to let system reclaim memory
         const isOomLikely = exitCode === 143 || (exitCode === null && classified.type === 'TIMEOUT');
         // 2026-05-06 (Issue #166): transient_no_diag/midband_no_diag dominated retries
