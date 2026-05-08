@@ -107,7 +107,8 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
         // (cherry-pick creates new commits with different hashes)
         ensureWorktree(root, worktree, branch, snapshot.headSha);
       }
-      git(worktree, ['push', '-u', 'origin', branch], kuroGitEnv());
+      const pushEnv = isGithubRemote(root) ? kuroGitEnv() : undefined;
+      git(worktree, ['push', '-u', 'origin', branch], pushEnv);
     }
     let prUrl: string | undefined;
     if (opts.createPr ?? true) {
@@ -276,6 +277,11 @@ function safeGitBytes(cwd: string, args: string[]): Buffer | null {
   } catch {
     return null;
   }
+}
+
+function isGithubRemote(repoRoot: string): boolean {
+  const url = safeGit(repoRoot, ['remote', 'get-url', 'origin']) ?? '';
+  return url.includes('github.com');
 }
 
 function git(cwd: string, args: string[], env?: NodeJS.ProcessEnv): string {
