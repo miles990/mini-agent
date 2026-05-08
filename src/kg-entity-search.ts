@@ -5,6 +5,8 @@ const ROOT = process.cwd();
 const ENTITIES_PATH = path.join(ROOT, 'memory/index/entities.jsonl');
 const RESOLVED_PATH = path.join(ROOT, 'memory/index/entities-resolved.jsonl');
 const EDGES_PATH = path.join(ROOT, 'memory/index/edges.jsonl');
+const MANIFEST_PATH = path.join(ROOT, 'memory/index/manifest.json');
+const CONFLICTS_PATH = path.join(ROOT, 'memory/index/conflicts.jsonl');
 
 interface EntityReference {
   chunk_id: string;
@@ -34,6 +36,14 @@ interface Edge {
   weight?: number;
   detector?: string;
   evidence_chunk_id?: string;
+}
+
+interface Conflict {
+  id: string;
+  type: string;
+  entities: string[];
+  status: string;
+  detected_at?: string;
 }
 
 export interface SearchHit {
@@ -71,6 +81,32 @@ export interface EntityCard {
   neighbors: Neighbor[];
 }
 
+export interface KgOverview {
+  generated_at: string;
+  manifest: Record<string, unknown> | null;
+  stats: {
+    entities: number;
+    edges: number;
+    resolved: number;
+    conflicts: number;
+    pending_conflicts: number;
+    orphan_entities: number;
+    low_confidence_entities: number;
+    low_confidence_edges: number;
+  };
+  type_counts: Array<{ type: string; count: number }>;
+  edge_type_counts: Array<{ type: string; count: number; avg_confidence: number; avg_weight: number }>;
+  confidence_bands: Array<{ band: string; count: number }>;
+  detector_counts: Array<{ detector: string; count: number }>;
+  top_entities: Array<{ id: string; name: string; type: string; refs: number; degree: number; confidence?: string }>;
+  recent_entities: Array<{ id: string; name: string; type: string; last_referenced?: string; refs: number }>;
+  conflict_entities: Array<{ id: string; name: string; type: string; conflicts: string[] }>;
+  graph: {
+    nodes: Array<{ id: string; name: string; type: string; refs: number; degree: number; confidence?: string; conflict: boolean }>;
+    links: Array<{ source: string; target: string; type: string; weight: number; confidence: number; detector?: string }>;
+  };
+}
+
 interface Cache {
   entitiesMtime: number;
   resolvedMtime: number;
@@ -96,6 +132,11 @@ function readJsonl<T>(p: string): T[] {
     try { out.push(JSON.parse(s)); } catch { /* skip */ }
   }
   return out;
+}
+
+function readJson<T>(p: string): T | null {
+  if (!fs.existsSync(p)) return null;
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')) as T; } catch { return null; }
 }
 
 function primaryType(ent: Entity): string {
@@ -270,5 +311,139 @@ export function getKgStats(): { entities: number; edges: number; resolved: numbe
     edges,
     resolved,
     generated_at: new Date(Math.max(state.entitiesMtime, state.resolvedMtime, state.edgesMtime)).toISOString(),
+  };
+}
+
+export function getKgOverview(opts: { graphLimit?: number } = {}): KgOverview {
+  const graphLimit = Math.max(20, Math.min(opts.graphLimit ?? 120, 300));
+  const state = loadCache();
+  const conflicts = readJsonl<Conflict>(CONFLICTS_PATH);
+  const manifest = readJson<Record<string, unknown>>(MANIFEST_PATH);
+
+  const degree = new Map<string, number>();
+  const edgeType = new Map<string, { count: number; confidence: number; weight: number }>();
+  const detector = new Map<string, number>();
+  let lowConfidenceEdges = 0;
+
+  for (const arr of state.edgesFrom.values()) {
+    for (const edge of arr) {
+      degree.set(edge.from, (degree.get(edge.from) ?? 0) + 1);
+      degree.set(edge.to, (degree.get(edge.to) ?? 0) + 1);
+      const bucket = edgeType.get(edge.type) ?? { count: 0, confidence: 0, weight: 0 };
+      bucket.count += 1;
+      bucket.confidence += edge.confidence ?? 0;
+      bucket.weight += edge.weight ?? edge.confidence ?? 0;
+      edgeType.set(edge.type, bucket);
+      detector.set(edge.detector ?? 'unknown', (detector.get(edge.detector ?? 'unknown') ?? 0) + 1);
+      if ((edge.confidence ?? 0) < 0.6) lowConfidenceEdges++;
+    }
+  }
+
+  const conflictByEntity = new Map<string, string[]>();
+  for (const conflict of conflicts) {
+    if (conflict.status && conflict.status !== 'pending') continue;
+    for (const id of conflict.entities ?? []) {
+      conflictByEntity.set(id, [...(conflictByEntity.get(id) ?? []), conflict.type]);
+    }
+  }
+
+  const typeCounts = new Map<string, number>();
+  const confidenceBands = new Map<string, number>([
+    ['high', 0],
+    ['medium', 0],
+    ['low', 0],
+    ['unknown', 0],
+  ]);
+  let resolved = 0;
+  let orphanEntities = 0;
+  let lowConfidenceEntities = 0;
+
+  const entities = [...state.byId.values()];
+  for (const ent of entities) {
+    const type = primaryType(ent);
+    typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1);
+    if (ent.resolved_type) resolved++;
+    if ((degree.get(ent.id) ?? 0) === 0) orphanEntities++;
+    const band = ent.resolution_confidence ?? 'unknown';
+    confidenceBands.set(band, (confidenceBands.get(band) ?? 0) + 1);
+    if (band === 'low') lowConfidenceEntities++;
+  }
+
+  const ranked = entities
+    .map((ent) => ({
+      id: ent.id,
+      name: ent.canonical_name ?? ent.id,
+      type: primaryType(ent),
+      refs: ent.references?.length ?? 0,
+      degree: degree.get(ent.id) ?? 0,
+      confidence: ent.resolution_confidence,
+    }))
+    .sort((a, b) => b.degree - a.degree || b.refs - a.refs || a.name.localeCompare(b.name));
+
+  const selected = new Set(ranked.slice(0, graphLimit).map((ent) => ent.id));
+  const graphLinks: KgOverview['graph']['links'] = [];
+  for (const arr of state.edgesFrom.values()) {
+    for (const edge of arr) {
+      if (!selected.has(edge.from) || !selected.has(edge.to)) continue;
+      graphLinks.push({
+        source: edge.from,
+        target: edge.to,
+        type: edge.type,
+        weight: edge.weight ?? edge.confidence ?? 0,
+        confidence: edge.confidence ?? 0,
+        detector: edge.detector,
+      });
+    }
+  }
+  graphLinks.sort((a, b) => b.weight - a.weight || b.confidence - a.confidence);
+
+  return {
+    generated_at: new Date(Math.max(state.entitiesMtime, state.resolvedMtime, state.edgesMtime)).toISOString(),
+    manifest,
+    stats: {
+      entities: state.byId.size,
+      edges: [...state.edgesFrom.values()].reduce((sum, arr) => sum + arr.length, 0),
+      resolved,
+      conflicts: conflicts.length,
+      pending_conflicts: conflicts.filter((c) => !c.status || c.status === 'pending').length,
+      orphan_entities: orphanEntities,
+      low_confidence_entities: lowConfidenceEntities,
+      low_confidence_edges: lowConfidenceEdges,
+    },
+    type_counts: [...typeCounts.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count),
+    edge_type_counts: [...edgeType.entries()].map(([type, bucket]) => ({
+      type,
+      count: bucket.count,
+      avg_confidence: bucket.count ? bucket.confidence / bucket.count : 0,
+      avg_weight: bucket.count ? bucket.weight / bucket.count : 0,
+    })).sort((a, b) => b.count - a.count),
+    confidence_bands: [...confidenceBands.entries()].map(([band, count]) => ({ band, count })),
+    detector_counts: [...detector.entries()].map(([name, count]) => ({ detector: name, count })).sort((a, b) => b.count - a.count),
+    top_entities: ranked.slice(0, 24),
+    recent_entities: entities
+      .map((ent) => ({
+        id: ent.id,
+        name: ent.canonical_name ?? ent.id,
+        type: primaryType(ent),
+        last_referenced: ent.last_referenced,
+        refs: ent.references?.length ?? 0,
+      }))
+      .sort((a, b) => String(b.last_referenced ?? '').localeCompare(String(a.last_referenced ?? '')))
+      .slice(0, 18),
+    conflict_entities: [...conflictByEntity.entries()]
+      .map(([id, conflictsForEntity]) => {
+        const ent = state.byId.get(id);
+        return {
+          id,
+          name: ent?.canonical_name ?? id,
+          type: ent ? primaryType(ent) : 'unknown',
+          conflicts: [...new Set(conflictsForEntity)],
+        };
+      })
+      .slice(0, 18),
+    graph: {
+      nodes: ranked.slice(0, graphLimit).map((ent) => ({ ...ent, conflict: conflictByEntity.has(ent.id) })),
+      links: graphLinks.slice(0, graphLimit * 4),
+    },
   };
 }

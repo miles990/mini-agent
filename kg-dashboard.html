@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KG Context Observatory</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #11151a;
+    --panel2: #151b22;
+    --line: #26313c;
+    --line2: #1a222b;
+    --text: #e6edf3;
+    --muted: #8b98a5;
+    --faint: #5d6874;
+    --green: #48d597;
+    --cyan: #5db7ff;
+    --yellow: #f4c95d;
+    --red: #ff6b6b;
+    --violet: #ad8cff;
+    --pink: #f187c6;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 13px/1.45 var(--sans); }
+  body { padding: 20px; }
+  button, input, select { font: inherit; }
+  .shell { max-width: 1500px; margin: 0 auto; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; border-bottom: 1px solid var(--line2); padding-bottom: 14px; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: 0; font-weight: 650; }
+  .subtitle { margin-top: 4px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn, .input, .select {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 10px;
+    min-height: 34px;
+  }
+  .btn { cursor: pointer; color: var(--muted); }
+  .btn:hover { border-color: var(--cyan); color: var(--text); }
+  .input { width: min(420px, 44vw); outline: none; }
+  .input:focus { border-color: var(--cyan); }
+  .grid { display: grid; gap: 12px; }
+  .metrics { grid-template-columns: repeat(6, minmax(120px, 1fr)); margin-bottom: 12px; }
+  .metric { border: 1px solid var(--line2); background: var(--panel); border-radius: 8px; padding: 12px; min-height: 82px; }
+  .metric .label { font-family: var(--mono); color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  .metric .value { margin-top: 8px; font-size: 24px; font-weight: 650; }
+  .metric .hint { margin-top: 2px; font-family: var(--mono); color: var(--faint); font-size: 11px; }
+  .main { grid-template-columns: minmax(0, 1.5fr) minmax(360px, .85fr); align-items: start; }
+  .band { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+  .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+  h2 { margin: 0; font-size: 13px; color: var(--text); font-weight: 650; }
+  .count { font-family: var(--mono); color: var(--faint); font-size: 11px; }
+  .graph-wrap { position: relative; height: 650px; border: 1px solid var(--line); background: #090b0e; border-radius: 8px; overflow: hidden; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .graph-tools { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; justify-content: space-between; pointer-events: none; }
+  .tool-group { display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--line); background: rgba(17,21,26,.9); color: var(--muted); border-radius: 5px; padding: 4px 7px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
+  .chip.active { border-color: var(--cyan); color: var(--cyan); }
+  .detail { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 12px; min-height: 160px; }
+  .detail-title { font-size: 16px; font-weight: 650; margin-bottom: 5px; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .tag { font-family: var(--mono); font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; }
+  .tag.green { color: var(--green); border-color: rgba(72,213,151,.35); }
+  .tag.yellow { color: var(--yellow); border-color: rgba(244,201,93,.35); }
+  .tag.red { color: var(--red); border-color: rgba(255,107,107,.35); }
+  .bars { display: grid; gap: 7px; }
+  .bar-row { display: grid; grid-template-columns: 110px 1fr 54px; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .bar-track { height: 8px; background: #0c1014; border: 1px solid var(--line2); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--cyan); border-radius: 99px; }
+  .split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .list { display: grid; gap: 6px; }
+  .row { border: 1px solid var(--line2); background: var(--panel); border-radius: 6px; padding: 8px 9px; cursor: pointer; }
+  .row:hover { border-color: var(--cyan); }
+  .row-top { display: flex; justify-content: space-between; gap: 12px; }
+  .row-name { color: var(--text); font-weight: 560; overflow-wrap: anywhere; }
+  .row-meta { color: var(--muted); font-family: var(--mono); font-size: 11px; margin-top: 4px; }
+  .search-results { margin-top: 8px; max-height: 280px; overflow: auto; display: grid; gap: 6px; }
+  .empty { color: var(--faint); font-family: var(--mono); padding: 10px 0; }
+  .status-line { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media (max-width: 1050px) {
+    body { padding: 12px; }
+    header { align-items: flex-start; flex-direction: column; }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .main, .split { grid-template-columns: 1fr; }
+    .input { width: 100%; }
+    .graph-wrap { height: 520px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div>
+      <h1>KG Context Observatory</h1>
+      <div class="subtitle" id="subtitle">loading context fabric...</div>
+    </div>
+    <div class="actions">
+      <input class="input" id="search" placeholder="Search entity, alias, context anchor...">
+      <button class="btn" id="refresh">Refresh</button>
+      <a class="btn" href="/kg-graph">Graph Page</a>
+      <a class="btn" href="/dashboard">Runtime Dashboard</a>
+    </div>
+  </header>
+
+  <section class="grid metrics" id="metrics"></section>
+
+  <section class="grid main">
+    <div>
+      <div class="section-head">
+        <h2>Context Link Map</h2>
+        <div class="count" id="graphCount">--</div>
+      </div>
+      <div class="graph-wrap">
+        <canvas id="graph"></canvas>
+        <div class="graph-tools">
+          <div class="tool-group" id="typeFilters"></div>
+          <div class="tool-group">
+            <span class="chip active" id="showLabels">labels</span>
+            <span class="chip" id="pinLayout">pin</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="band grid split">
+        <div>
+          <div class="section-head"><h2>Entity Types</h2><span class="count" id="typeCount">--</span></div>
+          <div class="bars" id="typeBars"></div>
+        </div>
+        <div>
+          <div class="section-head"><h2>Relation Types</h2><span class="count" id="edgeCount">--</span></div>
+          <div class="bars" id="edgeBars"></div>
+        </div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="detail" id="detail">
+        <div class="empty">Click a node or search an entity.</div>
+      </div>
+
+      <div class="band">
+        <div class="section-head"><h2>Search Results</h2><span class="count" id="searchCount">--</span></div>
+        <div class="search-results" id="searchResults"><div class="empty">Type to search KG.</div></div>
+      </div>
+
+      <div class="band">
+        <div class="section-head"><h2>Top Context Anchors</h2><span class="count" id="topCount">--</span></div>
+        <div class="list" id="topEntities"></div>
+      </div>
+
+      <div class="band">
+        <div class="section-head"><h2>Fresh Context</h2><span class="count" id="recentCount">--</span></div>
+        <div class="list" id="recentEntities"></div>
+      </div>
+
+      <div class="band">
+        <div class="section-head"><h2>Attention Queue</h2><span class="count" id="conflictCount">--</span></div>
+        <div class="list" id="conflictEntities"></div>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<script>
+const API = location.origin;
+const COLORS = {
+  actor: '#ffb86c', concept: '#5db7ff', project: '#ad8cff', tool: '#48d597',
+  artifact: '#f4c95d', 'code-symbol': '#6ccff5', event: '#f187c6',
+  claim: '#d6dee7', decision: '#ff6b6b', unknown: '#8b98a5'
+};
+let overview = null;
+let nodes = [];
+let links = [];
+let selected = null;
+let hiddenTypes = new Set();
+let labels = true;
+let pinned = false;
+let raf = 0;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[c]));
+const fmt = (n) => Number(n ?? 0).toLocaleString();
+
+async function load() {
+  $('subtitle').textContent = 'loading context fabric...';
+  const res = await fetch(API + '/api/kg/overview?graphLimit=150');
+  overview = await res.json();
+  renderOverview();
+  setupGraph();
+  $('subtitle').textContent = 'built ' + (overview.generated_at || '').slice(0, 16).replace('T', ' ') + ' · observable context and links';
+}
+
+function renderOverview() {
+  const s = overview.stats;
+  $('metrics').innerHTML = [
+    metric('Entities', s.entities, 'context anchors'),
+    metric('Edges', s.edges, 'typed relationships'),
+    metric('Resolved', s.resolved, 'typed by resolver'),
+    metric('Pending Conflicts', s.pending_conflicts, 'needs attention'),
+    metric('Orphans', s.orphan_entities, 'no graph degree'),
+    metric('Low Confidence', s.low_confidence_entities + s.low_confidence_edges, 'entities + edges')
+  ].join('');
+  renderBars('typeBars', overview.type_counts, 'typeCount', COLORS);
+  renderBars('edgeBars', overview.edge_type_counts.map(e => ({ type: e.type, count: e.count })), 'edgeCount', {});
+  renderRows('topEntities', overview.top_entities, 'topCount', e => `${e.refs} refs · degree ${e.degree} · ${e.confidence || 'unknown'}`);
+  renderRows('recentEntities', overview.recent_entities, 'recentCount', e => `${e.refs} refs · ${String(e.last_referenced || '').slice(0, 10) || 'no date'}`);
+  renderRows('conflictEntities', overview.conflict_entities, 'conflictCount', e => e.conflicts.join(', ') || 'pending');
+  renderTypeFilters();
+}
+
+function metric(label, value, hint) {
+  return `<div class="metric"><div class="label">${esc(label)}</div><div class="value">${fmt(value)}</div><div class="hint">${esc(hint)}</div></div>`;
+}
+
+function renderBars(id, rows, countId, palette) {
+  $(countId).textContent = rows.length + ' kinds';
+  const max = Math.max(1, ...rows.map(r => r.count));
+  $(id).innerHTML = rows.slice(0, 14).map(r => {
+    const color = palette[r.type] || '#5db7ff';
+    return `<div class="bar-row"><span>${esc(r.type)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, r.count / max * 100)}%;background:${color}"></div></div><span>${fmt(r.count)}</span></div>`;
+  }).join('');
+}
+
+function renderRows(id, rows, countId, meta) {
+  $(countId).textContent = rows.length;
+  $(id).innerHTML = rows.length ? rows.map(e => `<div class="row" data-id="${esc(e.id)}"><div class="row-top"><div class="row-name">${esc(e.name)}</div><span class="tag">${esc(e.type)}</span></div><div class="row-meta">${esc(meta(e))}</div></div>`).join('') : '<div class="empty">No entries.</div>';
+  $(id).querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => showEntity(el.dataset.id)));
+}
+
+function renderTypeFilters() {
+  $('typeFilters').innerHTML = overview.type_counts.slice(0, 9).map(t => `<span class="chip active" data-type="${esc(t.type)}">${esc(t.type)}</span>`).join('');
+  $('typeFilters').querySelectorAll('[data-type]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const t = chip.dataset.type;
+      if (hiddenTypes.has(t)) { hiddenTypes.delete(t); chip.classList.add('active'); }
+      else { hiddenTypes.add(t); chip.classList.remove('active'); }
+      draw();
+    });
+  });
+}
+
+function setupGraph() {
+  const canvas = $('graph');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.floor(rect.width * devicePixelRatio);
+  canvas.height = Math.floor(rect.height * devicePixelRatio);
+  nodes = overview.graph.nodes.map((n, i) => ({
+    ...n,
+    x: rect.width / 2 + Math.cos(i) * 180,
+    y: rect.height / 2 + Math.sin(i) * 180,
+    vx: 0,
+    vy: 0,
+    r: Math.max(4, Math.min(14, 4 + Math.sqrt(n.refs || 1) + Math.sqrt(n.degree || 0) * .6))
+  }));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  links = overview.graph.links.map(l => ({ ...l, sourceNode: byId.get(l.source), targetNode: byId.get(l.target) })).filter(l => l.sourceNode && l.targetNode);
+  $('graphCount').textContent = nodes.length + ' nodes · ' + links.length + ' links';
+  canvas.onclick = (ev) => {
+    const hit = pickNode(ev);
+    if (hit) showEntity(hit.id, hit);
+  };
+  canvas.onmousemove = (ev) => { canvas.style.cursor = pickNode(ev) ? 'pointer' : 'default'; };
+  if (!raf) tick();
+}
+
+function tick() {
+  if (!pinned) simulate();
+  draw();
+  raf = requestAnimationFrame(tick);
+}
+
+function simulate() {
+  const canvas = $('graph');
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  for (const a of nodes) {
+    if (hiddenTypes.has(a.type)) continue;
+    for (const b of nodes) {
+      if (a === b || hiddenTypes.has(b.type)) continue;
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const d2 = Math.max(80, dx * dx + dy * dy);
+      const f = 38 / d2;
+      a.vx += dx * f; a.vy += dy * f;
+    }
+  }
+  for (const l of links) {
+    const a = l.sourceNode, b = l.targetNode;
+    if (hiddenTypes.has(a.type) || hiddenTypes.has(b.type)) continue;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    const target = 70 + (1 - Math.min(1, l.weight)) * 90;
+    const f = (d - target) * 0.0025;
+    a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+  }
+  for (const n of nodes) {
+    n.vx += (w / 2 - n.x) * 0.0007;
+    n.vy += (h / 2 - n.y) * 0.0007;
+    n.vx *= 0.84; n.vy *= 0.84;
+    n.x = Math.max(24, Math.min(w - 24, n.x + n.vx));
+    n.y = Math.max(24, Math.min(h - 24, n.y + n.vy));
+  }
+}
+
+function draw() {
+  const canvas = $('graph');
+  const ctx = canvas.getContext('2d');
+  const dpr = devicePixelRatio;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+    canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(h * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#090b0e';
+  ctx.fillRect(0, 0, w, h);
+  for (const l of links) {
+    if (hiddenTypes.has(l.sourceNode.type) || hiddenTypes.has(l.targetNode.type)) continue;
+    ctx.globalAlpha = 0.12 + Math.min(.35, l.confidence * .35);
+    ctx.strokeStyle = COLORS[l.type] || '#5d6874';
+    ctx.lineWidth = Math.max(1, l.weight * 2);
+    ctx.beginPath();
+    ctx.moveTo(l.sourceNode.x, l.sourceNode.y);
+    ctx.lineTo(l.targetNode.x, l.targetNode.y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  for (const n of nodes) {
+    if (hiddenTypes.has(n.type)) continue;
+    ctx.fillStyle = COLORS[n.type] || COLORS.unknown;
+    ctx.strokeStyle = n.conflict ? '#ff6b6b' : (selected && selected.id === n.id ? '#ffffff' : '#0b0d10');
+    ctx.lineWidth = n.conflict || (selected && selected.id === n.id) ? 2.5 : 1.2;
+    ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (labels && (n.degree > 8 || n.refs > 4 || (selected && selected.id === n.id))) {
+      ctx.fillStyle = '#d6dee7';
+      ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillText(n.name.slice(0, 28), n.x + n.r + 5, n.y + 4);
+    }
+  }
+}
+
+function pickNode(ev) {
+  const rect = $('graph').getBoundingClientRect();
+  const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+  return nodes.find(n => !hiddenTypes.has(n.type) && Math.hypot(n.x - x, n.y - y) <= n.r + 4);
+}
+
+async function showEntity(id, localNode) {
+  selected = localNode || nodes.find(n => n.id === id) || null;
+  draw();
+  $('detail').innerHTML = '<div class="empty">Loading entity...</div>';
+  const res = await fetch(API + '/api/kg/entities/' + encodeURIComponent(id));
+  if (!res.ok) { $('detail').innerHTML = '<div class="empty">Entity not found.</div>'; return; }
+  const e = await res.json();
+  const type = Array.isArray(e.resolved_type) ? e.resolved_type.join(' + ') : (e.resolved_type || e.type);
+  $('detail').innerHTML = `
+    <div class="detail-title">${esc(e.canonical_name)}</div>
+    <div class="status-line">${esc(e.id)}</div>
+    <div class="tag-row">
+      <span class="tag green">${esc(type)}</span>
+      <span class="tag ${e.resolution_confidence === 'low' ? 'red' : e.resolution_confidence === 'medium' ? 'yellow' : ''}">conf ${esc(e.resolution_confidence || 'unknown')}</span>
+      <span class="tag">${fmt(e.reference_count)} refs</span>
+      <span class="tag">${fmt((e.neighbors || []).length)} neighbors</span>
+    </div>
+    ${e.aliases && e.aliases.length ? '<div class="status-line">aliases: ' + esc(e.aliases.slice(0, 8).join(', ')) + '</div>' : ''}
+    <div class="band"><div class="section-head"><h2>Neighbors</h2><span class="count">${(e.neighbors || []).length}</span></div>
+    <div class="list">${(e.neighbors || []).slice(0, 10).map(n => `<div class="row" data-id="${esc(n.id)}"><div class="row-top"><div class="row-name">${esc(n.canonical_name)}</div><span class="tag">${esc(n.edge_type)}</span></div><div class="row-meta">${esc(n.direction)} · w=${Number(n.weight || 0).toFixed(2)} · conf=${Number(n.confidence || 0).toFixed(2)}</div></div>`).join('') || '<div class="empty">No strong neighbors.</div>'}</div></div>
+  `;
+  $('detail').querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => showEntity(el.dataset.id)));
+}
+
+let searchTimer = 0;
+$('search').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(runSearch, 180);
+});
+$('refresh').onclick = load;
+$('showLabels').onclick = () => { labels = !labels; $('showLabels').classList.toggle('active', labels); draw(); };
+$('pinLayout').onclick = () => { pinned = !pinned; $('pinLayout').classList.toggle('active', pinned); };
+
+async function runSearch() {
+  const q = $('search').value.trim();
+  if (!q) { $('searchResults').innerHTML = '<div class="empty">Type to search KG.</div>'; $('searchCount').textContent = '--'; return; }
+  const res = await fetch(API + '/api/kg/entities/search?q=' + encodeURIComponent(q) + '&limit=30');
+  const data = await res.json();
+  $('searchCount').textContent = (data.hits || []).length;
+  $('searchResults').innerHTML = (data.hits || []).map(h => `<div class="row" data-id="${esc(h.id)}"><div class="row-top"><div class="row-name">${esc(h.canonical_name)}</div><span class="tag">${esc(h.type)}</span></div><div class="row-meta">${fmt(h.reference_count)} refs · match ${esc(h.match)}</div></div>`).join('') || '<div class="empty">No matches.</div>';
+  $('searchResults').querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => showEntity(el.dataset.id)));
+}
+
+load().catch(err => {
+  $('subtitle').textContent = 'failed to load';
+  $('metrics').innerHTML = '<div class="metric"><div class="label">Error</div><div class="hint">' + esc(err.message || err) + '</div></div>';
+});
+</script>
+</body>
+</html>
