@@ -119,4 +119,26 @@ describe('issue #156 — staleness escalation idempotency', () => {
     // Priority stays at 2 — no oscillation.
     expect((getTask(e.id).payload as Record<string, unknown>).priority).toBe(2);
   });
+
+  it('does not promote pipeline backlog tasks to P0 by staleness alone', async () => {
+    const e = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'stash-backlog diagnostic',
+      payload: { origin: 'pipeline', priority: 1 },
+    });
+
+    const stale = await bumpTicks(tmpDir, 6);
+
+    const found = stale.find(s => s.id === e.id);
+    expect(found).toEqual(expect.objectContaining({
+      id: e.id,
+      firstEscalation: false,
+    }));
+    expect(getTask(e.id).payload).toEqual(expect.objectContaining({
+      priority: 1,
+      ticksSinceLastProgress: 6,
+    }));
+    expect((getTask(e.id).payload as Record<string, unknown>).escalated_at).toBeUndefined();
+  });
 });
