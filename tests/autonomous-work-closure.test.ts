@@ -76,6 +76,35 @@ describe('autonomous work closure', () => {
     expect(queryMemoryIndexSync(memoryDir, { id: hold.id })[0].status).toBe('pending');
   });
 
+  it('deduplicates active held correction tasks instead of letting P0 holds accumulate', async () => {
+    const olderHold = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'hold',
+      source: 'scheduler',
+      summary: 'P0 correction gate: resolve low-responsiveness',
+      payload: { origin: 'scheduler', priority: 0, correction_reason_type: 'low-responsiveness' },
+    });
+    const newerPending = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      source: 'scheduler',
+      summary: 'P0 correction gate: resolve low-responsiveness',
+      payload: { origin: 'scheduler', priority: 0, correction_reason_type: 'low-responsiveness' },
+    });
+
+    const result = await sweepAutonomousWorkClosure(memoryDir, { repoRoot });
+
+    expect(result.deduplicatedTasks).toBe(1);
+    expect(queryMemoryIndexSync(memoryDir, { id: newerPending.id })[0].status).toBe('pending');
+    expect(queryMemoryIndexSync(memoryDir, { id: olderHold.id })[0]).toEqual(expect.objectContaining({
+      status: 'abandoned',
+      payload: expect.objectContaining({
+        pruned_reason: 'duplicate-active-work',
+        canonical_task_id: newerPending.id,
+      }),
+    }));
+  });
+
   it('closes product repair tasks once the verifier passes', async () => {
     const date = taipeiDate();
     writeAiTrendState(repoRoot, date, {

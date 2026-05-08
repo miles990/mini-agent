@@ -140,7 +140,7 @@ async function completeTerminalExpressionTasks(memoryDir: string, now: Date): Pr
 }
 
 async function deduplicateActiveTasks(memoryDir: string, now: Date): Promise<number> {
-  const tasks = queryMemoryIndexSync(memoryDir, { type: ['task', 'goal'], status: ['pending', 'in_progress'] })
+  const tasks = queryMemoryIndexSync(memoryDir, { type: ['task', 'goal'], status: ['pending', 'in_progress', 'hold', 'blocked', 'needs-decomposition'] })
     .filter(task => !TERMINAL_STATUSES.has(task.status));
   const groups = new Map<string, MemoryIndexEntry[]>();
   for (const task of tasks) {
@@ -151,7 +151,10 @@ async function deduplicateActiveTasks(memoryDir: string, now: Date): Promise<num
   let deduped = 0;
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    const sorted = [...group].sort((a, b) => b.ts.localeCompare(a.ts));
+    const sorted = [...group].sort((a, b) => {
+      const rankDelta = taskDedupKeepRank(b) - taskDedupKeepRank(a);
+      return rankDelta !== 0 ? rankDelta : b.ts.localeCompare(a.ts);
+    });
     const keep = sorted[0];
     for (const duplicate of sorted.slice(1)) {
       const updated = await updateMemoryIndexEntry(memoryDir, duplicate.id, {
@@ -167,6 +170,13 @@ async function deduplicateActiveTasks(memoryDir: string, now: Date): Promise<num
     }
   }
   return deduped;
+}
+
+function taskDedupKeepRank(task: MemoryIndexEntry): number {
+  if (task.status === 'in_progress') return 4;
+  if (task.status === 'pending') return 3;
+  if (task.status === 'hold') return 2;
+  return 1;
 }
 
 async function releaseExpiredHolds(memoryDir: string, now: Date): Promise<number> {

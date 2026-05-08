@@ -214,7 +214,7 @@ export async function ensureCorrectionTask(memoryDir: string, snapshot = evaluat
   if (!snapshot.needsCorrection) return null;
   const existing = queryMemoryIndexSync(memoryDir, {
     type: ['task'],
-    status: ['pending', 'in_progress', 'needs-decomposition', 'blocked'],
+    status: ['pending', 'in_progress', 'hold', 'needs-decomposition', 'blocked'],
   }).find(entry => isCorrectionTask(entry));
   if (existing) return existing;
 
