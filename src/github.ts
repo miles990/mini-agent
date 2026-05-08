@@ -1123,7 +1123,7 @@ function replaceMarkdownSection(body: string, heading: RegExp, replacement: stri
 }
 
 function findEvidenceSection(body: string): { start: number; headingEnd: number; heading: string; content: string } | null {
-  const headingRe = /^##\s+(Test plan|Tests|Test Plan|Testing)\b.*$/gim;
+  const headingRe = /^##\s+(Test plan|Tests|Test Plan|Testing|Acceptance checks?)\b.*$/gim;
   let match: RegExpExecArray | null;
   while ((match = headingRe.exec(body)) !== null) {
     const start = match.index;
@@ -1139,9 +1139,10 @@ function findEvidenceSection(body: string): { start: number; headingEnd: number;
 
 function sectionHasCompletedEvidence(section: string): boolean {
   const hasCompletedMarker = /(?:^|\n)\s*-\s*\[[xX]\]\s+/.test(section)
+    || /(?:^|\n)\s*\d+\.\s+`/.test(section)
     || /(?:^|\n)\s*(?:`{3}|[$>])/.test(section);
-  const hasVerificationCommand = /\b(?:pnpm|npm|npx|vitest|tsc|typecheck|build|test|smoke|grep)\b/i.test(section);
-  const hasPassSignal = /\b(?:pass(?:ed|es)?|clean|0 lines|verified|ok|success)\b/i.test(section);
+  const hasVerificationCommand = /\b(?:pnpm|npm|npx|node|zsh|vitest|tsc|typecheck|build|test|smoke|grep|curl)\b/i.test(section);
+  const hasPassSignal = /\b(?:pass(?:ed|es)?|all PASS|clean|parses cleanly|0 lines|verified|ok|success|exits 0)\b/i.test(section);
   return hasCompletedMarker && hasVerificationCommand && hasPassSignal;
 }
 
