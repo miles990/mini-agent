@@ -6,9 +6,10 @@
  *
  * ACE Anti-Collapse Guardrail: cross-domain insights (analogies,
  * isomorphisms, cross-field connections) are NEVER auto-deleted.
+ *
+ * Auth: Agent SDK subscription（不消耗 API credit）。
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import fs from 'node:fs';
 import path from 'node:path';
 import { slog } from './utils.js';
@@ -35,15 +36,6 @@ export interface PruningProposal {
 
 const STATE_FILE = 'context-pruner.json';
 const PROPOSALS_DIR = 'pruning-proposals';
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
-const TIMEOUT_MS = 30_000;
-
-// Singleton — initialized once, reused across all pruning calls
-let client: Anthropic | null = null;
-function getClient(): Anthropic {
-  if (!client) client = new Anthropic();
-  return client;
-}
 
 /**
  * ACE Anti-Collapse: patterns indicating cross-domain insights.
@@ -130,23 +122,39 @@ export function parsePruningProposal(response: string): PruningProposal {
 }
 
 // =============================================================================
-// Haiku SDK Call
+// Haiku via Agent SDK (subscription auth, no API credit)
 // =============================================================================
 
 async function callHaiku(prompt: string): Promise<string> {
-  const response = await getClient().messages.create({
-    model: HAIKU_MODEL,
-    max_tokens: 4096,
-    messages: [{ role: 'user', content: prompt }],
-  });
+  const { query } = await import('@anthropic-ai/claude-agent-sdk');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  let result = '';
 
-  const text = response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map(b => b.text)
-    .join('\n');
+  try {
+    for await (const msg of query({
+      prompt,
+      options: {
+        model: 'haiku',
+        maxTurns: 1,
+        tools: [],
+        persistSession: false,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        abortController: controller,
+        env: { ANTHROPIC_API_KEY: undefined },
+      },
+    })) {
+      if (msg && typeof msg === 'object' && 'result' in msg) {
+        result = String((msg as { result: unknown }).result);
+      }
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
 
-  if (!text.trim()) throw new Error('Haiku returned empty response');
-  return text.trim();
+  if (!result.trim()) throw new Error('Haiku returned empty response');
+  return result.trim();
 }
 
 // =============================================================================
