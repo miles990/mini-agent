@@ -39,6 +39,28 @@ describe('GitHub PR verification autorepair', () => {
     expect(result.body.startsWith('## Verification')).toBe(true);
   });
 
+  it('renames completed acceptance checks with command evidence', () => {
+    const result = autofixPrVerificationSection([
+      '## Acceptance checks (all PASS)',
+      '1. `node scripts/build-ai-trend-preview.mjs 2026-05-08` exits 0.',
+      '2. Generated preview contains expected blocks.',
+    ].join('\n'));
+
+    expect(result.changed).toBe(true);
+    expect(result.body.startsWith('## Verification')).toBe(true);
+  });
+
+  it('renames shell syntax test plans that parse cleanly', () => {
+    const result = autofixPrVerificationSection([
+      '## Test plan',
+      '- [x] `zsh -n scripts/launchd-wrappers/github-ai-trend.sh` parses cleanly',
+      '- [ ] Next cron run emits done marker',
+    ].join('\n'));
+
+    expect(result.changed).toBe(true);
+    expect(result.body.startsWith('## Verification')).toBe(true);
+  });
+
   it('promotes completed verification evidence from a PR comment', () => {
     const result = autofixPrVerificationSection('## Summary\n- Wrapper fallback fix.', [{
       body: [
