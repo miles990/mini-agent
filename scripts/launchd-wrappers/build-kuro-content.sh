@@ -11,10 +11,11 @@ export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 set -a
 . ./.env
 set +a
+export MINI_AGENT_MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-/Users/user/Workspace/mini-agent-memory/memory}"
 # build-kuro-content.mjs returns:
 #   0 = wrote live <DATE>.md (gate passed)
-#   1 = wrote <DATE>.md.draft (gate failed — DO NOT promote)
-#   2 = hard error
+#   1 = hard error before output
+#   2 = wrote <DATE>.md.draft (gate failed — DO NOT promote)
 set +e
 /opt/homebrew/bin/node scripts/build-kuro-content.mjs
 _exit=$?

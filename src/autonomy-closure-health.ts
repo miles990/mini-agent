@@ -76,7 +76,7 @@ export function evaluateAutonomyClosure(
     runtimeWorkspaceStage(correction),
     taskExecutionStage(openTasks),
     testHealthStage(memoryDir),
-    issueAutopilotStage(openTasks),
+    issueAutopilotStage(openTasks, options.now ?? new Date()),
     prReviewConsensusStage(memoryDir, options.now ?? new Date()),
     publicWriteIdentityStage(memoryDir),
     shipAndDeployStage(correction),
@@ -341,12 +341,16 @@ function testHealthStage(memoryDir: string): AutonomyClosureStageResult {
   };
 }
 
-function issueAutopilotStage(openTasks: MemoryIndexEntry[]): AutonomyClosureStageResult {
+function issueAutopilotStage(openTasks: MemoryIndexEntry[], now: Date): AutonomyClosureStageResult {
   const issueTasks = openTasks.filter(task => {
     const payload = (task.payload ?? {}) as Record<string, unknown>;
     return task.source === 'github-issue' || payload.origin === 'github-issue' || typeof payload.issue_number === 'number';
   });
-  const staleIssueTasks = issueTasks.filter(task => ['blocked', 'hold', 'needs-decomposition'].includes(String(task.status)));
+  const staleIssueTasks = issueTasks.filter(task => {
+    const status = String(task.status);
+    if (status === 'hold') return !hasActiveTimedHold(task, now);
+    return ['blocked', 'needs-decomposition'].includes(status);
+  });
   if (staleIssueTasks.length > 0) {
     return {
       stage: 'issue-autopilot',
@@ -362,6 +366,14 @@ function issueAutopilotStage(openTasks: MemoryIndexEntry[]): AutonomyClosureStag
     summary: `${issueTasks.length} GitHub issue task(s) visible to scheduler`,
     evidence: issueTasks.slice(0, 5).map(formatTaskEvidence),
   };
+}
+
+function hasActiveTimedHold(task: MemoryIndexEntry, now: Date): boolean {
+  const payload = (task.payload ?? {}) as Record<string, unknown>;
+  const condition = payload.holdCondition as Record<string, unknown> | undefined;
+  if (condition?.type !== 'date-after' || typeof condition.value !== 'string') return false;
+  const releaseAt = Date.parse(condition.value);
+  return Number.isFinite(releaseAt) && releaseAt > now.getTime();
 }
 
 function prReviewConsensusStage(memoryDir: string, now: Date): AutonomyClosureStageResult {
