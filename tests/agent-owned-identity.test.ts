@@ -47,6 +47,7 @@ describe('agent-owned identity boundary', () => {
     expect(prompt).toContain('All services, servers, APIs, accounts, and API keys Kuro uses must be added to this registry first');
     expect(prompt).toContain('New capability rule: before using a new external/internal service');
     expect(prompt).toContain('arsenal/tool room');
+    expect(prompt).toContain('Authorization governance rule');
   });
 
   it('centralizes account and API capability metadata', () => {

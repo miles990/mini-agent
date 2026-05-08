@@ -75,10 +75,11 @@
       "defaultExpected": "kuro-agent",
       "expectedEnv": ["KURO_GITHUB_LOGIN", "KURO_GITHUB_USER", "KURO_GITHUB"],
       "credentialEnv": ["KURO_GITHUB_TOKEN"],
+      "capabilities": ["issues", "pull-requests", "reviews", "actions-workflows", "repo-webhooks", "project-boards", "discussions", "packages"],
       "readPolicy": "delegated-observation-ok",
       "writePolicy": "kuro-owned-required",
       "profileUrl": "https://github.com/kuro-agent",
-      "notes": "GitHub writes must be authored by Kuro-owned credentials. Alex-owned credentials are read-only observation only."
+      "notes": "GitHub writes must be authored by Kuro-owned credentials. Alex-owned credentials are read-only observation only. repo webhook management is allowed after owner-approved admin:repo_hook exists; delete_repo is forbidden."
     },
     {
       "service": "google",
