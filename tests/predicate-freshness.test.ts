@@ -10,10 +10,11 @@
  *   - `dirty-runtime-workspace` (git status --porcelain)
  *   - `local-commit-not-pushed` (git rev-list --count @{u}..HEAD)
  *
- * Remaining predicates (`low-responsiveness`, `memory-state-truth`, `ship-truth`)
- * are scaffolded — they MUST return null until their checks land in follow-up
- * commits, so the scheduler keeps the snapshot decision rather than silently
- * dropping a real correction.
+ * Layer 2 (issue #323) extends to:
+ *   - `memory-state-truth` (live `evaluateMemoryStateTruth`)
+ *   - `ship-truth`         (live `git rev-list --left-right --count @{u}...HEAD`)
+ *
+ * Unknown predicate types still return null (fail-open: snapshot wins).
  */
 
 import { execFileSync } from 'node:child_process';
@@ -112,14 +113,60 @@ describe('issue #306 — reverifyPredicate', () => {
       expect(result).toBe(false);
     });
 
-    it('memory-state-truth returns null', async () => {
+    it('memory-state-truth returns false when curated memory is clean (skip phantom dispatch)', async () => {
+      // memoryDir is a tmp git repo with one empty commit — no malformed JSONL,
+      // no HEARTBEAT.md, no curated-memory dirty paths → status:'ok' → false.
       const result = await reverifyPredicate('memory-state-truth', { repoRoot, memoryDir });
+      expect(result).toBe(false);
+    });
+
+    it('memory-state-truth returns true when a critical JSONL is malformed', async () => {
+      const stateDir = path.join(memoryDir, 'state');
+      execFileSync('mkdir', ['-p', stateDir], { stdio: 'pipe' });
+      writeFileSync(path.join(stateDir, 'task-events.jsonl'), '{not valid json\n', 'utf-8');
+      const result = await reverifyPredicate('memory-state-truth', { repoRoot, memoryDir });
+      expect(result).toBe(true);
+    });
+
+    it('ship-truth returns null (fail-open) when no upstream is configured', async () => {
+      const result = await reverifyPredicate('ship-truth', { repoRoot, memoryDir });
       expect(result).toBeNull();
     });
 
-    it('ship-truth returns null', async () => {
-      const result = await reverifyPredicate('ship-truth', { repoRoot, memoryDir });
-      expect(result).toBeNull();
+    it('ship-truth returns false when local HEAD is in sync with the upstream', async () => {
+      const bare = mkdtempSync(path.join(os.tmpdir(), 'predicate-ship-sync-'));
+      try {
+        execFileSync('git', ['init', '--bare', '-q', '-b', 'main', bare], { stdio: 'pipe' });
+        git('remote', 'add', 'origin', bare);
+        git('push', '-q', '-u', 'origin', 'main');
+        const result = await reverifyPredicate('ship-truth', { repoRoot, memoryDir });
+        expect(result).toBe(false);
+      } finally {
+        rmSync(bare, { recursive: true, force: true });
+      }
+    });
+
+    it('ship-truth returns true when upstream is ahead of local (behind > 0)', async () => {
+      const bare = mkdtempSync(path.join(os.tmpdir(), 'predicate-ship-behind-'));
+      const otherClone = mkdtempSync(path.join(os.tmpdir(), 'predicate-ship-other-'));
+      try {
+        execFileSync('git', ['init', '--bare', '-q', '-b', 'main', bare], { stdio: 'pipe' });
+        git('remote', 'add', 'origin', bare);
+        git('push', '-q', '-u', 'origin', 'main');
+        // Push a new commit from another clone so origin/main moves ahead.
+        execFileSync('git', ['clone', '-q', bare, otherClone], { stdio: 'pipe' });
+        execFileSync('git', ['-C', otherClone, 'config', 'user.email', 'other@example.com'], { stdio: 'pipe' });
+        execFileSync('git', ['-C', otherClone, 'config', 'user.name', 'Other'], { stdio: 'pipe' });
+        execFileSync('git', ['-C', otherClone, 'commit', '--allow-empty', '-q', '-m', 'remote-only'], { stdio: 'pipe' });
+        execFileSync('git', ['-C', otherClone, 'push', '-q', 'origin', 'main'], { stdio: 'pipe' });
+        // Refresh our remote-tracking ref so @{u} sees the new commit.
+        git('fetch', '-q', 'origin', 'main');
+        const result = await reverifyPredicate('ship-truth', { repoRoot, memoryDir });
+        expect(result).toBe(true);
+      } finally {
+        rmSync(bare, { recursive: true, force: true });
+        rmSync(otherClone, { recursive: true, force: true });
+      }
     });
 
     it('unknown predicate type returns null', async () => {
