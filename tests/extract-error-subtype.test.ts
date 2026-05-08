@@ -54,18 +54,21 @@ describe('extractErrorSubtype — silent_exit_void 4-class typed-failure schema 
     expect(extractErrorSubtype(mkSilentMsg(450, 42000))).toBe('silent_exit_void_40k');
   });
 
-  it('routes 20-35K prompt + 300-799s duration to silent_exit_void_midprompt (#370 first-token stall)', () => {
+  it('routes 20-35K prompt + 200-799s duration to silent_exit_void_midprompt (#370 first-token stall, #368 threshold lowered)', () => {
     // Observed cluster: 24K @ 365s, count=10 on instance 03bbc29a 2026-05-08
+    // Issue #368: threshold lowered 300s→200s; 282s event (282029ms) now correctly classified.
     expect(extractErrorSubtype(mkSilentMsg(365, 24419))).toBe('silent_exit_void_midprompt');
     expect(extractErrorSubtype(mkSilentMsg(300, 20000))).toBe('silent_exit_void_midprompt');
     expect(extractErrorSubtype(mkSilentMsg(799, 34999))).toBe('silent_exit_void_midprompt');
+    expect(extractErrorSubtype(mkSilentMsg(282, 22000))).toBe('silent_exit_void_midprompt');
+    expect(extractErrorSubtype(mkSilentMsg(200, 20000))).toBe('silent_exit_void_midprompt');
   });
 
   it('keeps short-duration mid-size cluster on silent_exit_void baseline (#77 crash-class)', () => {
-    // #77 baseline: prompt 22-25K @ ~260s — must NOT promote to midprompt
-    expect(extractErrorSubtype(mkSilentMsg(260, 22000))).toBe('silent_exit_void');
-    expect(extractErrorSubtype(mkSilentMsg(260, 25000))).toBe('silent_exit_void');
-    expect(extractErrorSubtype(mkSilentMsg(299, 24000))).toBe('silent_exit_void');
+    // #77 baseline: prompt 22-25K @ <200s — must NOT promote to midprompt (threshold is 200_000ms)
+    expect(extractErrorSubtype(mkSilentMsg(199, 22000))).toBe('silent_exit_void');
+    expect(extractErrorSubtype(mkSilentMsg(150, 25000))).toBe('silent_exit_void');
+    expect(extractErrorSubtype(mkSilentMsg(100, 24000))).toBe('silent_exit_void');
   });
 
   it('keeps tiny-prompt cases on silent_exit_void baseline regardless of duration', () => {
