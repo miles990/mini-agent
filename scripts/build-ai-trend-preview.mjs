@@ -14,7 +14,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const STATE_DIR = join(ROOT, 'memory/state');
+const REPO_STATE_DIR = join(ROOT, 'memory/state');
+const MEMORY_ROOT = process.env.MINI_AGENT_MEMORY_DIR?.trim();
+const STATE_DIR = MEMORY_ROOT ? join(MEMORY_ROOT, 'state') : REPO_STATE_DIR;
+const READ_STATE_DIRS = Array.from(new Set([STATE_DIR, REPO_STATE_DIR]));
 const OUT = join(ROOT, 'kuro-portfolio/ai-trend/preview.html');
 
 function todayTaipei() {
@@ -53,7 +56,7 @@ async function loadLatest(subdir, fromDate, days = 14, opts = {}) {
     const dd = new Date(d.getTime() - i * 86400_000);
     const key = dd.toISOString().slice(0, 10);
     try {
-      const raw = JSON.parse(await readFile(join(STATE_DIR, subdir, `${key}.json`), 'utf8'));
+      const raw = JSON.parse(await readStateFile(subdir, `${key}.json`));
       const posts = (raw.posts || []).filter(p => {
         if (keepX) return true;
         const u = String(p.url || p.story_url || '').toLowerCase();
@@ -71,7 +74,7 @@ async function loadKuroPick(date) {
     const dd = new Date(d.getTime() - i * 86400_000);
     const key = dd.toISOString().slice(0, 10);
     try {
-      const md = await readFile(join(STATE_DIR, 'kuro-daily-pick', `${key}.md`), 'utf8');
+      const md = await readStateFile('kuro-daily-pick', `${key}.md`);
       return { key, md };
     } catch {}
   }
@@ -91,9 +94,7 @@ async function loadKuroPick(date) {
 async function loadKuroContent(date) {
   const empty = { take: null, spotlight: null, swot: null };
   try {
-    const raw = await readFile(
-      join(STATE_DIR, 'kuro-content', `${date}.md`), 'utf8'
-    );
+    const raw = await readStateFile('kuro-content', `${date}.md`);
     // Split on H2 boundaries; keep delimiter via lookahead-style split
     const sections = raw.split(/^(?=## )/m);
     const result = { take: null, spotlight: null, swot: null };
@@ -369,7 +370,7 @@ async function loadTopicTrend(fromDate) {
     const dd = new Date(d.getTime() - i * 86400_000);
     const key = dd.toISOString().slice(0, 10);
     try {
-      const raw = JSON.parse(await readFile(join(STATE_DIR, 'hn-ai-trend', `${key}.json`), 'utf8'));
+      const raw = JSON.parse(await readStateFile('hn-ai-trend', `${key}.json`));
       const target = i < 7 ? counts : prevCounts;
       for (const p of (raw.posts || [])) {
         const t = tagOf(p);
@@ -378,6 +379,18 @@ async function loadTopicTrend(fromDate) {
     } catch {}
   }
   return { counts, prevCounts };
+}
+
+async function readStateFile(...segments) {
+  let lastError;
+  for (const stateDir of READ_STATE_DIRS) {
+    try {
+      return await readFile(join(stateDir, ...segments), 'utf8');
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error(`state file not found: ${segments.join('/')}`);
 }
 
 async function listArchiveDates() {

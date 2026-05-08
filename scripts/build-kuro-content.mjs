@@ -27,13 +27,16 @@
  *   3. Output matches schema consumed by loadKuroContent() in build-ai-trend-preview.mjs
  */
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..');
-const STATE_DIR = join(REPO_ROOT, 'memory', 'state');
+const REPO_STATE_DIR = join(REPO_ROOT, 'memory', 'state');
+const MEMORY_ROOT = process.env.MINI_AGENT_MEMORY_DIR?.trim();
+const STATE_DIR = MEMORY_ROOT ? join(MEMORY_ROOT, 'state') : REPO_STATE_DIR;
+const READ_STATE_DIRS = Array.from(new Set([STATE_DIR, REPO_STATE_DIR]));
 
 // -- CLI args -----------------------------------------------------------------
 const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
@@ -56,13 +59,21 @@ async function tryRead(filePath) {
   }
 }
 
+async function tryReadState(...segments) {
+  for (const stateDir of READ_STATE_DIRS) {
+    const raw = await tryRead(join(stateDir, ...segments));
+    if (raw !== null) return raw;
+  }
+  return null;
+}
+
 /** Load most-recent feeder JSON within lookback window, return { key, posts, run_at, daysOld } */
 async function loadFeeder(subdir, fromDate, lookbackDays = 4) {
   const d = new Date(fromDate + 'T00:00:00Z');
   for (let i = 0; i < lookbackDays; i++) {
     const dd = new Date(d.getTime() - i * 86400_000);
     const key = dd.toISOString().slice(0, 10);
-    const raw = await tryRead(join(STATE_DIR, subdir, `${key}.json`));
+    const raw = await tryReadState(subdir, `${key}.json`);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -81,7 +92,7 @@ async function loadDailyPick(fromDate, lookbackDays = 4) {
   for (let i = 0; i < lookbackDays; i++) {
     const dd = new Date(d.getTime() - i * 86400_000);
     const key = dd.toISOString().slice(0, 10);
-    const md = await tryRead(join(STATE_DIR, 'kuro-daily-pick', `${key}.md`));
+    const md = await tryReadState('kuro-daily-pick', `${key}.md`);
     if (md) return { key, md, daysOld: i };
   }
   return { key: null, md: '', daysOld: null };
@@ -94,7 +105,7 @@ async function loadHistory(subdir, fromDate, days) {
   for (let i = 1; i <= days; i++) {
     const dd = new Date(d.getTime() - i * 86400_000);
     const key = dd.toISOString().slice(0, 10);
-    const raw = await tryRead(join(STATE_DIR, subdir, `${key}.json`));
+    const raw = await tryReadState(subdir, `${key}.json`);
     if (raw) {
       try { results.push({ key, ...(JSON.parse(raw)) }); } catch {}
     }
@@ -174,6 +185,23 @@ export function validate(content) {
   return issues;
 }
 
+async function verifyWrittenArtifact(filePath, expectedDate) {
+  const fileStat = await stat(filePath);
+  if (!fileStat.isFile() || fileStat.size <= 0) {
+    throw new Error(`written artifact is empty or not a file: ${filePath}`);
+  }
+  const persisted = await readFile(filePath, 'utf8');
+  const errors = validate(persisted);
+  if (errors.length > 0) {
+    throw new Error(`written artifact failed readback validation: ${errors.join('; ')}`);
+  }
+  const dateRe = new RegExp(`^date:\\s*${expectedDate}$`, 'm');
+  if (!dateRe.test(persisted)) {
+    throw new Error(`written artifact date mismatch: expected ${expectedDate}`);
+  }
+  return { bytes: fileStat.size };
+}
+
 // -- Anthropic call -----------------------------------------------------------
 async function callAnthropic(systemPrompt, userPrompt) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -215,6 +243,7 @@ async function callAnthropic(systemPrompt, userPrompt) {
 // -- Main ---------------------------------------------------------------------
 async function main() {
   console.log(`[kuro-content] building ${DATE}${dryRun ? ' (dry-run)' : ''}`);
+  console.log(`[kuro-content] state dir ${STATE_DIR}`);
 
   // 1. Load upstream feeders (all graceful -- missing -> warn, continue)
   const hn = await loadFeeder('hn-ai-trend', DATE);
@@ -258,8 +287,7 @@ async function main() {
   const githubHistory = await loadHistory('github-trend', DATE, 3);
 
   // 3. Load 1-shot exemplar
-  const exemplarPath = join(STATE_DIR, 'kuro-content', '2026-05-08.md');
-  const exemplar = await tryRead(exemplarPath);
+  const exemplar = await tryReadState('kuro-content', '2026-05-08.md');
   if (!exemplar) {
     console.warn('[kuro-content] WARN: 1-shot exemplar 2026-05-08.md not found; continuing without it');
   }
@@ -380,7 +408,9 @@ async function main() {
   const outPath = join(outDir, `${DATE}.md`);
   if (!dryRun) {
     await writeFile(outPath, generated, 'utf8');
+    const verified = await verifyWrittenArtifact(outPath, DATE);
     console.log(`[kuro-content] wrote ${outPath}`);
+    console.log(`[kuro-content] verified artifact bytes=${verified.bytes}`);
   } else {
     console.log('[kuro-content] dry-run: content would be written to', outPath);
     console.log('[kuro-content] --- generated content preview (first 500 chars) ---');

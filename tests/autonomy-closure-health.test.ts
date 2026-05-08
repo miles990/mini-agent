@@ -40,6 +40,74 @@ describe('autonomy closure health', () => {
     expect(snapshot.stages.map(s => s.stage)).toContain('memory-context');
   });
 
+  it('does not degrade issue autopilot for a GitHub issue task with an active timed hold', () => {
+    writeFileSync(
+      path.join(tmpDir, 'state/task-events.jsonl'),
+      JSON.stringify({
+        id: 'idx-github-issue-394',
+        ts: '2026-05-09T00:00:00.000Z',
+        type: 'task',
+        source: 'github-issue',
+        status: 'hold',
+        summary: 'P2 GitHub issue #394: ai-trend content generator',
+        refs: ['github:issue:394'],
+        payload: {
+          origin: 'github-issue',
+          priority: 2,
+          issue_number: 394,
+          holdCondition: { type: 'date-after', value: '2026-05-09T18:36:28.341Z' },
+        },
+      }) + '\n',
+      'utf-8',
+    );
+    writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+
+    const snapshot = evaluateAutonomyClosure(tmpDir, {
+      repoRoot,
+      now: new Date('2026-05-09T12:00:00.000Z'),
+    });
+
+    expect(snapshot.warningStages).not.toContain('issue-autopilot');
+    expect(snapshot.stages.find(s => s.stage === 'issue-autopilot')).toEqual(expect.objectContaining({
+      status: 'ok',
+      summary: '1 GitHub issue task(s) visible to scheduler',
+    }));
+  });
+
+  it('warns issue autopilot after a GitHub issue timed hold expires', () => {
+    writeFileSync(
+      path.join(tmpDir, 'state/task-events.jsonl'),
+      JSON.stringify({
+        id: 'idx-github-issue-394',
+        ts: '2026-05-09T00:00:00.000Z',
+        type: 'task',
+        source: 'github-issue',
+        status: 'hold',
+        summary: 'P2 GitHub issue #394: ai-trend content generator',
+        refs: ['github:issue:394'],
+        payload: {
+          origin: 'github-issue',
+          priority: 2,
+          issue_number: 394,
+          holdCondition: { type: 'date-after', value: '2026-05-09T18:36:28.341Z' },
+        },
+      }) + '\n',
+      'utf-8',
+    );
+    writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+
+    const snapshot = evaluateAutonomyClosure(tmpDir, {
+      repoRoot,
+      now: new Date('2026-05-09T19:00:00.000Z'),
+    });
+
+    expect(snapshot.warningStages).toContain('issue-autopilot');
+    expect(snapshot.stages.find(s => s.stage === 'issue-autopilot')).toEqual(expect.objectContaining({
+      status: 'warn',
+      summary: '1 GitHub issue task(s) are not flowing',
+    }));
+  });
+
   it('degrades and queues operational-efficiency repair when correction advisories are the remaining closure gap', async () => {
     writeFileSync(
       path.join(tmpDir, 'state/task-events.jsonl'),

@@ -83,6 +83,13 @@ describe('build-kuro-content.mjs script', () => {
     expect(script).toContain('ANTHROPIC_API_KEY');
   });
 
+  it('uses MINI_AGENT_MEMORY_DIR as durable state root with repo fallback', () => {
+    script = readFileSync(SCRIPT_PATH, 'utf-8');
+    expect(script).toContain('MINI_AGENT_MEMORY_DIR');
+    expect(script).toContain('READ_STATE_DIRS');
+    expect(script).toContain('tryReadState');
+  });
+
   it('exits with error when zero feeders are available', () => {
     script = readFileSync(SCRIPT_PATH, 'utf-8');
     // Must have the zero-feeder guard (Acceptance #1)
@@ -104,6 +111,13 @@ describe('build-kuro-content.mjs script', () => {
   it('corrects date in frontmatter to prevent exemplar date leaking', () => {
     script = readFileSync(SCRIPT_PATH, 'utf-8');
     expect(script).toMatch(/replace.*date:.*DATE/);
+  });
+
+  it('read-back verifies the written artifact before reporting success', () => {
+    script = readFileSync(SCRIPT_PATH, 'utf-8');
+    expect(script).toContain('verifyWrittenArtifact');
+    expect(script).toContain('written artifact failed readback validation');
+    expect(script).toContain('verified artifact bytes=');
   });
 });
 
@@ -203,6 +217,12 @@ describe('build-kuro-content launchd wrapper', () => {
     const wrapper = readFileSync(WRAPPER_PATH, 'utf-8');
     expect(wrapper).toContain('.env');
     expect(wrapper).toContain('set -a');
+  });
+
+  it('wrapper defaults durable state to external mini-agent-memory', () => {
+    const wrapper = readFileSync(WRAPPER_PATH, 'utf-8');
+    expect(wrapper).toContain('MINI_AGENT_MEMORY_DIR');
+    expect(wrapper).toContain('/Users/user/Workspace/mini-agent-memory/memory');
   });
 });
 
