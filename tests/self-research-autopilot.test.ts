@@ -86,6 +86,7 @@ describe('self research autopilot', () => {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
       repoRoot: tmpDir,
+      prStateLookup: async () => 'OPEN',
     });
 
     expect(result.queued).toBe(true);
@@ -141,6 +142,63 @@ describe('self research autopilot', () => {
       reason: 'maintenance-task-exists',
       maintenance: expect.objectContaining({ prNumber: 90 }),
     });
+  });
+
+  it('does not queue maintenance when the PR is already closed (issue #388)', async () => {
+    mkdirSync(path.join(tmpDir, 'handoffs'), { recursive: true });
+    writeFileSync(
+      path.join(tmpDir, 'handoffs/active.md'),
+      [
+        '| From | To | Task | Status | Created | Done |',
+        '|------|----|------|--------|---------|------|',
+        '| github | kuro | PR #351 conflict diagnostic: stale debt (needs-decomposition; conflict spans broad scope) | blocked | 05-08 | - |',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    const lookups: number[] = [];
+    const result = await maybeQueueSelfResearch(tmpDir, {
+      triggerReason: 'heartbeat',
+      now: new Date('2026-05-08T00:00:00.000Z'),
+      repoRoot: tmpDir,
+      prStateLookup: async (n) => {
+        lookups.push(n);
+        return 'CLOSED';
+      },
+    });
+
+    expect(lookups).toEqual([351]);
+    expect(result).toEqual({
+      queued: false,
+      reason: 'maintenance-pr-not-open',
+      maintenance: expect.objectContaining({ prNumber: 351 }),
+    });
+    expect(queryMemoryIndexSync(tmpDir, { type: ['task'], status: ['pending'] })).toHaveLength(0);
+  });
+
+  it('still queues when the PR state lookup fails (preserves prior behavior on transient errors)', async () => {
+    mkdirSync(path.join(tmpDir, 'handoffs'), { recursive: true });
+    writeFileSync(
+      path.join(tmpDir, 'handoffs/active.md'),
+      [
+        '| From | To | Task | Status | Created | Done |',
+        '|------|----|------|--------|---------|------|',
+        '| github | kuro | PR #90 conflict diagnostic: feedback loop patch (needs-decomposition; conflict spans broad scope) | blocked | 05-06 | - |',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    const result = await maybeQueueSelfResearch(tmpDir, {
+      triggerReason: 'heartbeat',
+      now: new Date('2026-05-05T00:00:00.000Z'),
+      repoRoot: tmpDir,
+      prStateLookup: async () => {
+        throw new Error('gh CLI unavailable');
+      },
+    });
+
+    expect(result.queued).toBe(true);
+    expect(result.reason).toBe('maintenance-queued');
   });
 
   it('does not queue more than one proposal per day', async () => {

@@ -6,6 +6,7 @@
  * scheduler and verification gate.
  */
 
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { eventBus } from './event-bus.js';
@@ -13,10 +14,19 @@ import { createTask, queryMemoryIndexSync, type MemoryIndexEntry } from './memor
 import { createSelfResearchPlan, saveSelfResearchPlan, type SelfResearchRun } from './self-research-loop.js';
 import { evaluateCorrectionGate } from './correction-gate.js';
 
+export type PrLiveState = 'OPEN' | 'CLOSED' | 'MERGED' | 'unknown';
+export type PrStateLookup = (prNumber: number) => Promise<PrLiveState> | PrLiveState;
+
 export interface SelfResearchAutopilotOptions {
   triggerReason?: string | null;
   now?: Date;
   repoRoot?: string;
+  /**
+   * Look up live PR state to filter phantom maintenance tasks (issue #388).
+   * Defaults to `gh pr view <n> --repo miles990/mini-agent --json state`.
+   * Returning anything other than 'OPEN' suppresses the maintenance task.
+   */
+  prStateLookup?: PrStateLookup;
 }
 
 export interface SelfResearchAutopilotResult {
@@ -54,7 +64,8 @@ export async function maybeQueueSelfResearch(
     type: ['task'],
     status: ['pending', 'in_progress', 'needs-decomposition', 'blocked', 'hold'],
   });
-  const queuedMaintenance = await maybeQueueMaintenance(memoryDir, openTasks);
+  const prStateLookup = opts.prStateLookup ?? defaultPrStateLookup;
+  const queuedMaintenance = await maybeQueueMaintenance(memoryDir, openTasks, prStateLookup);
   if (queuedMaintenance) return queuedMaintenance;
 
   const activeTasks = queryMemoryIndexSync(memoryDir, {
@@ -97,6 +108,7 @@ export async function maybeQueueSelfResearch(
 async function maybeQueueMaintenance(
   memoryDir: string,
   openTasks: MemoryIndexEntry[],
+  prStateLookup: PrStateLookup,
 ): Promise<SelfResearchAutopilotResult | null> {
   const debt = findTopMaintenanceDebt(memoryDir);
   if (!debt) return null;
@@ -111,6 +123,25 @@ async function maybeQueueMaintenance(
     && !(task.summary ?? '').includes('autonomous maintenance'),
   );
   if (activeNonMaintenance.length > 0) return null;
+
+  // Issue #388: filter phantom maintenance tasks for already-closed/merged PRs.
+  // Only re-check on OPEN; 'unknown' is a fallback that preserves prior behavior
+  // so transient gh CLI failures don't silently drop real debt.
+  let liveState: PrLiveState = 'unknown';
+  try {
+    liveState = await prStateLookup(debt.prNumber);
+  } catch {
+    liveState = 'unknown';
+  }
+  if (liveState === 'CLOSED' || liveState === 'MERGED') {
+    eventBus.emit('action:task', {
+      event: 'autonomous-maintenance-skipped',
+      reason: 'pr-not-open',
+      prNumber: debt.prNumber,
+      state: liveState,
+    });
+    return { queued: false, reason: 'maintenance-pr-not-open', maintenance: debt };
+  }
 
   const task = await createTask(memoryDir, {
     title: `P1 ${marker}: ${maintenanceAction(debt)} for ${debt.title}`,
@@ -172,6 +203,20 @@ function maintenanceAcceptance(debt: MaintenanceDebt): string {
     return `Resolve PR #${debt.prNumber} debt by rebuilding/splitting from current main, or closing it as superseded with a replacement PR/issue. Do not merge broad conflicting scope directly. Reason: ${debt.reason}`;
   }
   return `Resolve PR #${debt.prNumber} debt by adding completed verification evidence and re-running review, or closing it as obsolete. Reason: ${debt.reason}`;
+}
+
+function defaultPrStateLookup(prNumber: number): PrLiveState {
+  try {
+    const out = execFileSync(
+      'gh',
+      ['pr', 'view', String(prNumber), '--repo', 'miles990/mini-agent', '--json', 'state', '--jq', '.state'],
+      { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 10_000 },
+    ).trim();
+    if (out === 'OPEN' || out === 'CLOSED' || out === 'MERGED') return out;
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
 }
 
 function prConflictVerifyCommand(prNumber: number): string {
