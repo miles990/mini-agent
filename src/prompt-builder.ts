@@ -428,21 +428,40 @@ function buildDelegationReviewGate(): string {
  *  Exported for unit testing — production callers should still go through buildAutonomousPrompt. */
 export function buildErrorPatternsHint(): string {
   try {
-    const patterns = readState<Record<string, { count: number; taskCreated: boolean; lastSeen: string; resolved?: boolean }>>('error-patterns.json', {});
+    const patterns = readState<Record<string, {
+      count: number;
+      taskCreated: boolean;
+      lastSeen: string;
+      resolved?: boolean;
+      resolvedAt?: string;
+      resolvedBy?: string;
+    }>>('error-patterns.json', {});
     const STALE_MS = 7 * 24 * 60 * 60 * 1000;
+    const RESOLVED_GRACE_MS = 24 * 60 * 60 * 1000;
     const cutoff = Date.now() - STALE_MS;
     const actionable = Object.entries(patterns)
-      .filter(([, v]) => {
+      .map(([key, v]) => {
         if (v.count < 3 || v.resolved) return false;
         const ts = Date.parse(v.lastSeen);
-        return Number.isFinite(ts) && ts >= cutoff;
+        if (!Number.isFinite(ts) || ts < cutoff) return false;
+        if (!v.resolvedAt) return [key, v, false] as const;
+
+        const resolvedTs = Date.parse(v.resolvedAt);
+        if (!Number.isFinite(resolvedTs)) return [key, v, false] as const;
+
+        const lastSeenTs = /^\d{4}-\d{2}-\d{2}$/.test(v.lastSeen)
+          ? Date.parse(`${v.lastSeen}T23:59:59.999Z`)
+          : ts;
+        const isRegression = lastSeenTs > resolvedTs + RESOLVED_GRACE_MS;
+        return isRegression ? ([key, v, true] as const) : false;
       })
+      .filter((entry): entry is readonly [string, { count: number; taskCreated: boolean; lastSeen: string; resolved?: boolean; resolvedAt?: string; resolvedBy?: string }, boolean] => Boolean(entry))
       .sort(([, a], [, b]) => b.count - a.count)
       .slice(0, 5);
     if (actionable.length === 0) return '';
 
-    const lines = actionable.map(([key, v]) =>
-      `- **${key}** — ${v.count}× (last: ${v.lastSeen}). Same root cause, or different problem wearing the same mask?`);
+    const lines = actionable.map(([key, v, isRegression]) =>
+      `- **${isRegression ? '[REGRESSION] ' : ''}${key}** — ${v.count}× (last: ${v.lastSeen}). Same root cause, or different problem wearing the same mask?`);
     return `## Recurring Errors\n${lines.join('\n')}`;
   } catch { return ''; }
 }

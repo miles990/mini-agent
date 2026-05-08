@@ -29,6 +29,7 @@
     "skill-promotion:autopilot": "tsx scripts/skill-promotion-autopilot.ts",
     "check:autonomy-closure": "tsx scripts/autonomy-closure-health.ts",
     "check:test-health": "tsx scripts/test-health-autopilot.ts",
+    "error-patterns:resolve": "tsx scripts/error-patterns-resolve.ts",
     "setup": "pnpm install && pnpm build && npm link",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "check:pr-lifecycle": "tsx scripts/check-pr-lifecycle.ts",

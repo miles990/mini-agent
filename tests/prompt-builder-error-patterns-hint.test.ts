@@ -9,6 +9,8 @@ type Pattern = {
   taskCreated: boolean;
   lastSeen: string;
   resolved?: boolean;
+  resolvedAt?: string;
+  resolvedBy?: string;
 };
 
 const state: { patterns: Record<string, Pattern> } = { patterns: {} };
@@ -112,5 +114,32 @@ describe('buildErrorPatternsHint — issue #315 staleness filter', () => {
       },
     };
     expect(buildErrorPatternsHint()).toBe('');
+  });
+
+  it('omits ship-resolved entries inside the 1 day grace window', () => {
+    state.patterns = {
+      'UNKNOWN:transient_fast_band::callClaude': {
+        count: 9,
+        taskCreated: false,
+        lastSeen: '2026-05-08',
+        resolvedAt: '2026-05-08T02:47:00.000Z',
+        resolvedBy: 'fdfc60b6',
+      },
+    };
+    expect(buildErrorPatternsHint()).toBe('');
+  });
+
+  it('surfaces ship-resolved entries as regressions after the grace window', () => {
+    state.patterns = {
+      'UNKNOWN:transient_fast_band::callClaude': {
+        count: 9,
+        taskCreated: false,
+        lastSeen: '2026-05-10',
+        resolvedAt: '2026-05-08T02:47:00.000Z',
+        resolvedBy: 'fdfc60b6',
+      },
+    };
+    const out = buildErrorPatternsHint();
+    expect(out).toContain('[REGRESSION] UNKNOWN:transient_fast_band::callClaude');
   });
 });
