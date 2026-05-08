@@ -24,6 +24,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { reverifyPredicate } from '../src/predicate-freshness.js';
+import { appendMemoryIndexEntry, invalidateIndexCache } from '../src/memory-index.js';
 
 let repoRoot: string;
 let memoryDir: string;
@@ -110,6 +111,37 @@ describe('issue #306 — reverifyPredicate', () => {
   describe('predicate checks', () => {
     it('low-responsiveness returns false when runtime is responsive', async () => {
       const result = await reverifyPredicate('low-responsiveness', { repoRoot, memoryDir });
+      expect(result).toBe(false);
+    });
+
+    it('low-responsiveness ignores low-priority and middleware maintenance backlog', async () => {
+      await appendMemoryIndexEntry(memoryDir, {
+        type: 'task',
+        status: 'pending',
+        summary: 'P2 GitHub issue #368: investigate sub-threshold silent exit',
+        tags: ['github', 'issue', 'P2'],
+        payload: {
+          origin: 'github-issue',
+          priority: 2,
+          ticksSinceLastProgress: 50,
+        },
+      });
+      await appendMemoryIndexEntry(memoryDir, {
+        type: 'task',
+        status: 'pending',
+        summary: 'Create fallback for middleware task task-123 after provider budget hold',
+        tags: ['middleware', 'self-healing', 'budget-or-quota'],
+        payload: {
+          origin: 'middleware-self-healing',
+          priority: 0,
+          middleware_failure_bucket: 'budget-or-quota',
+          ticksSinceLastProgress: 50,
+        },
+      });
+      invalidateIndexCache();
+
+      const result = await reverifyPredicate('low-responsiveness', { repoRoot, memoryDir });
+
       expect(result).toBe(false);
     });
 
