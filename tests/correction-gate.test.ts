@@ -68,6 +68,29 @@ describe('correction gate', () => {
     expect(correctionTasks).toHaveLength(1);
   });
 
+  it('reuses held correction tasks instead of creating a duplicate P0', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P1 finish promised work',
+      payload: { origin: 'pledge', priority: 1 },
+    });
+    const held = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'hold',
+      summary: 'P0 correction gate: resolve low-responsiveness',
+      payload: { origin: 'scheduler', priority: 0, correction_reason_type: 'low-responsiveness' },
+    });
+    invalidateIndexCache();
+
+    const task = await ensureCorrectionTask(tmpDir);
+
+    expect(task?.id).toBe(held.id);
+    const correctionTasks = queryMemoryIndexSync(tmpDir, { type: ['task'], status: ['pending', 'hold'] })
+      .filter(t => t.summary?.includes('correction gate'));
+    expect(correctionTasks).toHaveLength(1);
+  });
+
   it('does not suppress exploration for bounded background maintenance tasks', async () => {
     await appendMemoryIndexEntry(tmpDir, {
       type: 'task',
