@@ -73,3 +73,29 @@ describe('extractErrorSubtype — silent_exit_void 4-class typed-failure schema 
     expect(extractErrorSubtype(mkSilentMsg(150, 5000))).toBe('silent_exit_void');
   });
 });
+
+describe('extractErrorSubtype — non-retryable terminal exits (#370)', () => {
+  // These messages come through agent.ts:258 stderr fallback path:
+  //   "Claude CLI 執行失敗（exit N/A）：Reached maximum budget ($5)"
+  // They previously fell through past silent_exit (no 靜默中斷 keyword) to 'generic',
+  // OR — when reformatted by upstream telemetry to inject 靜默中斷 — landed in
+  // silent_exit_void incorrectly. New branches catch the keyword text directly.
+
+  it('classifies "Reached maximum budget" as budget_exceeded', () => {
+    expect(extractErrorSubtype('Claude CLI 執行失敗（exit N/A）：Reached maximum budget ($5)')).toBe('budget_exceeded');
+    expect(extractErrorSubtype('CLI 靜默中斷（exit N/A，365s 無 stderr）. stdout=empty Reached maximum budget')).toBe('budget_exceeded');
+  });
+
+  it('classifies "aborted by user" as user_abort', () => {
+    expect(extractErrorSubtype('Claude Code process aborted by user')).toBe('user_abort');
+    expect(extractErrorSubtype('CLI 靜默中斷（exit N/A，180s 無 stderr）. stdout=empty aborted by user')).toBe('user_abort');
+  });
+
+  it('still routes max_turns correctly (existing line 155 branch unaffected)', () => {
+    expect(extractErrorSubtype('Claude CLI 執行失敗（exit N/A）：Reached maximum number of turns (30)')).toBe('max_turns');
+  });
+
+  it('does not misroute genuine silent_exit_void to budget/abort', () => {
+    expect(extractErrorSubtype('CLI 靜默中斷（exit N/A，260s 無 stderr）. stdout=empty prompt 22000 chars')).toBe('silent_exit_void');
+  });
+});

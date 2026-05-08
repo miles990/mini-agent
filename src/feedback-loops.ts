@@ -200,6 +200,20 @@ export function extractErrorSubtype(errorMsg: string): string {
     if (lower.includes('dur=unknown')) return 'unknown_dur_no_diag';
     return 'no_diag';
   }
+  // 2026-05-08 (Issue #370): non-retryable terminal CLI exits whose stderr text identifies
+  // a hard cap (budget / max-turns / user-abort) — must be classified BEFORE the silent_exit
+  // branch below, otherwise events with stderr like "Reached maximum budget ($5)" or
+  // "Claude Code process aborted by user" land in silent_exit_void due to fall-through paths
+  // that strip stderr from the renderer message but leave 靜默中斷 intact. Splitting these out:
+  //   - drains false silent_exit_void counts (#370 forensic: 6/10 events were budget-cap)
+  //   - surfaces budget-cap / abort frequency as their own metrics
+  //   - restores silent_exit_void to mean only genuine CLI-internal hangs (#77 baseline)
+  // Routes max_turns is already handled at line 155, but mirror it here for defense-in-depth
+  // when the upstream message gets reformatted to lose the original "maximum number of turns"
+  // string. All three are non-retryable terminations.
+  if (lower.includes('reached maximum budget') || lower.includes('maximum budget ($')) return 'budget_exceeded';
+  if (lower.includes('aborted by user') || lower.includes('process aborted')) return 'user_abort';
+
   // 2026-04-20: agent.ts:224 silent_exit message template (shipped 3039f4a3) — complete the label
   // chain so TIMEOUT:generic fallthrough becomes TIMEOUT:silent_exit in recurring-errors.
   if (lower.includes('靜默中斷') || lower.includes('靜默溢位') || lower.includes('silent exit')) {
