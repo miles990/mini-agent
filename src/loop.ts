@@ -2755,8 +2755,8 @@ export class AgentLoop {
         }
       } catch { /* best-effort: fall back to default 35K */ }
       if (effectivePrompt.length >= PREFLIGHT_SIZE_THRESHOLD) {
-        slog('LOOP', `[preflight.drain] prompt size ${effectivePrompt.length} >= ${PREFLIGHT_SIZE_THRESHOLD} (silent_exit_void_40k risk)`);
-        eventBus.emit('action:loop', { event: 'preflight.drain', promptSize: effectivePrompt.length, threshold: PREFLIGHT_SIZE_THRESHOLD, cycleMode, trigger: currentTriggerReason ?? null });
+        slog('LOOP', `[preflight.observe] prompt size ${effectivePrompt.length} >= ${PREFLIGHT_SIZE_THRESHOLD} (drain not yet wired; observability only)`);
+        eventBus.emit('action:loop', { event: 'preflight.observe', promptSize: effectivePrompt.length, threshold: PREFLIGHT_SIZE_THRESHOLD, cycleMode, trigger: currentTriggerReason ?? null });
       }
 
       // Intelligent model routing: decide Opus vs Sonnet based on cycle characteristics
