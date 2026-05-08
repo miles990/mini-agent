@@ -1,4 +1,4 @@
-// Layer 1 of issue #306: re-verify P0 conditions before dispatch.
+// Layer 1 + Layer 2 of issue #306 / #323: re-verify P0 conditions before dispatch.
 //
 // The scheduler emits correction tasks based on a snapshot evaluation
 // (`evaluateCorrectionGate`) that can lag behind ground truth — git status
@@ -11,20 +11,23 @@
 //   - false → predicate is now clean, skip dispatch (caller logs skip)
 //   - null  → no live source-of-truth wired for this type yet (fail-open: dispatch)
 //
-// Layer 1 ships the three cheapest predicates as proof:
+// Layer 1 wired three cheap predicates:
 //   - `dirty-runtime-workspace`  (~50ms `git status --porcelain`)
 //   - `local-commit-not-pushed`  (~50ms `git rev-list --count @{u}..HEAD`)
 //   - `low-responsiveness`       (memory-index re-query, recomputes avgStaleness)
-// Remaining predicates (`memory-state-truth`, `ship-truth`) are scaffolded
-// but return `null` until their checks are added in follow-up commits.
+// Layer 2 (issue #323) adds the remaining two:
+//   - `memory-state-truth`       (live `evaluateMemoryStateTruth` — JSONL parse,
+//                                 HEARTBEAT phantom check, curated-memory git status)
+//   - `ship-truth`               (live `git rev-list --left-right --count @{u}...HEAD`
+//                                 → `behind > 0` is the snapshot-trigger condition)
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
-// NB: avoid importing from correction-gate.ts — it imports this module
-// (`reverifyPredicate`), so a back-import would form a cycle. The two filter
-// helpers below are duplicated from correction-gate.ts; if they drift, both
-// snapshot and live re-check should be updated together.
+import { evaluateMemoryStateTruth } from './external-memory-health.js';
+// NB: avoid importing from correction-gate.ts — historically it formed an
+// import cycle with this module. Re-implement the small slice we need
+// (ahead/behind via `git rev-list --left-right --count`) inline.
 
 const execFileAsync = promisify(execFile);
 
@@ -57,10 +60,10 @@ export async function reverifyPredicate(
       return checkLocalCommitNotPushed(ctx);
     case 'low-responsiveness':
       return checkLowResponsiveness(ctx);
-    // Scaffolded — return null (fail-open) until each is wired in follow-ups.
     case 'memory-state-truth':
+      return checkMemoryStateTruth(ctx);
     case 'ship-truth':
-      return null;
+      return checkShipTruth(ctx);
     default:
       return null;
   }
@@ -139,6 +142,55 @@ async function checkLowResponsiveness(ctx: FreshnessContext): Promise<boolean | 
     return responsiveness < 0.5;
   } catch {
     // Memory-index unavailable / corrupt — fail-open so snapshot wins.
+    return null;
+  }
+}
+
+/**
+ * Source-of-truth: `evaluateMemoryStateTruth` from external-memory-health.
+ * That helper is the single producer of the `memory-state-truth` autonomy
+ * stage status (see autonomy-closure-health.ts:516-525), so calling it
+ * gives us the exact same answer the snapshot would compute right now.
+ *
+ * Stale (true) when status is `blocked` or `warn` — i.e. malformed JSONL,
+ * HEARTBEAT phantom recurring-error tasks, or curated memory dirty.
+ * Fresh (false) when status is `ok`. Fail-open (null) when the helper
+ * itself throws.
+ */
+async function checkMemoryStateTruth(ctx: FreshnessContext): Promise<boolean | null> {
+  try {
+    const result = evaluateMemoryStateTruth(ctx.memoryDir, ctx.repoRoot);
+    return result.status !== 'ok';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Source-of-truth: `git rev-list --left-right --count @{u}...HEAD` against
+ * the runtime checkout. The snapshot's ship-and-deploy stage marks the
+ * predicate stale when `state ∈ {behind, diverged}` (autonomy-closure-
+ * health.ts:442-451), both of which require `behind > 0`. So we just need
+ * the live behind count.
+ *
+ * Stale (true) when behind > 0. Fresh (false) when behind === 0.
+ * Fail-open (null) when no upstream is configured or git errors —
+ * matches the snapshot's `state: 'unknown'` path which doesn't block.
+ */
+async function checkShipTruth(ctx: FreshnessContext): Promise<boolean | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['rev-list', '--left-right', '--count', '@{u}...HEAD'],
+      { cwd: ctx.repoRoot, timeout: 5000 },
+    );
+    // Output: "<behind>\t<ahead>"
+    const parts = stdout.trim().split(/\s+/);
+    const behind = Number.parseInt(parts[0] ?? '', 10);
+    if (!Number.isFinite(behind)) return null;
+    return behind > 0;
+  } catch {
+    // No upstream / detached HEAD / git error → fail-open.
     return null;
   }
 }
