@@ -20,6 +20,7 @@ memory/handoffs/*
 !memory/digestions/
 !memory/topics/
 !memory/state/
+memory/state/*
 !memory/state/kuro-content/
 !memory/state/kuro-content/*
 sessions/

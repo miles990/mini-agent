@@ -33,6 +33,13 @@ afterEach(() => {
 });
 
 describe('memory-index — bucket routing', () => {
+  it('querying an empty memory root does not create task-events telemetry', () => {
+    const result = queryMemoryIndexSync(tmpDir, { type: 'task' });
+
+    expect(result).toEqual([]);
+    expect(fs.existsSync(getTaskEventsPath(tmpDir))).toBe(false);
+  });
+
   it('task entries land in state/task-events.jsonl', async () => {
     await appendMemoryIndexEntry(tmpDir, {
       type: 'task',
