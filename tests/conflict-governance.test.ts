@@ -36,6 +36,11 @@ describe('conflict governance', () => {
       autoResolvable: false,
       resolution: 'regenerate',
     }));
+    expect(classifyConflictPath('kuro-portfolio/ai-trend/2026-05-08.html')).toEqual(expect.objectContaining({
+      class: 'generated',
+      autoResolvable: false,
+      resolution: 'regenerate',
+    }));
   });
 
   it('blocks whenever unresolved conflicts exist and separates auto/manual sets', () => {
