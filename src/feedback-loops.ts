@@ -29,6 +29,8 @@ interface ErrorPatternState {
     taskCreated: boolean;
     lastSeen: string;
     lastMessage?: string;
+    resolvedAt?: string;
+    resolvedBy?: string;
   };
 }
 
