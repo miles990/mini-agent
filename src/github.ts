@@ -40,6 +40,7 @@ import {
 import {
   appendStaleDraftPrHandoffs,
   extractClosingIssueRefs,
+  extractSupersededIssueRefs,
   findUntrackedPrs,
   shouldAutoCloseSupersededPr,
   writeOpenPrSnapshot,
@@ -475,7 +476,9 @@ async function autoCloseSupersededPRs(): Promise<void> {
   let closedCount = 0;
   for (const pr of prs) {
     const normalized = toOpenPrSummary(pr);
-    const refs = extractClosingIssueRefs(`${pr.title}\n${pr.body ?? ''}`);
+    const text = `${pr.title}\n${pr.body ?? ''}`;
+    const closingRefs = extractClosingIssueRefs(text);
+    const refs = closingRefs.length > 0 ? closingRefs : extractSupersededIssueRefs(text);
     if (refs.length === 0) continue;
 
     const issues: IssueStateSummary[] = [];
@@ -490,7 +493,9 @@ async function autoCloseSupersededPRs(): Promise<void> {
       }
     }
     if (issueLookupFailed) continue;
-    if (!shouldAutoCloseSupersededPr(normalized, refs, issues)) continue;
+    if (!shouldAutoCloseSupersededPr(normalized, refs, issues, {
+      requireBlockedMergeable: closingRefs.length === 0,
+    })) continue;
 
     const reason = `This PR declares ${refs.map(ref => `#${ref}`).join(', ')} as closing scope, and that issue is already closed. Closing to keep the autonomous PR queue truthful; reopen or create a fresh PR if this still has unique scope.`;
     try {
