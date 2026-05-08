@@ -40,6 +40,8 @@ import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
 const execFileAsync = promisify(execFile);
+let externalMemorySnapshotTimer: NodeJS.Timeout | null = null;
+let externalMemorySnapshotInFlight = false;
 
 // =============================================================================
 // Task Progress Tracking
@@ -755,14 +757,15 @@ export async function runHousekeeping(): Promise<void> {
     slog('MIDDLEWARE-SELF-HEAL', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
   });
 
+  await sweepKgDiscussionLifecycle(getMemoryRootDir()).catch(err => {
+    slog('KG-DISCUSSION-JANITOR', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
+  });
+
   // KG auto-ingest: check every 5 cycles if enough new writes have accumulated
   if (cycleCounter % 5 === 0) {
     dispatchKGIngestIfNeeded();
     await reconcileMiddlewareCommitmentsSafe().catch(err => {
       slog('MIDDLEWARE-TRUTH', `reconcile skipped: ${err instanceof Error ? err.message : String(err)}`);
-    });
-    await sweepKgDiscussionLifecycle(getMemoryRootDir()).catch(err => {
-      slog('KG-DISCUSSION-JANITOR', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
     });
   }
 
@@ -788,6 +791,24 @@ export async function runHousekeeping(): Promise<void> {
       if (removed > 0) slog('HOUSEKEEPING', `forensic gc removed ${removed} file(s)`);
     } catch { /* fail-open */ }
   }
+}
+
+export function startExternalMemorySnapshotDaemon(memoryDir = getMemoryRootDir(), intervalMs = 60_000): void {
+  if (externalMemorySnapshotTimer) return;
+  externalMemorySnapshotTimer = setInterval(() => {
+    const feature = getFeature('auto-commit');
+    if (feature && !feature.enabled) return;
+    if (externalMemorySnapshotInFlight) return;
+    externalMemorySnapshotInFlight = true;
+    snapshotExternalMemoryChanges(memoryDir)
+      .catch(err => {
+        slog('MEMORY-SNAPSHOT', `daemon skipped: ${err instanceof Error ? err.message : String(err)}`);
+      })
+      .finally(() => {
+        externalMemorySnapshotInFlight = false;
+      });
+  }, intervalMs);
+  externalMemorySnapshotTimer.unref?.();
 }
 
 export interface ExternalMemorySnapshotResult {
