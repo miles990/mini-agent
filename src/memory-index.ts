@@ -1649,24 +1649,15 @@ export function buildCommitmentSection(memoryDir: string): string {
  * Issue #419 helper. Drop active memory-index commitments whose summary
  * semantically matches a terminal-state structured-ledger prediction.
  *
- * Imported lazily to avoid an import cycle between memory-index.ts and
- * commitment-ledger.ts (commitment-ledger only uses memory.ts; memory-index
- * is the higher-level consumer).
+ * Reads the append-only ledger file directly instead of importing
+ * commitment-ledger.ts; that module reaches through memory.ts, which already
+ * imports memory-index.ts and would otherwise create an ESM cycle.
  */
 function suppressGapsResolvedInLedger(
   memoryDir: string,
   gaps: ReturnType<typeof queryMemoryIndexSync>,
 ): ReturnType<typeof queryMemoryIndexSync> {
-  let terminal: { prediction: string }[] = [];
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ledger = require('./commitment-ledger.js') as {
-      readTerminalCommitments?: () => { prediction: string }[];
-    };
-    terminal = ledger.readTerminalCommitments?.() ?? [];
-  } catch {
-    return gaps;
-  }
+  const terminal = readTerminalLedgerCommitments(memoryDir);
   if (terminal.length === 0) return gaps;
 
   const terminalTokenSets = terminal
@@ -1699,6 +1690,27 @@ function suppressGapsResolvedInLedger(
     }
   }
   return out;
+}
+
+function readTerminalLedgerCommitments(memoryDir: string): { prediction: string }[] {
+  const file = path.join(memoryDir, 'state', 'commitments.jsonl');
+  if (!existsSync(file)) return [];
+
+  const latest = new Map<string, { prediction?: unknown; status?: unknown }>();
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const entry = JSON.parse(trimmed) as { id?: unknown; prediction?: unknown; status?: unknown };
+      if (typeof entry.id === 'string') latest.set(entry.id, entry);
+    } catch {
+      // Ignore malformed historical rows; the commitment callout should not fail closed.
+    }
+  }
+
+  return [...latest.values()]
+    .filter(entry => entry.status !== 'pending' && typeof entry.prediction === 'string')
+    .map(entry => ({ prediction: String(entry.prediction) }));
 }
 
 // =============================================================================
