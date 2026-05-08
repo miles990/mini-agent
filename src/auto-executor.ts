@@ -18,6 +18,7 @@ import path from 'node:path';
 import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { evaluateWorkspaceIsolation } from './workspace-isolation.js';
 import { classifyProviderResourceHold } from './provider-resource-guard.js';
+import type { MiddlewareFailureRetryEnvelope } from './middleware-failure-self-healing.js';
 
 // =============================================================================
 // Config
@@ -286,8 +287,9 @@ export function checkAndDispatch(memoryDir: string): AutoExecuteResult {
   const actionable = entries.filter(e => {
     const p = (e.payload ?? {}) as Record<string, unknown>;
     const verify = p.verify_command as string | undefined;
+    const retryEnvelope = p.retry_envelope as MiddlewareFailureRetryEnvelope | undefined;
     const blocked = p.blockedBy as string[] | undefined;
-    if (!verify || verify.length === 0) return false;
+    if ((!verify || verify.length === 0) && !retryEnvelope) return false;
     if (blocked && blocked.length > 0) return false;
     if (dispatchedSet.has(e.id)) return false; // M5: zombie protection
     if ((failCounts.get(e.id) ?? 0) >= MAX_FAILURES_PER_TASK) return false;
