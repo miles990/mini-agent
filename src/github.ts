@@ -49,6 +49,7 @@ import {
 } from './pr-autopilot.js';
 import { assertKuroGithubIdentity, expectedKuroGithubLogin, kuroGithubCliEnv } from './github-identity.js';
 import { recordPublicWriteProvenance } from './public-write-identity.js';
+import { evaluateIssueEvidenceGuard } from './issue-evidence-guard.js';
 
 const execFileAsync = promisify(execFile);
 let loggedReviewRequestsDegrade = false;
@@ -164,6 +165,11 @@ export async function autoCreateIssueFromProposal(): Promise<void> {
       const tldr = tldrMatch?.[1]?.trim() ?? '';
 
       const body = `Proposal: \`memory/proposals/${file}\`\n\n${tldr}`;
+      const guard = evaluateIssueEvidenceGuard({ title: issueTitle, body });
+      if (!guard.allowed) {
+        slog('github', `blocked proposal issue create without recurrence evidence: ${file} (${guard.reasons.join('; ')})`);
+        continue;
+      }
 
       const { stdout } = await gh(['issue', 'create', '--title', issueTitle, '--label', 'proposal', '--body', body]);
 
