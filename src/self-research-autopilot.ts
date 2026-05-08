@@ -6,6 +6,7 @@
  * scheduler and verification gate.
  */
 
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { eventBus } from './event-bus.js';
@@ -13,10 +14,17 @@ import { createTask, queryMemoryIndexSync, type MemoryIndexEntry } from './memor
 import { createSelfResearchPlan, saveSelfResearchPlan, type SelfResearchRun } from './self-research-loop.js';
 import { evaluateCorrectionGate } from './correction-gate.js';
 
+export type CheckPrOpenFn = (prNumber: number) => Promise<boolean> | boolean;
+
 export interface SelfResearchAutopilotOptions {
   triggerReason?: string | null;
   now?: Date;
   repoRoot?: string;
+  /**
+   * Issue #388: gate maintenance task generation on the PR still being OPEN at
+   * task-firing time. Override in tests; default shells out to `gh pr view`.
+   */
+  checkPrOpen?: CheckPrOpenFn;
 }
 
 export interface SelfResearchAutopilotResult {
@@ -54,7 +62,7 @@ export async function maybeQueueSelfResearch(
     type: ['task'],
     status: ['pending', 'in_progress', 'needs-decomposition', 'blocked', 'hold'],
   });
-  const queuedMaintenance = await maybeQueueMaintenance(memoryDir, openTasks);
+  const queuedMaintenance = await maybeQueueMaintenance(memoryDir, openTasks, opts.checkPrOpen ?? defaultCheckPrOpen);
   if (queuedMaintenance) return queuedMaintenance;
 
   const activeTasks = queryMemoryIndexSync(memoryDir, {
@@ -97,6 +105,7 @@ export async function maybeQueueSelfResearch(
 async function maybeQueueMaintenance(
   memoryDir: string,
   openTasks: MemoryIndexEntry[],
+  checkPrOpen: CheckPrOpenFn,
 ): Promise<SelfResearchAutopilotResult | null> {
   const debt = findTopMaintenanceDebt(memoryDir);
   if (!debt) return null;
@@ -111,6 +120,18 @@ async function maybeQueueMaintenance(
     && !(task.summary ?? '').includes('autonomous maintenance'),
   );
   if (activeNonMaintenance.length > 0) return null;
+
+  // Issue #388: re-check PR open state at task-firing time. Closed/merged PRs
+  // produce phantom maintenance tasks that waste cycles confirming "推不動".
+  const prOpen = await checkPrOpen(debt.prNumber);
+  if (!prOpen) {
+    eventBus.emit('action:task', {
+      event: 'autonomous-maintenance-skipped-pr-closed',
+      prNumber: debt.prNumber,
+      action: debt.action,
+    });
+    return { queued: false, reason: 'pr-not-open', maintenance: debt };
+  }
 
   const task = await createTask(memoryDir, {
     title: `P1 ${marker}: ${maintenanceAction(debt)} for ${debt.title}`,
@@ -200,4 +221,23 @@ function hasSelfResearchProposalToday(memoryDir: string, now: Date): boolean {
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Issue #388 default PR-open checker. Shells out to `gh pr view` and treats
+ * any non-OPEN state (CLOSED/MERGED) as "skip". Network/CLI failures are
+ * treated as "open" — fail-open keeps existing behavior on transient errors
+ * rather than silently dropping legitimate maintenance work.
+ */
+async function defaultCheckPrOpen(prNumber: number): Promise<boolean> {
+  try {
+    const out = execFileSync(
+      'gh',
+      ['pr', 'view', String(prNumber), '--repo', 'miles990/mini-agent', '--json', 'state', '--jq', '.state'],
+      { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10_000 },
+    ).trim();
+    return out === 'OPEN';
+  } catch {
+    return true;
+  }
 }

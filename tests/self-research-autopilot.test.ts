@@ -86,6 +86,7 @@ describe('self research autopilot', () => {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
       repoRoot: tmpDir,
+      checkPrOpen: async () => true,
     });
 
     expect(result.queued).toBe(true);
@@ -103,6 +104,34 @@ describe('self research autopilot', () => {
       assignee: 'kuro',
       verify_command: expect.stringContaining('gh pr view 90'),
     }));
+  });
+
+  it('skips maintenance task when PR is no longer open (issue #388)', async () => {
+    mkdirSync(path.join(tmpDir, 'handoffs'), { recursive: true });
+    writeFileSync(
+      path.join(tmpDir, 'handoffs/active.md'),
+      [
+        '| From | To | Task | Status | Created | Done |',
+        '| github | kuro | PR #351 conflict diagnostic: runtime preserve dirty (needs-decomposition; conflict spans broad scope) | blocked | 05-08 | - |',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    const result = await maybeQueueSelfResearch(tmpDir, {
+      triggerReason: 'heartbeat',
+      now: new Date('2026-05-08T17:32:00.000Z'),
+      repoRoot: tmpDir,
+      checkPrOpen: async () => false, // PR was closed by the time scheduler fires
+    });
+
+    expect(result).toEqual({
+      queued: false,
+      reason: 'pr-not-open',
+      maintenance: expect.objectContaining({ prNumber: 351 }),
+    });
+
+    // Critical: no task should have been created.
+    expect(queryMemoryIndexSync(tmpDir, { type: ['task'], status: ['pending'] })).toHaveLength(0);
   });
 
   it('does not duplicate an existing autonomous maintenance task', async () => {
