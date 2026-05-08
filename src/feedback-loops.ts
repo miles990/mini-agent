@@ -10,7 +10,7 @@
  * 全部 fire-and-forget，不影響 OODA cycle。
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';  // getInstanceDir kept for features.json (ephemeral)
@@ -61,23 +61,41 @@ interface DecisionQualityState {
 // Helpers — in-memory state cache + dirty flag
 // =============================================================================
 
-const stateCache = new Map<string, { data: unknown; dirty: boolean }>();
+// Issue #422: cache must be mtime-aware. Out-of-band writers (e.g.
+// `pnpm error-patterns:resolve` running as a separate subprocess) update disk
+// directly. A stale in-memory cache that survives across cycles will then
+// clobber those updates on the next `flushFeedbackState`, silently stripping
+// resolvedAt/resolvedBy. Snapshot mtime at read; reload on next read if disk
+// has advanced (and the cache isn't dirty with our own pending writes).
+const stateCache = new Map<string, { data: unknown; dirty: boolean; mtimeMs: number }>();
 
 function getStatePath(filename: string): string {
   return path.join(getMemoryStateDir(), filename);
 }
 
-export function readState<T>(filename: string, fallback: T): T {
-  const cached = stateCache.get(filename);
-  if (cached) return cached.data as T;
+function getDiskMtimeMs(filePath: string): number {
+  try { return statSync(filePath).mtimeMs; } catch { return 0; }
+}
 
-  const data = readJsonFile(getStatePath(filename), fallback);
-  stateCache.set(filename, { data, dirty: false });
+export function readState<T>(filename: string, fallback: T): T {
+  const p = getStatePath(filename);
+  const diskMtime = getDiskMtimeMs(p);
+  const cached = stateCache.get(filename);
+  // Reuse cache when:
+  //  - we have pending writes (dirty) — flushing is our responsibility, don't drop
+  //  - or disk hasn't advanced past the snapshot we read
+  if (cached && (cached.dirty || diskMtime <= cached.mtimeMs)) {
+    return cached.data as T;
+  }
+
+  const data = readJsonFile(p, fallback);
+  stateCache.set(filename, { data, dirty: false, mtimeMs: diskMtime });
   return data;
 }
 
 export function writeState(filename: string, data: unknown): void {
-  stateCache.set(filename, { data, dirty: true });
+  const cached = stateCache.get(filename);
+  stateCache.set(filename, { data, dirty: true, mtimeMs: cached?.mtimeMs ?? 0 });
 }
 
 /** Flush all dirty state files to disk. Call once at cycle end. */
@@ -89,10 +107,20 @@ export function flushFeedbackState(): void {
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       try {
         writeFileSync(p, JSON.stringify(entry.data, null, 2), 'utf-8');
+        entry.mtimeMs = getDiskMtimeMs(p);
       } catch { /* best effort */ }
       entry.dirty = false;
     }
   }
+}
+
+/**
+ * Issue #422 test seam: drop the in-memory cache so the next readState pulls
+ * fresh from disk. Unit tests that simulate cross-process writes use this to
+ * mimic a fresh worker process; production code should not need it.
+ */
+export function _resetFeedbackStateCacheForTests(): void {
+  stateCache.clear();
 }
 
 // =============================================================================
@@ -338,8 +366,11 @@ export async function detectErrorPatterns(): Promise<void> {
   // Subtype-rename migration: drop today's orphan keys absent from current groups.
   // Without this, renaming a subtype (e.g. econnrefused -> dns_lookup_failed) leaves
   // the old key with stale today-counts; 7-day TTL won't clean it because lastSeen=today.
+  // Issue #422: skip entries with resolvedAt — resolution provenance is sticky and
+  // must survive reorganisations. If the same key re-fires later, we still want to
+  // know "this was resolved at SHA X" rather than treating it as a brand-new pattern.
   for (const key of Object.keys(state)) {
-    if (state[key].lastSeen === today && !groups.has(key)) {
+    if (state[key].lastSeen === today && !groups.has(key) && !state[key].resolvedAt) {
       slog('FEEDBACK', `Error pattern orphaned by subtype rename: ${key}`);
       delete state[key];
       changed = true;
@@ -365,10 +396,14 @@ export async function detectErrorPatterns(): Promise<void> {
     slog('FEEDBACK', `Error pattern detected: ${key} (${count}×)`);
   }
 
-  // Clean up patterns not seen in 7 days
+  // Clean up patterns not seen in 7 days.
+  // Issue #422: keep entries with resolvedAt — they record sticky resolution
+  // provenance. Without this guard, a 7-day quiet window deletes the entry; if
+  // the same pattern then re-fires (real regression OR cache-race re-add), the
+  // newly created bucket has no resolvedAt and the heartbeat raises a P1 again.
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString().split('T')[0];
   for (const key of Object.keys(state)) {
-    if (state[key].lastSeen < sevenDaysAgo) {
+    if (state[key].lastSeen < sevenDaysAgo && !state[key].resolvedAt) {
       slog('FEEDBACK', `Error pattern resolved (no recurrence in 7d): ${key}`);
       delete state[key];
       changed = true;
