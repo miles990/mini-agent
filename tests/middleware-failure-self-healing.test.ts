@@ -69,6 +69,7 @@ describe('middleware failure self-healing', () => {
       strategy: 'compressed-provider-resume',
       maxTurns: 6,
     }));
+    expect(fallbacks[0].payload?.priority).toBe(1);
 
     expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
       taskId: 'task-budget',

@@ -410,6 +410,7 @@ async function ensureMiddlewareFailureFollowUpTask(
         failed_task_excerpt: String(task.task ?? '').slice(0, 500),
         acceptance_criteria: plan.acceptance,
         retry_envelope: plan.retryEnvelope,
+        priority: bucket === 'budget-or-quota' ? 1 : 0,
         createdAt: now.toISOString(),
       },
     });
