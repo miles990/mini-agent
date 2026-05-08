@@ -129,7 +129,7 @@ import { parseInterval } from './cycle-tasks.js';
 import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions, getMemoryStateDir } from './memory.js';
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
-import { searchEntities as kgSearchEntities, getEntityCard as kgGetEntityCard, getKgStats } from './kg-entity-search.js';
+import { searchEntities as kgSearchEntities, getEntityCard as kgGetEntityCard, getKgStats, getKgOverview } from './kg-entity-search.js';
 import { getIngestStats as kgGetIngestStats } from './kg-live-ingest.js';
 import { query as kgQuery, formatReport as kgFormatReport } from './kg-query.js';
 import { getKGPromotionLedgerPath, readKGPromotionRecords, summarizeKGPromotions } from './kg-promotion.js';
@@ -3121,6 +3121,11 @@ export function createApi(port = 3001): express.Express {
 
   // Knowledge Graph viz — self-contained HTML rebuilt by kg-viz.ts
   app.get('/kg-graph', (_req: Request, res: Response) => {
+    const liveGraphPath = path.join(process.cwd(), 'kg-graph.html');
+    if (fs.existsSync(liveGraphPath)) {
+      res.sendFile(liveGraphPath);
+      return;
+    }
     const htmlPath = resolveMemoryPath('index', 'kg-graph.html');
     if (fs.existsSync(htmlPath)) {
       res.sendFile(htmlPath);
@@ -3128,6 +3133,15 @@ export function createApi(port = 3001): express.Express {
       res.status(404).type('text/plain').send(
         'kg-graph.html not built yet.\nRun: pnpm tsx scripts/kg-viz.ts',
       );
+    }
+  });
+
+  app.get('/kg-dashboard', (_req: Request, res: Response) => {
+    const htmlPath = path.join(process.cwd(), 'kg-dashboard.html');
+    if (fs.existsSync(htmlPath)) {
+      res.sendFile(htmlPath);
+    } else {
+      res.status(404).send('kg-dashboard.html not found');
     }
   });
 
@@ -3239,6 +3253,15 @@ export function createApi(port = 3001): express.Express {
   app.get('/api/kg/stats', (_req: Request, res: Response) => {
     try {
       res.json(getKgStats());
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  app.get('/api/kg/overview', (req: Request, res: Response) => {
+    try {
+      const graphLimit = Math.min(Number(req.query.graphLimit ?? 120) || 120, 300);
+      res.json(getKgOverview({ graphLimit }));
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     }

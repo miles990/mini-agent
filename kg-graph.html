@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KG Graph</title>
+<style>
+  :root {
+    --bg: #07090c; --panel: #10151b; --line: #25313c; --text: #e8eef5; --muted: #8895a3;
+    --cyan: #5db7ff; --green: #48d597; --yellow: #f4c95d; --red: #ff6b6b; --violet: #ad8cff;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 13px/1.4 var(--sans); }
+  #graph { width: 100vw; height: 100vh; display: block; }
+  .topbar, .side, .bottom {
+    position: fixed; border: 1px solid var(--line); background: rgba(16,21,27,.88); backdrop-filter: blur(10px); border-radius: 8px;
+  }
+  .topbar { top: 14px; left: 14px; right: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; }
+  .brand { display: flex; flex-direction: column; gap: 2px; min-width: 220px; }
+  h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: 0; }
+  .sub { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  input, button, select, a.btn {
+    border: 1px solid var(--line); background: #0b1015; color: var(--text); min-height: 32px; border-radius: 6px; padding: 6px 9px; font: inherit; text-decoration: none;
+  }
+  input { width: min(440px, 34vw); outline: none; }
+  input:focus { border-color: var(--cyan); }
+  button, a.btn { cursor: pointer; color: var(--muted); }
+  button:hover, a.btn:hover { color: var(--text); border-color: var(--cyan); }
+  button.active { color: var(--cyan); border-color: var(--cyan); }
+  .side { top: 82px; right: 14px; width: 360px; max-height: calc(100vh - 116px); overflow: auto; padding: 12px; }
+  .detail-title { font-size: 17px; font-weight: 650; overflow-wrap: anywhere; }
+  .meta { color: var(--muted); font-family: var(--mono); font-size: 11px; margin-top: 4px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .tag { border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .tag.hot { color: var(--cyan); border-color: rgba(93,183,255,.45); }
+  .tag.warn { color: var(--yellow); border-color: rgba(244,201,93,.45); }
+  .tag.bad { color: var(--red); border-color: rgba(255,107,107,.45); }
+  .list { display: grid; gap: 6px; margin-top: 8px; }
+  .row { border: 1px solid #1b2530; border-radius: 6px; padding: 8px; cursor: pointer; }
+  .row:hover { border-color: var(--cyan); }
+  .row-name { font-weight: 560; overflow-wrap: anywhere; }
+  .bottom { left: 14px; bottom: 14px; padding: 8px 10px; display: flex; gap: 12px; align-items: center; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+  @media (max-width: 900px) {
+    .topbar { flex-direction: column; align-items: stretch; }
+    input { width: 100%; }
+    .side { left: 14px; right: 14px; width: auto; top: auto; bottom: 14px; max-height: 45vh; }
+    .bottom { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="graph"></canvas>
+<div class="topbar">
+  <div class="brand">
+    <h1>Knowledge Graph</h1>
+    <div class="sub" id="summary">loading...</div>
+  </div>
+  <div class="controls">
+    <input id="search" placeholder="Search and focus an entity...">
+    <select id="limit"><option value="80">80 nodes</option><option value="150" selected>150 nodes</option><option value="240">240 nodes</option></select>
+    <button id="labels" class="active">labels</button>
+    <button id="freeze">freeze</button>
+    <button id="refresh">refresh</button>
+    <a class="btn" href="/kg-dashboard">dashboard</a>
+  </div>
+</div>
+<aside class="side" id="detail"><div class="meta">Click a node to inspect context, references, and neighbors.</div></aside>
+<div class="bottom" id="legend"></div>
+
+<script>
+const COLORS = { actor:'#ffb86c', concept:'#5db7ff', project:'#ad8cff', tool:'#48d597', artifact:'#f4c95d', 'code-symbol':'#6ccff5', event:'#f187c6', claim:'#d6dee7', decision:'#ff6b6b', unknown:'#8895a3' };
+let data, nodes = [], links = [], selected = null, showLabels = true, frozen = false, q = '', raf = 0;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[c]));
+const fmt = n => Number(n || 0).toLocaleString();
+
+async function load() {
+  const limit = $('limit').value;
+  const res = await fetch('/api/kg/overview?graphLimit=' + encodeURIComponent(limit));
+  data = await res.json();
+  const rect = $('graph').getBoundingClientRect();
+  nodes = data.graph.nodes.map((n, i) => ({...n, x: rect.width/2 + Math.cos(i*2.399)*220, y: rect.height/2 + Math.sin(i*2.399)*220, vx:0, vy:0, r: Math.max(4, Math.min(16, 4 + Math.sqrt(n.refs || 1) + Math.sqrt(n.degree || 0)*.7))}));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  links = data.graph.links.map(l => ({...l, a: byId.get(l.source), b: byId.get(l.target)})).filter(l => l.a && l.b);
+  $('summary').textContent = `${fmt(data.stats.entities)} entities · ${fmt(data.stats.edges)} edges · ${fmt(data.stats.pending_conflicts)} pending conflicts · built ${(data.generated_at || '').slice(0,16).replace('T',' ')}`;
+  $('legend').innerHTML = data.type_counts.slice(0, 9).map(t => `<span><i class="dot" style="background:${COLORS[t.type] || COLORS.unknown}"></i>${esc(t.type)} ${fmt(t.count)}</span>`).join('');
+  if (!raf) tick();
+}
+
+function tick() {
+  if (!frozen) simulate();
+  draw();
+  raf = requestAnimationFrame(tick);
+}
+
+function visible(n) {
+  if (!q) return true;
+  return n.name.toLowerCase().includes(q) || n.id.toLowerCase().includes(q) || n.type.toLowerCase().includes(q);
+}
+
+function simulate() {
+  const c = $('graph'), w = c.clientWidth, h = c.clientHeight;
+  for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+    const a = nodes[i], b = nodes[j], dx = a.x-b.x, dy = a.y-b.y, d2 = Math.max(120, dx*dx+dy*dy), f = 52/d2;
+    a.vx += dx*f; a.vy += dy*f; b.vx -= dx*f; b.vy -= dy*f;
+  }
+  for (const l of links) {
+    const dx = l.b.x-l.a.x, dy = l.b.y-l.a.y, d = Math.max(1, Math.hypot(dx, dy)), target = 70 + (1-Math.min(1,l.weight))*120, f = (d-target)*0.0027;
+    l.a.vx += dx*f; l.a.vy += dy*f; l.b.vx -= dx*f; l.b.vy -= dy*f;
+  }
+  for (const n of nodes) {
+    n.vx += (w/2-n.x)*0.0008; n.vy += (h/2-n.y)*0.0008; n.vx*=.84; n.vy*=.84;
+    n.x = Math.max(24, Math.min(w-24, n.x+n.vx)); n.y = Math.max(88, Math.min(h-24, n.y+n.vy));
+  }
+}
+
+function draw() {
+  const c = $('graph'), dpr = devicePixelRatio, w = c.clientWidth, h = c.clientHeight;
+  if (c.width !== Math.floor(w*dpr) || c.height !== Math.floor(h*dpr)) { c.width = Math.floor(w*dpr); c.height = Math.floor(h*dpr); }
+  const ctx = c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h); ctx.fillStyle = '#07090c'; ctx.fillRect(0,0,w,h);
+  for (const l of links) {
+    const active = visible(l.a) || visible(l.b);
+    ctx.globalAlpha = q && !active ? .03 : .12 + l.confidence*.26; ctx.strokeStyle = '#3c4855'; ctx.lineWidth = Math.max(1, l.weight*2);
+    ctx.beginPath(); ctx.moveTo(l.a.x,l.a.y); ctx.lineTo(l.b.x,l.b.y); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  for (const n of nodes) {
+    const active = visible(n); ctx.globalAlpha = q && !active ? .12 : 1;
+    ctx.fillStyle = COLORS[n.type] || COLORS.unknown; ctx.strokeStyle = n.conflict ? '#ff6b6b' : selected === n ? '#fff' : '#05070a'; ctx.lineWidth = selected === n || n.conflict ? 2.5 : 1;
+    ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    if (showLabels && active && (n.degree > 5 || n.refs > 3 || selected === n || q)) {
+      ctx.fillStyle = '#e8eef5'; ctx.font = '11px system-ui'; ctx.fillText(n.name.slice(0, 34), n.x + n.r + 5, n.y + 4);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function pick(ev) {
+  const r = $('graph').getBoundingClientRect(), x = ev.clientX-r.left, y = ev.clientY-r.top;
+  return nodes.find(n => Math.hypot(n.x-x,n.y-y) <= n.r+5);
+}
+
+async function inspect(id, node) {
+  selected = node || nodes.find(n => n.id === id); draw();
+  $('detail').innerHTML = '<div class="meta">loading...</div>';
+  const res = await fetch('/api/kg/entities/' + encodeURIComponent(id));
+  const e = await res.json();
+  const type = Array.isArray(e.resolved_type) ? e.resolved_type.join(' + ') : (e.resolved_type || e.type);
+  $('detail').innerHTML = `<div class="detail-title">${esc(e.canonical_name)}</div><div class="meta">${esc(e.id)}</div>
+    <div class="tags"><span class="tag hot">${esc(type)}</span><span class="tag ${e.resolution_confidence === 'low' ? 'bad' : e.resolution_confidence === 'medium' ? 'warn' : ''}">conf ${esc(e.resolution_confidence || 'unknown')}</span><span class="tag">${fmt(e.reference_count)} refs</span></div>
+    ${e.aliases?.length ? `<div class="meta">aliases: ${esc(e.aliases.slice(0,10).join(', '))}</div>` : ''}
+    <div class="meta" style="margin-top:12px">neighbors</div>
+    <div class="list">${(e.neighbors || []).slice(0,14).map(n => `<div class="row" data-id="${esc(n.id)}"><div class="row-name">${esc(n.canonical_name)}</div><div class="meta">${esc(n.edge_type)} · ${esc(n.direction)} · w=${Number(n.weight||0).toFixed(2)}</div></div>`).join('') || '<div class="meta">No strong neighbors.</div>'}</div>`;
+  $('detail').querySelectorAll('[data-id]').forEach(el => el.onclick = () => inspect(el.dataset.id));
+}
+
+$('graph').onclick = ev => { const n = pick(ev); if (n) inspect(n.id, n); };
+$('graph').onmousemove = ev => $('graph').style.cursor = pick(ev) ? 'pointer' : 'default';
+$('search').oninput = ev => { q = ev.target.value.trim().toLowerCase(); draw(); };
+$('labels').onclick = () => { showLabels = !showLabels; $('labels').classList.toggle('active', showLabels); };
+$('freeze').onclick = () => { frozen = !frozen; $('freeze').classList.toggle('active', frozen); };
+$('refresh').onclick = load;
+$('limit').onchange = load;
+load().catch(err => $('summary').textContent = 'failed: ' + (err.message || err));
+</script>
+</body>
+</html>
