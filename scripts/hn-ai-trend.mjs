@@ -69,15 +69,18 @@ function isAITopic(item) {
   return AI_PATTERNS.some(p => p.test(text));
 }
 
-async function fetchJSON(url, attempt = 1, maxAttempts = 5) {
+async function fetchJSON(url, attempt = 1, maxAttempts = 7) {
   try {
     const r = await fetch(url);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.json();
   } catch (e) {
     if (attempt < maxAttempts) {
-      // exponential backoff with jitter: ~1s, 2s, 4s, 8s (cumulative ~15s)
-      const delay = 1000 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 250);
+      // exponential backoff with jitter, capped at 32s/step:
+      // ~1s, 2s, 4s, 8s, 16s, 32s → cumulative ~63s (was ~15s at maxAttempts=5).
+      // Window must be ≥60s to survive macOS post-sleep DNS/Wi-Fi warmup at the
+      // 09:00 launchd wake (issue #403). Cap prevents runaway delay if extended later.
+      const delay = Math.min(32000, 1000 * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 250);
       console.error(`[hn-ai-trend] fetch failed (${e.message}); retry ${attempt}/${maxAttempts - 1} in ${delay}ms`);
       await new Promise(res => setTimeout(res, delay));
       return fetchJSON(url, attempt + 1, maxAttempts);
