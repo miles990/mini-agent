@@ -214,6 +214,24 @@ describe('PR review runner', () => {
     }));
   });
 
+  it('accepts zsh syntax verification evidence in PR bodies', () => {
+    const claim = createInternalPrReviewClaim({
+      prNumber: 358,
+      title: 'fix(launchd): forensic+bulletproof github-ai-trend wrapper',
+      body: '## Verification\n- [x] `zsh -n scripts/launchd-wrappers/github-ai-trend.sh` parses cleanly\n- [ ] Next cron run emits done marker',
+      headSha: 'abc123',
+      reviewer: 'akari',
+      framework: 'tanren-review',
+      changedFiles: ['scripts/launchd-wrappers/github-ai-trend.sh'],
+    }, new Date('2026-05-06T00:00:00Z'));
+
+    expect(claim).toEqual(expect.objectContaining({
+      prNumber: 358,
+      reviewer: 'akari',
+      verdict: 'approve',
+    }));
+  });
+
   it('does not create internal claims for Alex review rows', () => {
     expect(createInternalPrReviewClaim({
       prNumber: 104,
