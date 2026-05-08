@@ -1,0 +1,104 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Issue #414: preflight threshold must lower to 25K when any of the three
+// silent_exit_void variants (_midprompt, _http, _40k) have a recent lastSeen,
+// and the slog tag must be [preflight.observe] (not [preflight.drain]).
+
+// ── replicate the isRecent helper & threshold logic from src/loop.ts ──────────
+
+type EpEntry = { lastSeen?: string };
+
+function computePreflightThreshold(epRaw: Record<string, EpEntry | undefined>): number {
+  const today     = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const isRecent  = (entry: EpEntry | undefined): boolean =>
+    !!entry?.lastSeen && entry.lastSeen >= yesterday && entry.lastSeen <= today;
+
+  const midpromptEntry = epRaw['TIMEOUT:silent_exit_void_midprompt::callClaude'];
+  const httpEntry      = epRaw['TIMEOUT:silent_exit_void_http::callClaude'];
+  const fortyKEntry    = epRaw['TIMEOUT:silent_exit_void_40k::callClaude'];
+
+  if (isRecent(midpromptEntry) || isRecent(httpEntry) || isRecent(fortyKEntry)) {
+    return 25_000;
+  }
+  return 35_000;
+}
+
+const today     = new Date().toISOString().slice(0, 10);
+const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+const stale     = '2024-01-01';
+
+describe('preflight threshold — issue #414', () => {
+  it('defaults to 35K when error-patterns is empty', () => {
+    expect(computePreflightThreshold({})).toBe(35_000);
+  });
+
+  it('defaults to 35K when all variants are stale', () => {
+    expect(computePreflightThreshold({
+      'TIMEOUT:silent_exit_void_midprompt::callClaude': { lastSeen: stale },
+      'TIMEOUT:silent_exit_void_http::callClaude':      { lastSeen: stale },
+      'TIMEOUT:silent_exit_void_40k::callClaude':       { lastSeen: stale },
+    })).toBe(35_000);
+  });
+
+  it('lowers to 25K when _midprompt is recent (today)', () => {
+    expect(computePreflightThreshold({
+      'TIMEOUT:silent_exit_void_midprompt::callClaude': { lastSeen: today },
+    })).toBe(25_000);
+  });
+
+  it('lowers to 25K when _midprompt is recent (yesterday)', () => {
+    expect(computePreflightThreshold({
+      'TIMEOUT:silent_exit_void_midprompt::callClaude': { lastSeen: yesterday },
+    })).toBe(25_000);
+  });
+
+  // Gap 1 regression: _http.lastSeen must also lower the threshold
+  it('lowers to 25K when _http is recent (Gap 1 fix)', () => {
+    expect(computePreflightThreshold({
+      'TIMEOUT:silent_exit_void_http::callClaude': { lastSeen: today },
+    })).toBe(25_000);
+  });
+
+  it('lowers to 25K when _http seen yesterday (Gap 1 fix)', () => {
+    expect(computePreflightThreshold({
+      'TIMEOUT:silent_exit_void_http::callClaude': { lastSeen: yesterday },
+    })).toBe(25_000);
+  });
+
+  // Gap 1 regression: _40k.lastSeen must also lower the threshold
+  it('lowers to 25K when _40k is recent (Gap 1 fix)', () => {
+    expect(computePreflightThreshold({
+      'TIMEOUT:silent_exit_void_40k::callClaude': { lastSeen: today },
+    })).toBe(25_000);
+  });
+
+  it('lowers to 25K when _40k seen yesterday (Gap 1 fix)', () => {
+    expect(computePreflightThreshold({
+      'TIMEOUT:silent_exit_void_40k::callClaude': { lastSeen: yesterday },
+    })).toBe(25_000);
+  });
+
+  it('lowers to 25K when only _http is recent, _midprompt absent', () => {
+    // This was the failing case before #415: _midprompt absent, _http recent
+    // → threshold must still drop to 25K.
+    expect(computePreflightThreshold({
+      'TIMEOUT:silent_exit_void_http::callClaude': { lastSeen: today },
+      // no midprompt key
+    })).toBe(25_000);
+  });
+
+  // Gap 2 regression: slog tag must be [preflight.observe], not [preflight.drain]
+  it('loop.ts slog tag is [preflight.observe] not [preflight.drain] (Gap 2 fix)', () => {
+    const loopSrc = readFileSync(resolve(import.meta.dirname!, '../src/loop.ts'), 'utf8');
+    expect(loopSrc).toContain('[preflight.observe]');
+    expect(loopSrc).not.toContain('[preflight.drain]');
+  });
+
+  it('loop.ts eventBus event name is preflight.observe (Gap 2 fix)', () => {
+    const loopSrc = readFileSync(resolve(import.meta.dirname!, '../src/loop.ts'), 'utf8');
+    expect(loopSrc).toContain("event: 'preflight.observe'");
+  });
+});
