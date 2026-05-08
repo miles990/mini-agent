@@ -79,7 +79,7 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   const responsiveness = activeTasks.length === 0 ? 0.8 : Math.max(0, 1 - avgStaleness / 10);
 
   const outputRate = signals.visibleOutputRate;
-  const hasPulseHistory = signals.cycleCount >= 5;
+  const hasPulseHistory = signals.cycleCount >= 5 && existsSync(path.join(memoryDir, 'state', 'pulse-state.json'));
   const quality = hasPulseHistory ? Math.min(outputRate * 1.5, 1) : 0.7;
   const score = Math.min(Math.round(fulfillment * 40 + responsiveness * 35 + quality * 25), 100);
 
