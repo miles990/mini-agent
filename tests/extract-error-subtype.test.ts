@@ -73,3 +73,36 @@ describe('extractErrorSubtype — silent_exit_void 4-class typed-failure schema 
     expect(extractErrorSubtype(mkSilentMsg(150, 5000))).toBe('silent_exit_void');
   });
 });
+
+describe('extractErrorSubtype — budget_exceeded and user_abort (#370 misclassification fix)', () => {
+  // Real forensic messages: agent.ts appends stderr AFTER the 靜默中斷 prefix.
+  // These must be caught BEFORE the silent_exit_void subclassification block.
+  const mkBudgetMsg = (durSec: number, promptChars: number) =>
+    `CLI 靜默中斷（exit N/A，${durSec}s 無 stderr）. stdout=empty prompt ${promptChars} chars stderr: Claude Code returned an error result: Reached maximum budget ($5)`;
+
+  const mkAbortMsg = (durSec: number) =>
+    `CLI 靜默中斷（exit N/A，${durSec}s 無 stderr）. stdout=empty stderr: Claude Code process aborted by user`;
+
+  it('classifies budget-cap exit as budget_exceeded (not silent_exit_void_midprompt)', () => {
+    // The observed cluster: 24K prompt @ 365s with budget stderr — was mislabeled
+    expect(extractErrorSubtype(mkBudgetMsg(365, 24419))).toBe('budget_exceeded');
+    expect(extractErrorSubtype(mkBudgetMsg(327, 20000))).toBe('budget_exceeded');
+    expect(extractErrorSubtype(mkBudgetMsg(429, 25000))).toBe('budget_exceeded');
+  });
+
+  it('classifies user-abort exit as user_abort', () => {
+    expect(extractErrorSubtype(mkAbortMsg(365))).toBe('user_abort');
+    expect(extractErrorSubtype(mkAbortMsg(100))).toBe('user_abort');
+  });
+
+  it('budget_exceeded message without silent-exit prefix is still classified correctly', () => {
+    expect(extractErrorSubtype('Reached maximum budget ($5)')).toBe('budget_exceeded');
+    expect(extractErrorSubtype('Claude Code returned an error result: Reached maximum budget ($5)')).toBe('budget_exceeded');
+  });
+
+  it('silent_exit_void_midprompt still works for genuine first-token stalls (no budget message)', () => {
+    // mkSilentMsg (no budget text) should still route to midprompt
+    const genuineStall = `CLI 靜默中斷（exit N/A，365s 無 stderr）. stdout=empty prompt 24419 chars`;
+    expect(extractErrorSubtype(genuineStall)).toBe('silent_exit_void_midprompt');
+  });
+});

@@ -119,6 +119,9 @@ export const PROTECTIVE_SUBTYPES = new Set([
   'sigterm_progress',
   'sigterm_hard',
   'sigterm_circuit_breaker',
+  // Issue #370: budget cap and user-initiated abort are expected, non-error terminations
+  'budget_exceeded',
+  'user_abort',
 ]);
 
 /**
@@ -153,6 +156,12 @@ export function extractErrorSubtype(errorMsg: string): string {
   if (lower.includes('oom') || lower.includes('killed by oom')) return 'oom';
   if (lower.includes('took too long') || lower.includes('處理超時')) return 'real_timeout';
   if (lower.includes('max_turns') || lower.includes('maximum number of turns')) return 'max_turns';
+  // Issue #370 (2026-05-08): budget-cap and user-abort exits were silently mislabeled as
+  // silent_exit_void because agent.ts appends stderr AFTER the 靜默中斷 prefix, so the
+  // budget/abort signal was present but no branch caught it before line 205.
+  // Both are non-retryable, non-error terminations — own buckets so frequency is surfaced.
+  if (lower.includes('reached maximum budget')) return 'budget_exceeded';
+  if (lower.includes('aborted by user')) return 'user_abort';
   if (lower.includes('accomplish timed out') || lower.includes('middleware offline')) return 'middleware_timeout';
   // 2026-04-20: paired with delegation.ts:294 Promise.race wrapper — converts silent
   // 600s hang_no_diag (when /plan endpoint blocks) into its own actionable bucket.
