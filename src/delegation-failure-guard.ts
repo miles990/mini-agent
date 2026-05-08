@@ -61,6 +61,7 @@ export function recordDelegationFailure(
   const signature = failureSignature(input.taskType, input.prompt, input.output);
   const existing = latest.get(signature);
   const timestamp = now.toISOString();
+  const reopened = existing ? shouldReopen(existing.status) : false;
   const record: DelegationFailureRecord = existing
     ? {
       ...existing,
@@ -69,8 +70,9 @@ export function recordDelegationFailure(
       prompt: input.prompt.slice(0, 500),
       error: failureError(input.output),
       frequency: existing.frequency + 1,
-      status: shouldReopen(existing.status) ? 'open' : existing.status,
+      status: reopened ? 'open' : existing.status,
       lastSeen: timestamp,
+      ...(reopened ? { resolution: undefined, resolvedAt: undefined } : {}),
     }
     : {
       signature,
@@ -170,7 +172,12 @@ function parseRecord(line: string): DelegationFailureRecord | null {
     const lastSeen = stringField(raw.lastSeen);
     const frequency = typeof raw.frequency === 'number' ? raw.frequency : 0;
     if (!signature || !taskId || !prompt || !error || !firstSeen || !lastSeen || frequency <= 0) return null;
-    const status = isDelegationFailureStatus(raw.status) ? raw.status : 'open';
+    const rawStatus = isDelegationFailureStatus(raw.status) ? raw.status : 'open';
+    const resolution = typeof raw.resolution === 'string' ? raw.resolution : undefined;
+    const resolvedAt = typeof raw.resolvedAt === 'string' ? raw.resolvedAt : undefined;
+    const status = resolvedAt && (rawStatus === 'open' || rawStatus === 'diagnosing')
+      ? 'resolved'
+      : rawStatus;
     return {
       signature,
       taskId,
@@ -182,8 +189,8 @@ function parseRecord(line: string): DelegationFailureRecord | null {
       lastSeen,
       ...(typeof raw.taskType === 'string' ? { taskType: raw.taskType } : {}),
       ...(typeof raw.diagnosticTaskId === 'string' ? { diagnosticTaskId: raw.diagnosticTaskId } : {}),
-      ...(typeof raw.resolution === 'string' ? { resolution: raw.resolution } : {}),
-      ...(typeof raw.resolvedAt === 'string' ? { resolvedAt: raw.resolvedAt } : {}),
+      ...(resolution ? { resolution } : {}),
+      ...(resolvedAt ? { resolvedAt } : {}),
     };
   } catch {
     return null;
@@ -225,6 +232,7 @@ export function isDelegationFailureStatus(value: unknown): value is DelegationFa
 }
 
 export function isActionableDelegationFailure(record: DelegationFailureRecord): boolean {
+  if (record.status === 'resolved' || record.status === 'ignored') return false;
   return record.frequency >= REPEAT_THRESHOLD
     || record.status === 'diagnosing'
     || record.status === 'needs_human'
