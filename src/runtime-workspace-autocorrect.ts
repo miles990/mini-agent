@@ -107,7 +107,7 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
         // (cherry-pick creates new commits with different hashes)
         ensureWorktree(root, worktree, branch, snapshot.headSha);
       }
-      git(worktree, ['push', '-u', 'origin', branch], kuroGitEnv());
+      git(worktree, ['push', '-u', 'origin', branch], resolveGitPushEnv(worktree));
     }
     let prUrl: string | undefined;
     if (opts.createPr ?? true) {
@@ -255,6 +255,13 @@ function moveTrackedDirtyToWorktree(repoRoot: string, worktree: string): void {
   writeFileSync(patchPath, patch, 'utf-8');
   git(worktree, ['apply', '--index', patchPath]);
   git(worktree, ['commit', '-m', 'fix(runtime): preserve tracked runtime workspace changes']);
+}
+
+/** Use GitHub auth env only when the remote URL points to github.com; fall back to process.env for local remotes (tests, etc.). */
+function resolveGitPushEnv(cwd: string): NodeJS.ProcessEnv {
+  const remoteUrl = safeGit(cwd, ['remote', 'get-url', 'origin']) ?? '';
+  if (remoteUrl.includes('github.com')) return kuroGitEnv();
+  return process.env;
 }
 
 function safeGit(cwd: string, args: string[]): string | null {
