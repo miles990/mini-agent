@@ -2736,18 +2736,22 @@ export class AgentLoop {
       // Measure ≥35K prompt rate before deciding rebuild/drain strategy in phase 2.
       // Issue #368 (Step B): lower threshold 35K→25K when _midprompt seen in last 24h,
       // so cycles in the 25-35K band are flagged while the instance is still in the stall window.
+      // Issue #414: also lower threshold when _http or _40k variants seen in last 24h,
+      // so the 25-35K band is flagged regardless of which silent_exit_void variant is recent.
       // lastSeen is YYYY-MM-DD; treat "today or yesterday" as within 24h window.
       let PREFLIGHT_SIZE_THRESHOLD = 35_000;
       try {
         const epPath = path.join(getMemoryStateDir(), 'error-patterns.json');
         const epRaw = fs.existsSync(epPath) ? JSON.parse(fs.readFileSync(epPath, 'utf8')) : {};
+        const today = new Date().toISOString().slice(0, 10);
+        const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+        const isRecent = (entry: { lastSeen?: string } | undefined): boolean =>
+          !!entry?.lastSeen && entry.lastSeen >= yesterday && entry.lastSeen <= today;
         const midpromptEntry = epRaw['TIMEOUT:silent_exit_void_midprompt::callClaude'] as { lastSeen?: string } | undefined;
-        if (midpromptEntry?.lastSeen) {
-          const today = new Date().toISOString().slice(0, 10);
-          const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-          if (midpromptEntry.lastSeen >= yesterday && midpromptEntry.lastSeen <= today) {
-            PREFLIGHT_SIZE_THRESHOLD = 25_000;
-          }
+        const httpEntry = epRaw['TIMEOUT:silent_exit_void_http::callClaude'] as { lastSeen?: string } | undefined;
+        const fortyKEntry = epRaw['TIMEOUT:silent_exit_void_40k::callClaude'] as { lastSeen?: string } | undefined;
+        if (isRecent(midpromptEntry) || isRecent(httpEntry) || isRecent(fortyKEntry)) {
+          PREFLIGHT_SIZE_THRESHOLD = 25_000;
         }
       } catch { /* best-effort: fall back to default 35K */ }
       if (effectivePrompt.length >= PREFLIGHT_SIZE_THRESHOLD) {
