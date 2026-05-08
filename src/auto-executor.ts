@@ -130,6 +130,42 @@ export function buildAutoDelegation(top: MemoryIndexEntry, complexity: TaskCompl
   };
 }
 
+export function buildRetryEnvelopeDelegation(
+  top: MemoryIndexEntry,
+  envelope: MiddlewareFailureRetryEnvelope,
+  now = Date.now(),
+): DelegationTask {
+  const topPayload = (top.payload ?? {}) as Record<string, unknown>;
+  const acceptance = (topPayload.acceptance_criteria as string) ?? envelope.acceptance;
+  const delegationId = `retry-${top.id.slice(0, 16)}-${now}`;
+
+  const prompt = [
+    `## Retry Task: ${top.summary}`,
+    '',
+    `Task ID: ${top.id}`,
+    `Strategy: ${envelope.strategy}`,
+    '',
+    '## Instructions',
+    envelope.prompt,
+    '',
+    '## Acceptance Criteria',
+    acceptance,
+    ...(envelope.notes.length > 0 ? ['', '## Notes', ...envelope.notes.map(n => `- ${n}`)] : []),
+  ].join('\n');
+
+  return {
+    id: delegationId,
+    type: envelope.worker === 'shell' ? 'shell' : 'code',
+    originTask: top.id,
+    prompt,
+    workdir: process.cwd(),
+    maxTurns: envelope.maxTurns,
+    timeoutMs: envelope.timeoutMs ?? TIMEOUT_BY_COMPLEXITY.medium,
+    progressTimeoutMs: envelope.progressTimeoutMs,
+    acceptance,
+  };
+}
+
 // =============================================================================
 // M4: Goal Auto-Closure
 // =============================================================================
@@ -308,15 +344,21 @@ export function checkAndDispatch(memoryDir: string): AutoExecuteResult {
 
   const top = actionable[0];
   const topPayload = (top.payload ?? {}) as Record<string, unknown>;
-  const verifyCommand = topPayload.verify_command as string;
+  const verifyCommand = topPayload.verify_command as string | undefined;
+  const retryEnvelope = topPayload.retry_envelope as MiddlewareFailureRetryEnvelope | undefined;
 
-  // M3: complexity routing
-  const complexity = classifyComplexity(verifyCommand);
-  if (!canAutoDispatchTask(top, complexity)) {
-    return { fired: false, reason: `task too complex for auto-dispatch: ${(top.summary ?? '').slice(0, 60)}`, complexity };
+  let delegation: DelegationTask;
+  let complexity: TaskComplexity = 'medium';
+
+  if (retryEnvelope && !verifyCommand) {
+    delegation = buildRetryEnvelopeDelegation(top, retryEnvelope);
+  } else {
+    complexity = classifyComplexity(verifyCommand ?? '');
+    if (!canAutoDispatchTask(top, complexity)) {
+      return { fired: false, reason: `task too complex for auto-dispatch: ${(top.summary ?? '').slice(0, 60)}`, complexity };
+    }
+    delegation = buildAutoDelegation(top, complexity);
   }
-
-  const delegation = buildAutoDelegation(top, complexity);
   const delegationId = delegation.id!;
 
   try {

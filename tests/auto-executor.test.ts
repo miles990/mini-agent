@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildAutoDelegation,
+  buildRetryEnvelopeDelegation,
   canAutoDispatchTask,
   classifyComplexity,
   isIssueAutopilotTask,
 } from '../src/auto-executor.js';
+import type { MiddlewareFailureRetryEnvelope } from '../src/middleware-failure-self-healing.js';
 import type { MemoryIndexEntry } from '../src/memory-index.js';
 
 describe('auto executor task routing', () => {
@@ -51,6 +53,68 @@ describe('auto executor task routing', () => {
     expect(delegation.prompt).toContain('GitHub Issue Lifecycle');
     expect(delegation.prompt).toContain('Source issue: miles990/mini-agent#83');
     expect(delegation.prompt).toContain('isolated forge worktree');
+  });
+
+  it('builds delegation from retry_envelope when verify_command is absent (budget-hold fallback)', () => {
+    const envelope: MiddlewareFailureRetryEnvelope = {
+      strategy: 'compressed-provider-resume',
+      worker: 'claude',
+      prompt: 'Summarize prior state into <=1200 chars, list the next single action.',
+      acceptance: 'Provider-bound work is resumed only after quota reset with compressed context.',
+      maxTurns: 6,
+      timeoutMs: 180_000,
+      notes: [
+        'budget exhaustion is a resource constraint',
+        'resume task must not duplicate the held provider request',
+      ],
+    };
+
+    const task = taskEntry({
+      id: 'idx-budget-hold-fallback',
+      summary: 'Create fallback for middleware task task-123 after provider budget hold',
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_bucket: 'budget-or-quota',
+        acceptance_criteria: envelope.acceptance,
+        retry_envelope: envelope,
+        priority: 1,
+      },
+    });
+
+    const delegation = buildRetryEnvelopeDelegation(task, envelope, 1778300000000);
+
+    expect(delegation).toEqual(expect.objectContaining({
+      id: 'retry-idx-budget-hold-1778300000000',
+      type: 'code',
+      originTask: task.id,
+      maxTurns: 6,
+      timeoutMs: 180_000,
+      acceptance: envelope.acceptance,
+    }));
+    expect(delegation.prompt).toContain('Strategy: compressed-provider-resume');
+    expect(delegation.prompt).toContain('Summarize prior state');
+    expect(delegation.prompt).toContain('budget exhaustion');
+  });
+
+  it('uses shell type for shell worker retry envelopes', () => {
+    const envelope: MiddlewareFailureRetryEnvelope = {
+      strategy: 'bounded-shell-probe',
+      worker: 'shell',
+      prompt: 'Break the failed work into bounded probes.',
+      acceptance: 'No single silent step may run for 1800s again.',
+      timeoutMs: 120_000,
+      progressTimeoutMs: 60_000,
+      notes: [],
+    };
+
+    const task = taskEntry({
+      id: 'idx-shell-retry',
+      payload: { retry_envelope: envelope },
+    });
+
+    const delegation = buildRetryEnvelopeDelegation(task, envelope);
+    expect(delegation.type).toBe('shell');
+    expect(delegation.progressTimeoutMs).toBe(60_000);
   });
 });
 
