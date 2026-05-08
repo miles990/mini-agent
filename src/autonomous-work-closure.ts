@@ -12,6 +12,7 @@ import { slog } from './utils.js';
 export interface ProductVerifierResult {
   product: string;
   status: 'pass' | 'fail' | 'skip';
+  targetDate?: string;
   summary: string;
   evidence: string[];
   repairTitle?: string;
@@ -41,7 +42,7 @@ export async function sweepAutonomousWorkClosure(
 ): Promise<AutonomousWorkClosureResult> {
   const repoRoot = options.repoRoot ?? process.cwd();
   const now = options.now ?? new Date();
-  const productVerifiers = [verifyAiTrendClosure(repoRoot)];
+  const productVerifiers = buildProductVerifiers(memoryDir, repoRoot);
   const completedExpressionTasks = await completeTerminalExpressionTasks(memoryDir, now);
   const pruned = await pruneNonActionableRoomTasks(memoryDir, { sources: ['room', 'room-promoted', 'ooda-expression'] });
   const deduplicatedTasks = await deduplicateActiveTasks(memoryDir, now);
@@ -63,11 +64,11 @@ export async function sweepAutonomousWorkClosure(
   return result;
 }
 
-export function verifyAiTrendClosure(repoRoot: string): ProductVerifierResult {
-  const date = todayTaipei();
+export function verifyAiTrendClosure(repoRoot: string, options: { date?: string } = {}): ProductVerifierResult {
+  const date = options.date ?? todayTaipei();
   const htmlPath = path.join(repoRoot, 'kuro-portfolio/ai-trend', `${date}.html`);
   if (!existsSync(htmlPath)) {
-    return { product: 'ai-trend', status: 'skip', summary: `AI trend page missing for ${date}`, evidence: [`missing=${htmlPath}`] };
+    return { product: 'ai-trend', targetDate: date, status: 'skip', summary: `AI trend page missing for ${date}`, evidence: [`missing=${htmlPath}`] };
   }
   const html = readFileSync(htmlPath, 'utf-8');
   const sources = [
@@ -104,13 +105,14 @@ export function verifyAiTrendClosure(repoRoot: string): ProductVerifierResult {
     }
     evidence.push(`${label}: posts=${posts.length} zh=${sourceZh}/${posts.length} rendered=${sourceRendered}/${posts.length}`);
   }
-  if (total === 0) return { product: 'ai-trend', status: 'skip', summary: 'AI trend source state has no posts to verify', evidence };
+  if (total === 0) return { product: 'ai-trend', targetDate: date, status: 'skip', summary: `AI trend source state has no posts to verify for ${date}`, evidence };
   const zhRatio = zhClaims / total;
   const renderRatio = renderedClaims / total;
   const hasXSection = html.includes('X / 社群熱議');
   const pass = zhRatio >= 0.95 && renderRatio >= 0.95 && hasXSection;
   return {
     product: 'ai-trend',
+    targetDate: date,
     status: pass ? 'pass' : 'fail',
     summary: `AI trend closure ${pass ? 'pass' : 'fail'}: zh=${zhClaims}/${total}, rendered=${renderedClaims}/${total}`,
     evidence: [...evidence, `zhRatio=${zhRatio.toFixed(3)}`, `renderRatio=${renderRatio.toFixed(3)}`, `hasXSection=${hasXSection}`],
@@ -119,6 +121,18 @@ export function verifyAiTrendClosure(repoRoot: string): ProductVerifierResult {
       verifyCommand: 'node scripts/ai-trend-enrich-fallback.mjs --source=github && node scripts/build-ai-trend-preview.mjs && pnpm vitest run tests/autonomous-work-closure.test.ts',
     }),
   };
+}
+
+function buildProductVerifiers(memoryDir: string, repoRoot: string): ProductVerifierResult[] {
+  const dates = new Set<string>([todayTaipei()]);
+  const active = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ACTIVE_STATUSES });
+  for (const task of active) {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    if (payload.origin !== 'autonomous-work-closure' || payload.product !== 'ai-trend') continue;
+    const targetDate = extractAiTrendTargetDate(task);
+    if (targetDate) dates.add(targetDate);
+  }
+  return [...dates].sort().map(date => verifyAiTrendClosure(repoRoot, { date }));
 }
 
 async function completeTerminalExpressionTasks(memoryDir: string, now: Date): Promise<number> {
@@ -245,7 +259,10 @@ async function reconcileProductRepairTasks(memoryDir: string, verifiers: Product
   for (const task of active) {
     const payload = (task.payload ?? {}) as Record<string, unknown>;
     if (payload.origin !== 'autonomous-work-closure' || typeof payload.product !== 'string') continue;
-    const verifier = byProduct.get(payload.product);
+    const targetDate = extractAiTrendTargetDate(task);
+    const verifier = targetDate
+      ? verifiers.find(v => v.product === payload.product && v.targetDate === targetDate)
+      : byProduct.get(payload.product);
     if (verifier?.status !== 'pass') continue;
     const updated = await updateMemoryIndexEntry(memoryDir, task.id, {
       status: 'completed',
@@ -253,6 +270,7 @@ async function reconcileProductRepairTasks(memoryDir: string, verifiers: Product
         ...payload,
         completed_by: 'autonomous-work-closure',
         completed_reason: verifier.summary,
+        completed_target_date: verifier.targetDate,
         completed_at: now.toISOString(),
       },
     });
@@ -276,6 +294,7 @@ async function reconcileProductRepairTasks(memoryDir: string, verifiers: Product
         origin: 'autonomous-work-closure',
         priority: 1,
         product: verifier.product,
+        target_date: verifier.targetDate,
         verify_command: verifier.verifyCommand,
         acceptance_criteria: verifier.summary,
         evidence: verifier.evidence,
@@ -285,6 +304,20 @@ async function reconcileProductRepairTasks(memoryDir: string, verifiers: Product
     queued++;
   }
   return { queued, closed };
+}
+
+function extractAiTrendTargetDate(task: MemoryIndexEntry): string | null {
+  const payload = (task.payload ?? {}) as Record<string, unknown>;
+  if (payload.product !== 'ai-trend') return null;
+  if (typeof payload.target_date === 'string' && isIsoDate(payload.target_date)) return payload.target_date;
+  const summaryMatch = String(task.summary ?? '').match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+  if (summaryMatch?.[1]) return summaryMatch[1];
+  const acceptanceMatch = String(payload.acceptance_criteria ?? '').match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+  return acceptanceMatch?.[1] ?? null;
+}
+
+function isIsoDate(value: string): boolean {
+  return /^20\d{2}-\d{2}-\d{2}$/.test(value);
 }
 
 function canonicalTaskKey(task: MemoryIndexEntry): string | null {
