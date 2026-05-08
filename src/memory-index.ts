@@ -271,8 +271,6 @@ function ensureBucketFileSync(memoryDir: string, bucket: Bucket): string {
 }
 
 function ensureIndexFileSync(memoryDir: string): string {
-  // Pre-warm both buckets so query paths have a file to read from.
-  ensureBucketFileSync(memoryDir, 'task-events');
   return ensureBucketFileSync(memoryDir, 'relations');
 }
 
