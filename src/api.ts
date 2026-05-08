@@ -182,6 +182,7 @@ import { GITHUB_AUTHORIZATION_POLICY, getGithubAuthorizationEvaluation } from '.
 import { evaluatePublicWriteIdentity } from './public-write-identity.js';
 import { selectAgentSkills, summarizeSkillHealth, suggestPatternPromotions } from './agent-skill-manager.js';
 import { summarizeSkillPromotionAutopilot } from './skill-promotion-autopilot.js';
+import { getKBStatus } from './shared-knowledge.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1060,13 +1061,9 @@ export function createApi(port = 3001): express.Express {
   app.get('/status', (_req: Request, res: Response) => {
     const laneStatus = getLaneStatus();
 
-    // Knowledge status — sync getter, no await
-    let knowledge: Record<string, unknown> | null = null;
-    try {
-      // Dynamic import is cached by Node after first load — negligible cost
-      const mod = require('./shared-knowledge.js') as { getKBStatus?: () => Record<string, unknown> };
-      if (mod.getKBStatus) knowledge = mod.getKBStatus();
-    } catch { /* not available */ }
+    // Knowledge status — sync getter, no await. Static ESM import keeps /status
+    // observable; using require() here silently returned null in ESM runtime.
+    const knowledge = getKBStatus();
 
     res.json({
       instance: getCurrentInstanceId(),
