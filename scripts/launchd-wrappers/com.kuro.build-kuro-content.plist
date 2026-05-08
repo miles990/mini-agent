@@ -16,9 +16,9 @@
         <integer>25</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Users/user/Workspace/mini-agent/memory/logs/build-kuro-content-launchd.log</string>
+    <string>/Users/user/Workspace/mini-agent/memory/logs/kuro-content-cron.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/user/Workspace/mini-agent/memory/logs/build-kuro-content-launchd.log</string>
+    <string>/Users/user/Workspace/mini-agent/memory/logs/kuro-content-cron.log</string>
     <key>WorkingDirectory</key>
     <string>/Users/user/Workspace/mini-agent</string>
 </dict>
