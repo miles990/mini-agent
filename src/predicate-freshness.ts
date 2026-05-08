@@ -21,10 +21,12 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
-// NB: avoid importing from correction-gate.ts — it imports this module
-// (`reverifyPredicate`), so a back-import would form a cycle. The two filter
-// helpers below are duplicated from correction-gate.ts; if they drift, both
-// snapshot and live re-check should be updated together.
+import { evaluateMemoryStateTruth } from './external-memory-health.js';
+// NB: avoid importing from correction-gate.ts — it would form an import cycle
+// because correction-gate.ts imports from modules that could circle back here.
+// The ship-truth git check below is a standalone implementation using
+// execFileAsync directly; it mirrors `readShipTruth` in correction-gate.ts.
+// If the ship-truth logic drifts, both should be updated together.
 
 const execFileAsync = promisify(execFile);
 
@@ -57,10 +59,10 @@ export async function reverifyPredicate(
       return checkLocalCommitNotPushed(ctx);
     case 'low-responsiveness':
       return checkLowResponsiveness(ctx);
-    // Scaffolded — return null (fail-open) until each is wired in follow-ups.
     case 'memory-state-truth':
+      return checkMemoryStateTruth(ctx);
     case 'ship-truth':
-      return null;
+      return checkShipTruth(ctx);
     default:
       return null;
   }
@@ -139,6 +141,63 @@ async function checkLowResponsiveness(ctx: FreshnessContext): Promise<boolean | 
     return responsiveness < 0.5;
   } catch {
     // Memory-index unavailable / corrupt — fail-open so snapshot wins.
+    return null;
+  }
+}
+
+/**
+ * Source-of-truth: re-evaluate `evaluateMemoryStateTruth` against the live
+ * memory directory. Returns true (stale) when the status is `blocked` or
+ * `warn` — meaning malformed JSONL files or unsnapshotted git changes exist.
+ * Returns false (fresh) when status is `ok`. Fail-open (null) on unexpected
+ * error so the snapshot decision wins rather than silently dropping a real
+ * correction.
+ *
+ * Wired in issue #323 as Layer 2 follow-up to #306.
+ */
+async function checkMemoryStateTruth(ctx: FreshnessContext): Promise<boolean | null> {
+  try {
+    const result = evaluateMemoryStateTruth(ctx.memoryDir, ctx.repoRoot);
+    return result.status !== 'ok';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Source-of-truth: `git status --porcelain=v2 --branch` against the runtime
+ * checkout. Returns true (stale) when ahead > 0 (pending-push), behind > 0
+ * (behind/diverged), or there are dirty tracked files. Returns false (fresh)
+ * when clean and in sync. Fail-open (null) when git errors or no repo exists.
+ *
+ * This mirrors `readShipTruth` in correction-gate.ts without importing it
+ * (to avoid a potential import cycle). If the logic drifts, both should be
+ * updated together.
+ *
+ * Wired in issue #323 as Layer 2 follow-up to #306.
+ */
+async function checkShipTruth(ctx: FreshnessContext): Promise<boolean | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['status', '--porcelain=v2', '--branch'],
+      { cwd: ctx.repoRoot, timeout: 5000 },
+    );
+    let ahead = 0;
+    let behind = 0;
+    let dirty = false;
+    for (const line of stdout.split('\n')) {
+      if (line.startsWith('# branch.ab ')) {
+        const aheadMatch = line.match(/\+(\d+)/);
+        const behindMatch = line.match(/-(\d+)/);
+        ahead = aheadMatch ? Number(aheadMatch[1]) : 0;
+        behind = behindMatch ? Number(behindMatch[1]) : 0;
+      } else if (line && !line.startsWith('#')) {
+        dirty = true;
+      }
+    }
+    return ahead > 0 || behind > 0 || dirty;
+  } catch {
     return null;
   }
 }

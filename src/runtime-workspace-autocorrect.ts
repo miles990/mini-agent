@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { assertKuroGithubIdentity, kuroGithubCliEnv, kuroGitEnv } from './github-identity.js';
+import { assertKuroGithubIdentity, getKuroGithubToken, kuroGithubCliEnv, kuroGitEnv } from './github-identity.js';
 import { isSafeRuntimeBranch, refreshGitIndex } from './workspace-isolation.js';
 
 export type RuntimeAutocorrectStatus =
@@ -107,7 +107,7 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
         // (cherry-pick creates new commits with different hashes)
         ensureWorktree(root, worktree, branch, snapshot.headSha);
       }
-      git(worktree, ['push', '-u', 'origin', branch], kuroGitEnv());
+      git(worktree, ['push', '-u', 'origin', branch], getKuroGithubToken() ? kuroGitEnv() : undefined);
     }
     let prUrl: string | undefined;
     if (opts.createPr ?? true) {

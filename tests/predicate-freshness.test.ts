@@ -1,19 +1,18 @@
 /**
- * Predicate freshness re-verification — GitHub issue #306 (Layer 1)
+ * Predicate freshness re-verification — GitHub issue #306 (Layer 1 + Layer 2)
  *
  * Verifies that `reverifyPredicate` returns:
  *   - true  when the underlying predicate is still stale (dispatch should proceed)
  *   - false when the predicate is now clean (dispatch should be skipped)
  *   - null  when no live source-of-truth is wired (fail-open: snapshot wins)
  *
- * The two cheap predicates wired in Layer 1 are:
+ * The predicates wired in Layer 1 are:
  *   - `dirty-runtime-workspace` (git status --porcelain)
  *   - `local-commit-not-pushed` (git rev-list --count @{u}..HEAD)
  *
- * Remaining predicates (`low-responsiveness`, `memory-state-truth`, `ship-truth`)
- * are scaffolded — they MUST return null until their checks land in follow-up
- * commits, so the scheduler keeps the snapshot decision rather than silently
- * dropping a real correction.
+ * The predicates wired in Layer 2 (issue #323) are:
+ *   - `memory-state-truth` (evaluateMemoryStateTruth source-of-truth)
+ *   - `ship-truth` (git status --porcelain=v2 --branch ahead/behind/dirty check)
  */
 
 import { execFileSync } from 'node:child_process';
@@ -112,19 +111,74 @@ describe('issue #306 — reverifyPredicate', () => {
       expect(result).toBe(false);
     });
 
-    it('memory-state-truth returns null', async () => {
-      const result = await reverifyPredicate('memory-state-truth', { repoRoot, memoryDir });
-      expect(result).toBeNull();
-    });
-
-    it('ship-truth returns null', async () => {
-      const result = await reverifyPredicate('ship-truth', { repoRoot, memoryDir });
-      expect(result).toBeNull();
-    });
-
     it('unknown predicate type returns null', async () => {
       const result = await reverifyPredicate('something-undeclared', { repoRoot, memoryDir });
       expect(result).toBeNull();
+    });
+  });
+
+  describe('memory-state-truth (issue #323 Layer 2)', () => {
+    it('returns false when memory dir has no malformed JSONL and no .git (clean state)', async () => {
+      // memoryDir = repoRoot which has no critical JSONL files and no heartbeat → ok
+      const result = await reverifyPredicate('memory-state-truth', { repoRoot, memoryDir });
+      expect(result).toBe(false);
+    });
+
+    it('returns true when a critical JSONL file is malformed', async () => {
+      const fs = await import('node:fs');
+      const stateDir = path.join(memoryDir, 'state');
+      fs.mkdirSync(stateDir, { recursive: true });
+      // Write malformed JSONL (invalid JSON) to a critical path
+      fs.writeFileSync(path.join(stateDir, 'task-events.jsonl'), 'not-valid-json\n', 'utf-8');
+      const result = await reverifyPredicate('memory-state-truth', { repoRoot, memoryDir });
+      expect(result).toBe(true);
+    });
+
+    it('returns boolean (not null) so phantom dispatches are skipped', async () => {
+      const result = await reverifyPredicate('memory-state-truth', { repoRoot, memoryDir });
+      expect(result).not.toBeNull();
+      expect(typeof result).toBe('boolean');
+    });
+  });
+
+  describe('ship-truth (issue #323 Layer 2)', () => {
+    it('returns false when repo is clean and in sync with upstream', async () => {
+      const bare = mkdtempSync(path.join(os.tmpdir(), 'ship-truth-upstream-'));
+      try {
+        execFileSync('git', ['init', '--bare', '-q', '-b', 'main', bare], { stdio: 'pipe' });
+        git('remote', 'add', 'origin', bare);
+        git('push', '-q', '-u', 'origin', 'main');
+        const result = await reverifyPredicate('ship-truth', { repoRoot, memoryDir });
+        expect(result).toBe(false);
+      } finally {
+        rmSync(bare, { recursive: true, force: true });
+      }
+    });
+
+    it('returns true when local has commits the upstream lacks (pending-push)', async () => {
+      const bare = mkdtempSync(path.join(os.tmpdir(), 'ship-truth-ahead-'));
+      try {
+        execFileSync('git', ['init', '--bare', '-q', '-b', 'main', bare], { stdio: 'pipe' });
+        git('remote', 'add', 'origin', bare);
+        git('push', '-q', '-u', 'origin', 'main');
+        git('commit', '--allow-empty', '-q', '-m', 'local-only-ship');
+        const result = await reverifyPredicate('ship-truth', { repoRoot, memoryDir });
+        expect(result).toBe(true);
+      } finally {
+        rmSync(bare, { recursive: true, force: true });
+      }
+    });
+
+    it('returns true when working tree is dirty (uncommitted changes)', async () => {
+      writeFileSync(path.join(repoRoot, 'ship-dirty.txt'), 'uncommitted', 'utf-8');
+      const result = await reverifyPredicate('ship-truth', { repoRoot, memoryDir });
+      expect(result).toBe(true);
+    });
+
+    it('returns boolean (not null) so phantom dispatches are skipped', async () => {
+      const result = await reverifyPredicate('ship-truth', { repoRoot, memoryDir });
+      expect(result).not.toBeNull();
+      expect(typeof result).toBe('boolean');
     });
   });
 });
