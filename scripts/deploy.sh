@@ -127,6 +127,7 @@ run_workspace_janitor() {
     log "Running workspace janitor..."
     (
         pnpm exec tsx scripts/workspace-janitor.ts --apply --local-only >> "$LOG_FILE" 2>&1
+        pnpm exec tsx scripts/stash-governance.ts --apply >> "$LOG_FILE" 2>&1
     ) &
     JANITOR_PID=$!
     for _ in $(seq 1 "$WORKSPACE_JANITOR_TIMEOUT_SECONDS"); do

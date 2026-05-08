@@ -17,7 +17,7 @@ export interface ConflictAssessment {
 }
 
 const APPEND_ONLY_MEMORY_RE = /^memory\/(?:inner-notes\.md|handoffs\/active\.md|topics\/.+\.md|threads\/.+\.md|research\/.+\.md)$/;
-const GENERATED_RE = /^(?:dist\/|memory\/topics\/\.summaries\/|memory\/index\/.+\.jsonl$)/;
+const GENERATED_RE = /^(?:dist\/|memory\/topics\/\.summaries\/|memory\/index\/.+\.jsonl$|kuro-portfolio\/ai-trend\/(?:index|preview|\d{4}-\d{2}-\d{2}|archive|graph)\.html$|kuro-portfolio\/ai-trend\/data\/.+\.json$)/;
 const CODE_RE = /^(?:src\/|tests\/|scripts\/|plugins\/|\.githooks\/).+/;
 const CONFIG_RE = /^(?:package\.json|pnpm-lock\.yaml|tsconfig\.json|agent-compose\.yaml|\.env(?:\..*)?)$/;
 

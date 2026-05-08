@@ -35,6 +35,7 @@ import { getFeature, setEnabled } from './features.js';
 import { pruneReviewBacklog } from './review-backlog-janitor.js';
 import { sweepKgDiscussionLifecycle } from './kg-discussion-janitor.js';
 import { assertKuroGithubIdentity, kuroGitEnv } from './github-identity.js';
+import { governGitStashes } from './stash-governance.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -394,7 +395,18 @@ export async function autoPushIfAhead(): Promise<void> {
     } catch {
       // Rebase failed — abort and skip this push (next cycle will retry)
       try { await execFileAsync('git', ['rebase', '--abort'], { cwd, timeout: 5000 }); } catch { /* already clean */ }
-      if (stashed) { try { await execFileAsync('git', ['stash', 'pop'], { cwd, timeout: 10000 }); } catch { /* conflict — stash stays */ } }
+      if (stashed) {
+        try {
+          await execFileAsync('git', ['stash', 'pop'], { cwd, timeout: 10000 });
+        } catch {
+          await governGitStashes(getMemoryRootDir(), cwd, {
+            createTasks: true,
+            maxCases: 3,
+            record: true,
+            reason: 'auto-push-rebase-failed-stash-conflict',
+          });
+        }
+      }
       slog('HOUSEKEEPING', 'auto-push skipped: rebase failed, will retry next cycle');
       return;
     }
@@ -405,6 +417,12 @@ export async function autoPushIfAhead(): Promise<void> {
         await execFileAsync('git', ['stash', 'pop'], { cwd, encoding: 'utf-8', timeout: 10000 });
       } catch {
         slog('HOUSEKEEPING', 'stash pop had conflicts — changes preserved in stash');
+        await governGitStashes(getMemoryRootDir(), cwd, {
+          createTasks: true,
+          maxCases: 3,
+          record: true,
+          reason: 'auto-push-stash-pop-conflict',
+        });
       }
     }
 
