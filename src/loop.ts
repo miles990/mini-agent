@@ -38,9 +38,9 @@ import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis, cleanStaleEntries } from './memory-index.js';
+import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, updateMemoryIndexEntry, incrementTaskStaleness, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis, cleanStaleEntries } from './memory-index.js';
 import { reverifyPredicate, type PredicateType } from './predicate-freshness.js';
-import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, recordTaskTerminalSignal, type IncomingEvent as SchedulerEvent } from './scheduler.js';
+import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, recordTaskTerminalSignal, resetCurrentTask, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
 import { onSchedulerTick } from './reactive-policies.js';
@@ -139,6 +139,10 @@ import {
   shouldNotifyAutonomyClosureBlock,
   writeAutonomyClosureNotificationSignature,
 } from './autonomy-closure-notifier.js';
+import {
+  buildObservationHoldPayload,
+  shouldUseCodeProbeForObservation,
+} from './observation-efficiency.js';
 
 // =============================================================================
 // Types
@@ -2459,7 +2463,38 @@ export class AgentLoop {
       } catch (e) { slog('WARN', `self-research autopilot failed: ${e}`); }
 
       advanceTick();
-      const schedulerDecision = schedulerPick(memDir, schedulerEvents);
+      let schedulerDecision = schedulerPick(memDir, schedulerEvents);
+      const selectedTask = schedulerDecision.taskId
+        ? queryMemoryIndexSync(memDir, {
+          type: ['task'],
+          status: ['pending', 'in_progress', 'needs-decomposition', 'blocked'],
+        }).find(entry => entry.id === schedulerDecision.taskId)
+        : undefined;
+      const observationDecision = shouldUseCodeProbeForObservation({
+        decision: schedulerDecision,
+        currentTask: selectedTask,
+        allTasks: queryMemoryIndexSync(memDir, { type: ['task'] }),
+        events: schedulerEvents,
+        lastAction: this.lastAction,
+        hasPendingForegroundDelegations: getPendingForegroundDelegations().length > 0,
+      });
+      if (selectedTask && observationDecision.action === 'hold-and-reallocate') {
+        await updateMemoryIndexEntry(memDir, selectedTask.id, {
+          status: 'hold',
+          payload: buildObservationHoldPayload(selectedTask, observationDecision),
+        });
+        resetCurrentTask();
+        slog('OBSERVE', `parked ${selectedTask.id.slice(0, 12)}: ${observationDecision.reason}`);
+        writeActivity({
+          lane: 'ooda',
+          summary: `Observation efficiency hold: ${selectedTask.summary}`,
+          trigger: observationDecision.reason,
+          tags: ['OBSERVATION-HOLD', 'REALLOCATE'],
+        });
+        // This is not "do less"; it parks confirmed waits with a code recheck and spends
+        // the same LLM budget on the next schedulable task.
+        schedulerDecision = schedulerPick(memDir, schedulerEvents);
+      }
 
       // Handle suspend if scheduler preempted a task
       if (schedulerDecision.suspended) {

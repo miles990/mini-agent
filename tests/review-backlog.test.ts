@@ -53,7 +53,7 @@ describe('review backlog prompt feed', () => {
   });
 
   it('compacts the backlog file to the same bounded actionable set', () => {
-    const now = Date.parse('2026-05-07T12:00:00.000Z');
+    const now = Date.now();
     const entries = Array.from({ length: 14 }, (_, index) => ({
       id: `delegation-${index}`,
       type: 'delegation',

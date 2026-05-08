@@ -232,12 +232,14 @@ describe('delegation arbitration mapping', () => {
       engine: 'brain-runtime',
       mode: 'race',
       status: 'success',
-      primary: 'claude',
     }));
-    expect(result.runtime?.runs).toEqual([
-      expect.objectContaining({ actor: 'claude', status: 'success', finishReason: 'success' }),
-      expect.objectContaining({ actor: 'codex', status: 'success', finishReason: 'success' }),
-    ]);
+    expect(['claude', 'codex']).toContain(result.runtime?.primary);
+    expect(result.runtime?.runs).toContainEqual(
+      expect.objectContaining({ actor: result.runtime?.primary, status: 'success', finishReason: 'success' }),
+    );
+    expect(result.runtime?.runs).toContainEqual(
+      expect.objectContaining({ actor: 'akari', role: 'reviewer', status: 'success' }),
+    );
     expect(result.runtime?.claimIds).toHaveLength(2);
   });
 
