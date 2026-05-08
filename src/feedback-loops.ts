@@ -250,7 +250,9 @@ export function extractErrorSubtype(errorMsg: string): string {
       // Separating gives this class its own error-patterns key so recovery (e.g. lower
       // pre-flight drain threshold from 35K to 20K conditional on >=300s history) can be tuned
       // independently without affecting #77 baseline retry behavior.
-      if (promptChars >= 20_000 && totalMs >= 300_000) return 'silent_exit_void_midprompt';
+      // Issue #368 (Step A): lower threshold 300_000→200_000 — 282K plain silent_exit_void
+      // was 18ms short of the 300s gate; 200s catches the 233s band without overlap with #77.
+      if (promptChars >= 20_000 && totalMs >= 200_000) return 'silent_exit_void_midprompt';
       return 'silent_exit_void';
     }
     return 'silent_exit';
