@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { getKuroGithubToken } from './github-identity.js';
 
@@ -39,9 +39,20 @@ export interface GithubAuthorizationEvaluation {
   actualScopes: string[];
   missingRequiredScopes: string[];
   missingApprovalRequiredScopes: string[];
+  missingRepositoryPermissions: string[];
   forbiddenGrantedScopes: string[];
   authorizationRequests: AuthorizationRequest[];
   evidence: string[];
+  repository?: GithubRepositoryAuthorizationProbe;
+}
+
+export interface GithubRepositoryAuthorizationProbe {
+  fullName: string;
+  admin: boolean | null;
+  push: boolean | null;
+  webhookAccess: 'ok' | 'denied' | 'unknown';
+  roleName?: string | null;
+  error?: string;
 }
 
 export const GITHUB_AUTHORIZATION_POLICY: GithubAuthorizationPolicy = {
@@ -151,6 +162,7 @@ export function evaluateGithubAuthorizationScopes(
     actualScopes: [...normalized].sort(),
     missingRequiredScopes,
     missingApprovalRequiredScopes,
+    missingRepositoryPermissions: [],
     forbiddenGrantedScopes,
     authorizationRequests,
     evidence: [
@@ -165,7 +177,11 @@ export function evaluateGithubAuthorizationScopes(
 export async function getGithubAuthorizationEvaluation(env: NodeJS.ProcessEnv = process.env): Promise<GithubAuthorizationEvaluation> {
   try {
     const output = await getGithubAuthStatusOutput(env);
-    return evaluateGithubAuthorizationScopes(parseGithubAuthStatusScopes(output));
+    const evaluation = evaluateGithubAuthorizationScopes(parseGithubAuthStatusScopes(output));
+    const repo = inferGithubRepoFullName(env);
+    if (!repo) return evaluation;
+    const probe = await probeGithubRepositoryAuthorization(repo, env);
+    return mergeRepositoryProbe(evaluation, probe);
   } catch (error) {
     return {
       service: 'github',
@@ -173,6 +189,7 @@ export async function getGithubAuthorizationEvaluation(env: NodeJS.ProcessEnv = 
       actualScopes: [],
       missingRequiredScopes: GITHUB_AUTHORIZATION_POLICY.requiredScopes,
       missingApprovalRequiredScopes: GITHUB_AUTHORIZATION_POLICY.approvalRequiredScopes,
+      missingRepositoryPermissions: ['repo:webhook-admin'],
       forbiddenGrantedScopes: [],
       authorizationRequests: [
         {
@@ -215,21 +232,136 @@ export function buildAuthorizationGovernancePrompt(evaluation: GithubAuthorizati
     `GitHub scopes: ${evaluation.actualScopes.join(', ') || 'none'}`,
     `Missing baseline scopes: ${evaluation.missingRequiredScopes.join(', ') || 'none'}`,
     `Missing owner-approved scopes: ${evaluation.missingApprovalRequiredScopes.join(', ') || 'none'}`,
+    `Missing repository permissions: ${evaluation.missingRepositoryPermissions.join(', ') || 'none'}`,
     `Forbidden granted scopes: ${evaluation.forbiddenGrantedScopes.join(', ') || 'none'}`,
+    `Repository probe: ${evaluation.repository ? `${evaluation.repository.fullName} admin=${evaluation.repository.admin} push=${evaluation.repository.push} webhookAccess=${evaluation.repository.webhookAccess}` : 'none'}`,
     'Authorization requests:',
     requests,
   ].join('\n');
 }
 
+function mergeRepositoryProbe(
+  evaluation: GithubAuthorizationEvaluation,
+  repository: GithubRepositoryAuthorizationProbe,
+): GithubAuthorizationEvaluation {
+  const missingRepositoryPermissions = [...evaluation.missingRepositoryPermissions];
+  const authorizationRequests = [...evaluation.authorizationRequests];
+  const evidence = [...evaluation.evidence];
+
+  evidence.push(
+    `repo=${repository.fullName}`,
+    `repoAdmin=${String(repository.admin)}`,
+    `repoPush=${String(repository.push)}`,
+    `webhookAccess=${repository.webhookAccess}`,
+  );
+
+  if (repository.webhookAccess !== 'ok') {
+    missingRepositoryPermissions.push('repo:webhook-admin');
+    authorizationRequests.push({
+      service: 'github',
+      kind: 'policy-approval',
+      operation: 'repo.webhook_authority',
+      reason: `Kuro token scopes are not enough; ${repository.fullName} does not allow this identity to list/manage repository webhooks.`,
+      fallback: 'Use owner account for one-time webhook setup, or provision a GitHub App/fine-grained credential with Webhooks read/write and no delete_repo authority.',
+    });
+  }
+
+  return {
+    ...evaluation,
+    status: evaluation.status === 'unsafe_scope_granted'
+      ? evaluation.status
+      : missingRepositoryPermissions.length > 0 || evaluation.status === 'needs_authorization'
+        ? 'needs_authorization'
+        : evaluation.status,
+    missingRepositoryPermissions: [...new Set(missingRepositoryPermissions)],
+    authorizationRequests,
+    evidence,
+    repository,
+  };
+}
+
+async function probeGithubRepositoryAuthorization(
+  fullName: string,
+  env: NodeJS.ProcessEnv,
+): Promise<GithubRepositoryAuthorizationProbe> {
+  const ghEnv = githubEnv(env);
+  let admin: boolean | null = null;
+  let push: boolean | null = null;
+  let roleName: string | null | undefined;
+  try {
+    const { stdout } = await execFileAsync('gh', ['api', `/repos/${fullName}`], {
+      encoding: 'utf-8',
+      timeout: 10_000,
+      env: ghEnv,
+    });
+    const parsed = JSON.parse(stdout) as { permissions?: { admin?: boolean; push?: boolean }; role_name?: string | null };
+    admin = parsed.permissions?.admin ?? null;
+    push = parsed.permissions?.push ?? null;
+    roleName = parsed.role_name;
+  } catch (error) {
+    return {
+      fullName,
+      admin,
+      push,
+      webhookAccess: 'unknown',
+      roleName,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  try {
+    await execFileAsync('gh', ['api', `/repos/${fullName}/hooks`], {
+      encoding: 'utf-8',
+      timeout: 10_000,
+      env: ghEnv,
+    });
+    return { fullName, admin, push, webhookAccess: 'ok', roleName };
+  } catch (error) {
+    return {
+      fullName,
+      admin,
+      push,
+      webhookAccess: 'denied',
+      roleName,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 async function getGithubAuthStatusOutput(env: NodeJS.ProcessEnv): Promise<string> {
-  const token = getKuroGithubToken(env);
-  const ghEnv = token ? { ...env, GH_TOKEN: token, GITHUB_TOKEN: token } : env;
   const { stdout, stderr } = await execFileAsync('gh', ['auth', 'status'], {
     encoding: 'utf-8',
     timeout: 10_000,
-    env: ghEnv,
+    env: githubEnv(env),
   });
   return `${stdout}\n${stderr}`;
+}
+
+function githubEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const token = getKuroGithubToken(env);
+  return token ? { ...env, GH_TOKEN: token, GITHUB_TOKEN: token } : env;
+}
+
+function inferGithubRepoFullName(env: NodeJS.ProcessEnv): string | undefined {
+  const explicit = env.KURO_GITHUB_REPO || env.GITHUB_REPOSITORY;
+  if (explicit && /^[^/\s]+\/[^/\s]+$/.test(explicit)) return explicit;
+  try {
+    const stdout = execFileSync('git', ['config', '--get', 'remote.origin.url'], {
+      encoding: 'utf-8',
+      timeout: 5000,
+    });
+    return parseGithubRemote(stdout.trim());
+  } catch {
+    return undefined;
+  }
+}
+
+function parseGithubRemote(remote: string): string | undefined {
+  const ssh = remote.match(/^git@github\.com:([^/]+\/[^/]+?)(?:\.git)?$/);
+  if (ssh) return ssh[1];
+  const https = remote.match(/^https:\/\/github\.com\/([^/]+\/[^/]+?)(?:\.git)?$/);
+  if (https) return https[1];
+  return undefined;
 }
 
 function normalizeScopes(scopes: string[]): Set<string> {
