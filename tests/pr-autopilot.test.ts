@@ -6,6 +6,7 @@ import {
   appendStaleDraftPrHandoffs,
   evaluatePrClosureGaps,
   extractClosingIssueRefs,
+  extractSupersededIssueRefs,
   findApprovedBlockedPrs,
   findUntrackedPrs,
   parseTrackedPrNumbers,
@@ -97,6 +98,10 @@ describe('PR autopilot closure', () => {
     expect(extractClosingIssueRefs('Refs #196\nCloses #200\nfixes #201\nrelated #202')).toEqual([200, 201]);
   });
 
+  it('extracts forge task issue refs for conflict superseded closure', () => {
+    expect(extractSupersededIssueRefs('[forge] ## Task: P2 GitHub issue #323: predicate-freshness')).toEqual([323]);
+  });
+
   it('auto-closes only low-risk superseded PRs', () => {
     expect(shouldAutoCloseSupersededPr(
       pr({ number: 217, title: 'feat: old fix', createdAt: '2026-05-07T02:24:00.000Z' }),
@@ -108,6 +113,22 @@ describe('PR autopilot closure', () => {
       pr({ number: 218, title: 'feat: active fix', createdAt: '2026-05-07T02:24:00.000Z' }),
       [200],
       [{ number: 200, state: 'OPEN', closedAt: null }],
+    )).toBe(false);
+  });
+
+  it('requires a blocked mergeable state for inferred issue refs', () => {
+    const issue = { number: 323, state: 'CLOSED', closedAt: '2026-05-08T00:41:36.000Z' };
+    expect(shouldAutoCloseSupersededPr(
+      pr({ number: 328, title: '[forge] issue #323', createdAt: '2026-05-08T00:39:30.000Z', mergeable: 'CONFLICTING' }),
+      [323],
+      [issue],
+      { requireBlockedMergeable: true },
+    )).toBe(true);
+    expect(shouldAutoCloseSupersededPr(
+      pr({ number: 329, title: '[forge] issue #323', createdAt: '2026-05-08T00:39:30.000Z', mergeable: 'MERGEABLE' }),
+      [323],
+      [issue],
+      { requireBlockedMergeable: true },
     )).toBe(false);
   });
 });

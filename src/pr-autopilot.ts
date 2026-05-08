@@ -34,6 +34,7 @@ export interface IssueStateSummary {
 }
 
 const CLOSING_REF_RE = /(?:^|[\s(])(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/gi;
+const FORGE_ISSUE_REF_RE = /\b(?:github\s+)?issue\s+#?(\d+)\b/gi;
 
 export function getOpenPrSnapshotPath(memoryDir: string): string {
   return path.join(memoryDir, 'state', OPEN_PRS_SNAPSHOT_FILE);
@@ -172,15 +173,24 @@ export function extractClosingIssueRefs(text: string): number[] {
   return [...refs].sort((a, b) => a - b);
 }
 
+export function extractSupersededIssueRefs(text: string): number[] {
+  const refs = new Set(extractClosingIssueRefs(text));
+  let match: RegExpExecArray | null;
+  while ((match = FORGE_ISSUE_REF_RE.exec(text)) !== null) refs.add(Number(match[1]));
+  return [...refs].sort((a, b) => a - b);
+}
+
 export function shouldAutoCloseSupersededPr(
-  pr: Pick<OpenPrSnapshotEntry, 'createdAt' | 'isDraft' | 'labels'>,
+  pr: Pick<OpenPrSnapshotEntry, 'createdAt' | 'isDraft' | 'labels' | 'mergeable'>,
   closingRefs: number[],
   issues: IssueStateSummary[],
+  options: { requireBlockedMergeable?: boolean } = {},
 ): boolean {
   if (pr.isDraft) return false;
   const labels = new Set((pr.labels ?? []).map(label => label.toLowerCase()));
   if (labels.has('hold')) return false;
   if (closingRefs.length === 0 || issues.length !== closingRefs.length) return false;
+  if (options.requireBlockedMergeable && !isBlockedMergeable(pr.mergeable)) return false;
 
   const prCreatedAt = Date.parse(pr.createdAt ?? '');
   if (!Number.isFinite(prCreatedAt)) return false;
