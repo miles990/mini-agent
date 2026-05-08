@@ -329,6 +329,62 @@ describe('correction gate', () => {
     expect(snapshot.guidance).toEqual([]);
   });
 
+  it('does not keep low-output-quality open when the latest pulse has visible output momentum', () => {
+    const previousMemoryDir = process.env.MINI_AGENT_MEMORY_DIR;
+    process.env.MINI_AGENT_MEMORY_DIR = tmpDir;
+    mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
+    writeFileSync(path.join(tmpDir, 'state/pulse-state.json'), JSON.stringify({
+      cycleCount: 8,
+      recentOutputFlags: [
+        true, false, true, false, false,
+        false, false, true, false, false,
+        false, false, false, true, false,
+        false, false, false, false, true,
+      ],
+      recentDecisionScores: [],
+      signalHistory: {},
+      errorPatterns: {},
+    }), 'utf-8');
+
+    try {
+      const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+      expect(snapshot.reasons.map(r => r.type)).not.toContain('low-output-quality');
+      expect(snapshot.needsCorrection).toBe(false);
+    } finally {
+      if (previousMemoryDir === undefined) delete process.env.MINI_AGENT_MEMORY_DIR;
+      else process.env.MINI_AGENT_MEMORY_DIR = previousMemoryDir;
+    }
+  });
+
+  it('still flags low-output-quality when low output has no current momentum', () => {
+    const previousMemoryDir = process.env.MINI_AGENT_MEMORY_DIR;
+    process.env.MINI_AGENT_MEMORY_DIR = tmpDir;
+    mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
+    writeFileSync(path.join(tmpDir, 'state/pulse-state.json'), JSON.stringify({
+      cycleCount: 8,
+      recentOutputFlags: [
+        true, false, true, false, false,
+        false, false, true, false, false,
+        false, false, false, true, false,
+        false, false, false, false, false,
+      ],
+      recentDecisionScores: [],
+      signalHistory: {},
+      errorPatterns: {},
+    }), 'utf-8');
+
+    try {
+      const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+      expect(snapshot.reasons.map(r => r.type)).toContain('low-output-quality');
+      expect(snapshot.needsCorrection).toBe(true);
+    } finally {
+      if (previousMemoryDir === undefined) delete process.env.MINI_AGENT_MEMORY_DIR;
+      else process.env.MINI_AGENT_MEMORY_DIR = previousMemoryDir;
+    }
+  });
+
   it('acknowledges an active low-responsiveness hold instead of emitting a correction reason', async () => {
     await appendMemoryIndexEntry(tmpDir, {
       type: 'task',

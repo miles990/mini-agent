@@ -110,7 +110,7 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
     }
   }
 
-  if (hasPulseHistory && quality < 0.4) {
+  if (hasPulseHistory && quality < 0.4 && signals.momentumStreak === 0) {
     const message = `產出品質低 (${Math.round(quality * 100)}%) — 多數 cycle 無 visible output。交付成品，不要只思考。`;
     reasons.push({ type: 'low-output-quality', severity: 'medium', message });
     guidance.push(message);
