@@ -1,6 +1,7 @@
 #!/bin/zsh
 set -e
 cd /Users/user/Workspace/mini-agent
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 
 # Idempotency guard: skip if today's file already exists with content
 TODAY=$(date +%Y-%m-%d)
