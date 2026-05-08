@@ -129,6 +129,14 @@ for (const post of toEnrich) {
   }
 }
 
+if (ok === 0 && fail > 0) {
+  // Total failure: every post failed the claude-cli call. Exit non-zero so the
+  // launchd wrapper's diagnostic echo fires and the log clearly shows the failure.
+  // The fallback enricher will still run because the wrapper handles this exit code.
+  console.error(`[enrich] total failure: source=${source} ok=0 fail=${fail} — exiting 1 so wrapper triggers fallback`);
+  process.exit(1);
+}
+
 doc.enriched_at = new Date().toISOString();
 doc.enrichment = { ok, fail, model: 'haiku', via: 'claude-cli', source };
 writeFileSync(inFile, JSON.stringify(doc, null, 2));
