@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -146,5 +146,34 @@ describe('delegation failure guard', () => {
 
     expect(second.record.status).toBe('open');
     expect(second.record.frequency).toBe(2);
+    expect(second.record.resolution).toBeUndefined();
+    expect(second.record.resolvedAt).toBeUndefined();
+  });
+
+  it('normalizes historical records that are open but already resolved', () => {
+    const filePath = getDelegationFailureGuardPath(tmpDir);
+    mkdirSync(path.dirname(filePath), { recursive: true });
+    writeFileSync(filePath, JSON.stringify({
+      signature: 'sig-open-resolved',
+      taskId: 'del-1',
+      taskType: 'code',
+      prompt: 'historical failure',
+      error: 'historical error',
+      frequency: 9,
+      status: 'open',
+      firstSeen: '2026-05-05T00:00:00.000Z',
+      lastSeen: '2026-05-08T00:00:00.000Z',
+      resolution: 'self-healing sweep closed it',
+      resolvedAt: '2026-05-08T00:01:00.000Z',
+    }) + '\n', 'utf-8');
+
+    const [record] = readDelegationFailureRecordsSync(tmpDir);
+
+    expect(record).toEqual(expect.objectContaining({
+      signature: 'sig-open-resolved',
+      status: 'resolved',
+      resolvedAt: '2026-05-08T00:01:00.000Z',
+    }));
+    expect(isActionableDelegationFailure(record!)).toBe(false);
   });
 });
