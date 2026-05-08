@@ -749,14 +749,17 @@ export async function runHousekeeping(): Promise<void> {
     slog('MEMORY-SNAPSHOT', `snapshot skipped: ${err instanceof Error ? err.message : String(err)}`);
   });
 
+  // User-visible delegation failures should converge quickly; the sweep is
+  // idempotent for already-classified failures and only writes on transitions.
+  await sweepMiddlewareFailures(getMemoryRootDir(), { workdir: process.cwd() }).catch(err => {
+    slog('MIDDLEWARE-SELF-HEAL', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
+  });
+
   // KG auto-ingest: check every 5 cycles if enough new writes have accumulated
   if (cycleCounter % 5 === 0) {
     dispatchKGIngestIfNeeded();
     await reconcileMiddlewareCommitmentsSafe().catch(err => {
       slog('MIDDLEWARE-TRUTH', `reconcile skipped: ${err instanceof Error ? err.message : String(err)}`);
-    });
-    await sweepMiddlewareFailures(getMemoryRootDir(), { workdir: process.cwd() }).catch(err => {
-      slog('MIDDLEWARE-SELF-HEAL', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
     });
     await sweepKgDiscussionLifecycle(getMemoryRootDir()).catch(err => {
       slog('KG-DISCUSSION-JANITOR', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
