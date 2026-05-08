@@ -108,6 +108,58 @@ describe('delegation failure diagnostics', () => {
     }));
   });
 
+  it('classifies repeated open max-turn failures without waiting for a linked diagnostic task', async () => {
+    recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'code',
+      prompt: 'Run oversized implementation task',
+      output: 'Claude Code returned an error result: Reached maximum number of turns (15)',
+    });
+    const second = recordDelegationFailure(tmpDir, {
+      taskId: 'del-2',
+      taskType: 'code',
+      prompt: 'Run oversized implementation task',
+      output: 'Claude Code returned an error result: Reached maximum number of turns (15)',
+    });
+
+    const diagnoses = await diagnosePendingDelegationFailures(tmpDir);
+
+    expect(second.record.frequency).toBe(2);
+    expect(diagnoses).toHaveLength(1);
+    expect(diagnoses[0]).toEqual(expect.objectContaining({
+      status: 'resolved',
+      category: 'max_turns',
+      taskId: undefined,
+    }));
+    expect(readDelegationFailureRecordsSync(tmpDir)[0]).toEqual(expect.objectContaining({
+      status: 'resolved',
+    }));
+  });
+
+  it('picks up repeated open records when diagnosing pending failures', async () => {
+    recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'code',
+      prompt: 'Run provider task',
+      output: "Claude Code returned an error result: You're out of extra usage · resets 2:40am (Asia/Taipei)",
+    });
+    recordDelegationFailure(tmpDir, {
+      taskId: 'del-2',
+      taskType: 'code',
+      prompt: 'Run provider task',
+      output: "Claude Code returned an error result: You're out of extra usage · resets 2:40am (Asia/Taipei)",
+    });
+
+    const diagnoses = await diagnosePendingDelegationFailures(tmpDir);
+
+    expect(diagnoses).toEqual([
+      expect.objectContaining({
+        status: 'resolved',
+        category: 'provider_quota',
+      }),
+    ]);
+  });
+
   it('diagnoses pending linked failures in batches', async () => {
     const first = recordDelegationFailure(tmpDir, {
       taskId: 'del-1',
