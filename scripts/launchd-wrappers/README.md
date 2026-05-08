@@ -47,3 +47,25 @@ rm ~/Library/LaunchAgents/com.kuro.hn-ai-trend.plist
 After a day of observation: if `hn-ai-trend` 09:00 launchd run produces
 `memory/state/hn-ai-trend/2026-05-06.json` with mtime 09:00:xx (regardless of
 whether mac was asleep at 09:00), migrate the rest.
+
+## build-kuro-content (issue #394)
+
+Daily generator that fills `memory/state/kuro-content/<DATE>.md` so the
+build-ai-trend-index step downstream renders blocks ①③④ with real Kuro voice
+instead of degrading to placeholder.
+
+| field | value |
+|---|---|
+| schedule | 16:25 daily (between enrich ~15:30 and index 16:30) |
+| script | `scripts/build-kuro-content.mjs` (PR #399) |
+| wrapper | `scripts/launchd-wrappers/build-kuro-content.sh` |
+| plist | `scripts/launchd-wrappers/com.kuro.build-kuro-content.plist` |
+| log | `memory/logs/build-kuro-content-launchd.log` |
+| exit codes | 0=live wrote, 1=draft only (gate fail), 2=hard error |
+
+Install:
+
+```sh
+cp scripts/launchd-wrappers/com.kuro.build-kuro-content.plist ~/Library/LaunchAgents/
+launchctl load -w ~/Library/LaunchAgents/com.kuro.build-kuro-content.plist
+```
