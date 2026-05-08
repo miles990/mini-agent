@@ -57,6 +57,23 @@ describe('GitHub PR verification autorepair', () => {
     expect(result.body).not.toContain('cannot self-approve');
   });
 
+  it('promotes forge isolated-worktree evidence into Verification', () => {
+    const result = autofixPrVerificationSection([
+      'Automated forge submission from /tmp/mini-agent-forge-1.',
+      '',
+      'Base: origin/main',
+      'Branch: feature/example',
+      '',
+      'This branch was verified in an isolated worktree. The runtime checkout was not used as a merge target.',
+    ].join('\n'));
+
+    expect(result.changed).toBe(true);
+    expect(result.reason).toBe('promoted forge isolated-worktree verification claim');
+    expect(result.body).toContain('## Verification');
+    expect(result.body).toContain('verified in an isolated worktree');
+    expect(result.body).toContain('Runtime checkout was not used as a merge target');
+  });
+
   it('does not fabricate verification when the test plan is still pending', () => {
     const body = [
       '## Test plan',
