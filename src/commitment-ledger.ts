@@ -148,6 +148,21 @@ export function readPendingCommitments(): CommitmentEntry[] {
   return [...map.values()].filter(e => e.status === 'pending');
 }
 
+/**
+ * Read all commitment-ledger entries in a terminal state (not pending).
+ *
+ * Used by `buildCommitmentSection` (memory-index.ts) to suppress active
+ * memory-index commitments whose text matches an already-resolved/refuted/
+ * expired/abandoned/kept structured ledger entry — see issue #419.
+ *
+ * Returns the deduplicated latest version of each id (append-only semantics).
+ */
+export function readTerminalCommitments(): CommitmentEntry[] {
+  const lines = readAllLines();
+  const map = deduplicateLines(lines);
+  return [...map.values()].filter(e => e.status !== 'pending');
+}
+
 export function updateCommitmentStatus(
   id: string,
   status: CommitmentEntry['status'],

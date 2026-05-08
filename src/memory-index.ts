@@ -1628,8 +1628,77 @@ export function buildCommitmentSection(memoryDir: string): string {
 
   if (gaps.length === 0) return '';
 
-  const lines = gaps.map(g => `- [${g.ts}] ${g.summary}`);
-  return `## ${gaps.length} untracked commitment${gaps.length > 1 ? 's' : ''} — convert to action (<kuro:task>, <kuro:delegate>, or <kuro:goal>)\n${lines.join('\n')}`;
+  // Issue #419: cross-check the structured commitment-ledger before emitting
+  // the "untracked commitment" callout. The two stores (memory-index.jsonl
+  // and commitments.jsonl) are written/resolved on different paths, so an
+  // active memory-index commitment can dangle long after the equivalent
+  // ledger entry reaches a terminal state (resolved/refuted/expired/etc.) —
+  // surfacing forever as a phantom "convert to action" instruction. Using
+  // the same 30%-overlap, CJK-aware token comparison `resolveActiveCommitments`
+  // already trusts (see line ~1604), suppress those gaps and lazily mark them
+  // resolved so the next cycle's queryMemoryIndexSync skips them entirely.
+  const filteredGaps = suppressGapsResolvedInLedger(memoryDir, gaps);
+
+  if (filteredGaps.length === 0) return '';
+
+  const lines = filteredGaps.map(g => `- [${g.ts}] ${g.summary}`);
+  return `## ${filteredGaps.length} untracked commitment${filteredGaps.length > 1 ? 's' : ''} — convert to action (<kuro:task>, <kuro:delegate>, or <kuro:goal>)\n${lines.join('\n')}`;
+}
+
+/**
+ * Issue #419 helper. Drop active memory-index commitments whose summary
+ * semantically matches a terminal-state structured-ledger prediction.
+ *
+ * Imported lazily to avoid an import cycle between memory-index.ts and
+ * commitment-ledger.ts (commitment-ledger only uses memory.ts; memory-index
+ * is the higher-level consumer).
+ */
+function suppressGapsResolvedInLedger(
+  memoryDir: string,
+  gaps: ReturnType<typeof queryMemoryIndexSync>,
+): ReturnType<typeof queryMemoryIndexSync> {
+  let terminal: { prediction: string }[] = [];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ledger = require('./commitment-ledger.js') as {
+      readTerminalCommitments?: () => { prediction: string }[];
+    };
+    terminal = ledger.readTerminalCommitments?.() ?? [];
+  } catch {
+    return gaps;
+  }
+  if (terminal.length === 0) return gaps;
+
+  const terminalTokenSets = terminal
+    .map(t => tokenizeForMatch(t.prediction ?? ''))
+    .filter(toks => toks.length > 0);
+  if (terminalTokenSets.length === 0) return gaps;
+
+  const out: typeof gaps = [];
+  for (const g of gaps) {
+    const gapTokens = tokenizeForMatch(g.summary ?? '');
+    if (gapTokens.length === 0) {
+      out.push(g);
+      continue;
+    }
+    const gapSet = new Set(gapTokens);
+    const matched = terminalTokenSets.some(termTokens => {
+      const overlap = termTokens.filter(
+        t => gapSet.has(t) || gapTokens.some(gt => gt.includes(t) || t.includes(gt)),
+      ).length;
+      // Same threshold as resolveActiveCommitments: ≥30% of terminal tokens, min 1.
+      return overlap >= Math.max(1, Math.floor(termTokens.length * 0.3));
+    });
+    if (matched) {
+      // Lazy GC: persist the suppression so future cycles don't re-scan.
+      // Fire-and-forget; failure just means we'll suppress again next cycle.
+      updateMemoryIndexEntry(memoryDir, g.id, { status: 'resolved' }).catch(() => {});
+      slog('COMMIT', `Suppressed (ledger-resolved): "${g.summary}"`);
+    } else {
+      out.push(g);
+    }
+  }
+  return out;
 }
 
 // =============================================================================
