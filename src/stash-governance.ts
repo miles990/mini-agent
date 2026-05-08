@@ -10,10 +10,12 @@ export interface GitStashRecord {
   ref: string;
   message: string;
   files: string[];
+  absorbed?: boolean;
 }
 
 export type StashGovernanceDecision =
   | 'ignore'
+  | 'drop-absorbed'
   | 'regenerate-generated-artifacts'
   | 'manual-diagnostic';
 
@@ -46,6 +48,7 @@ export async function governGitStashes(
   repoRoot = process.cwd(),
   opts: {
     createTasks?: boolean;
+    dropAbsorbed?: boolean;
     maxCases?: number;
     record?: boolean;
     reason?: string;
@@ -59,8 +62,18 @@ export async function governGitStashes(
     .filter(c => c.decision !== 'ignore')
     .slice(0, maxCases);
   const createdTasks: MemoryIndexEntry[] = [];
+  const absorbedDrops: string[] = [];
 
   if (opts.record || opts.createTasks) appendStashCases(memoryDir, cases);
+
+  if (opts.dropAbsorbed) {
+    for (const diagnostic of [...cases].reverse()) {
+      if (diagnostic.decision !== 'drop-absorbed') continue;
+      if (dropStash(repoRoot, diagnostic.stashRef)) {
+        absorbedDrops.push(diagnostic.stashRef);
+      }
+    }
+  }
 
   if (opts.createTasks) {
     const { createTask } = await import('./memory-index.js');
@@ -91,7 +104,7 @@ export async function governGitStashes(
   }
 
   if (cases.length > 0 && (opts.record || opts.createTasks)) {
-    slog('HOUSEKEEPING', `stash governance diagnosed ${cases.length} stash case(s); tasks=${createdTasks.length}`);
+    slog('HOUSEKEEPING', `stash governance diagnosed ${cases.length} stash case(s); tasks=${createdTasks.length} absorbedDrops=${absorbedDrops.length}`);
   }
 
   return { cases, createdTasks };
@@ -107,7 +120,13 @@ export function listGitStashes(repoRoot = process.cwd()): GitStashRecord[] {
       .split('\n')
       .map(f => f.trim())
       .filter(Boolean);
-    return { ref: ref.trim(), message, files };
+    const normalizedRef = ref.trim();
+    return {
+      ref: normalizedRef,
+      message,
+      files,
+      absorbed: stashMatchesWorkingTree(repoRoot, normalizedRef, files),
+    };
   }).filter(stash => stash.ref && stash.files.length > 0);
 }
 
@@ -118,6 +137,28 @@ export function classifyStash(stash: GitStashRecord, reason = 'periodic-scan'): 
   const allAiTrend = stash.files.length > 0
     && stash.files.every(file => file.startsWith('kuro-portfolio/ai-trend/'));
   const id = `stash-${hashCase(stash.message, stash.files)}`;
+
+  if (stash.absorbed) {
+    return {
+      id,
+      ts: new Date().toISOString(),
+      stashRef: stash.ref,
+      message: stash.message,
+      files: stash.files,
+      assessment,
+      decision: 'drop-absorbed',
+      rootCause: 'Preserved stash content already matches the current checkout.',
+      evidence: [
+        `trigger=${reason}`,
+        `stash=${stash.ref}`,
+        `message=${stash.message}`,
+        `files=${stash.files.join(',')}`,
+        'policy=drop absorbed recovery stashes instead of creating duplicate repair work',
+      ],
+      mechanicalAction: 'drop-absorbed-stash',
+      fallbackTask: null,
+    };
+  }
 
   if (!isManagedStash(stash) && !allGenerated) {
     return {
@@ -226,5 +267,37 @@ function safeGit(repoRoot: string, args: string[]): string {
     });
   } catch {
     return '';
+  }
+}
+
+function stashMatchesWorkingTree(repoRoot: string, ref: string, files: string[]): boolean {
+  if (files.length === 0) return false;
+  return files.every(file => {
+    try {
+      const current = fs.readFileSync(path.join(repoRoot, file), 'utf-8');
+      const stashed = execFileSync('git', ['show', `${ref}:${file}`], {
+        cwd: repoRoot,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 10_000,
+      });
+      return current === stashed;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function dropStash(repoRoot: string, ref: string): boolean {
+  try {
+    execFileSync('git', ['stash', 'drop', ref], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 10_000,
+    });
+    return true;
+  } catch {
+    return false;
   }
 }

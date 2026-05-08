@@ -10,6 +10,7 @@ const repoRoot = readArg('--repo-root') ?? process.cwd();
 
 const result = await governGitStashes(memoryDir, repoRoot, {
   createTasks: apply,
+  dropAbsorbed: apply,
   maxCases: Number.isFinite(limit) && limit > 0 ? limit : 3,
   record: apply,
   reason: apply ? 'stash-governance-apply' : 'stash-governance-scan',

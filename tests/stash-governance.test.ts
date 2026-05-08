@@ -30,6 +30,20 @@ describe('stash governance', () => {
     expect(diagnostic.assessment.conflicted.map(file => file.class)).toEqual(['generated', 'generated', 'generated']);
   });
 
+  it('classifies already-absorbed stashes as drop candidates without creating fallback work', () => {
+    const diagnostic = classifyStash({
+      ...aiTrendStash(),
+      absorbed: true,
+    });
+
+    expect(diagnostic).toEqual(expect.objectContaining({
+      decision: 'drop-absorbed',
+      rootCause: expect.stringContaining('already matches'),
+      mechanicalAction: 'drop-absorbed-stash',
+      fallbackTask: null,
+    }));
+  });
+
   it('creates one scheduler-visible diagnostic task for a preserved generated stash', async () => {
     const memoryDir = path.join(tmpDir, 'memory');
     mkdirSync(path.join(memoryDir, 'state'), { recursive: true });
