@@ -41,6 +41,7 @@ export interface StashGovernanceCase {
 export interface StashGovernanceResult {
   cases: StashGovernanceCase[];
   createdTasks: MemoryIndexEntry[];
+  closedTasks: MemoryIndexEntry[];
 }
 
 export async function governGitStashes(
@@ -57,11 +58,12 @@ export async function governGitStashes(
 ): Promise<StashGovernanceResult> {
   const stashes = opts.stashes ?? listGitStashes(repoRoot);
   const maxCases = opts.maxCases ?? 5;
-  const cases = stashes
+  const allCases = stashes
     .map(stash => classifyStash(stash, opts.reason))
-    .filter(c => c.decision !== 'ignore')
-    .slice(0, maxCases);
+    .filter(c => c.decision !== 'ignore');
+  const cases = allCases.slice(0, maxCases);
   const createdTasks: MemoryIndexEntry[] = [];
+  const closedTasks: MemoryIndexEntry[] = [];
   const absorbedDrops: string[] = [];
 
   if (opts.record || opts.createTasks) appendStashCases(memoryDir, cases);
@@ -77,6 +79,7 @@ export async function governGitStashes(
 
   if (opts.createTasks) {
     const { createTask } = await import('./memory-index.js');
+    closedTasks.push(...await closeObsoleteStashTasks(memoryDir, allCases));
     for (const diagnostic of cases) {
       if (!diagnostic.fallbackTask) continue;
       if (await hasActiveTaskForCase(memoryDir, diagnostic.id)) continue;
@@ -85,7 +88,7 @@ export async function governGitStashes(
           title: diagnostic.fallbackTask.title,
           origin: 'pipeline',
           status: 'pending',
-          priority: 0,
+          priority: 1,
           assignee: 'kuro',
           verify_command: diagnostic.fallbackTask.verifyCommand,
           acceptance_criteria: diagnostic.fallbackTask.acceptanceCriteria,
@@ -104,10 +107,10 @@ export async function governGitStashes(
   }
 
   if (cases.length > 0 && (opts.record || opts.createTasks)) {
-    slog('HOUSEKEEPING', `stash governance diagnosed ${cases.length} stash case(s); tasks=${createdTasks.length} absorbedDrops=${absorbedDrops.length}`);
+    slog('HOUSEKEEPING', `stash governance diagnosed ${cases.length} stash case(s); tasks=${createdTasks.length} closed=${closedTasks.length} absorbedDrops=${absorbedDrops.length}`);
   }
 
-  return { cases, createdTasks };
+  return { cases, createdTasks, closedTasks };
 }
 
 export function listGitStashes(repoRoot = process.cwd()): GitStashRecord[] {
@@ -239,6 +242,37 @@ async function hasActiveTaskForCase(memoryDir: string, caseId: string): Promise<
     const summary = task.summary ?? '';
     return payloadText.includes(caseId) || summary.includes(caseId);
   });
+}
+
+async function closeObsoleteStashTasks(
+  memoryDir: string,
+  currentCases: StashGovernanceCase[],
+): Promise<MemoryIndexEntry[]> {
+  const { queryMemoryIndexSync, updateMemoryIndexEntry } = await import('./memory-index.js');
+  const currentCaseIds = new Set(currentCases.map(c => c.id));
+  const active = queryMemoryIndexSync(memoryDir, { type: 'task' })
+    .filter(task => !['completed', 'abandoned', 'deleted', 'expired', 'resolved'].includes(String(task.status)));
+  const closed: MemoryIndexEntry[] = [];
+
+  for (const task of active) {
+    const text = `${task.summary ?? ''}\n${JSON.stringify(task.payload ?? {})}`;
+    const match = text.match(/\bstash-[a-f0-9]{12}\b/);
+    if (!match || currentCaseIds.has(match[0])) continue;
+
+    const updated = await updateMemoryIndexEntry(memoryDir, task.id, {
+      status: 'completed',
+      payload: {
+        ...((task.payload ?? {}) as Record<string, unknown>),
+        completed_by: 'stash-governance',
+        completed_reason: 'stash case is no longer present in current git stash inventory',
+        completed_at: new Date().toISOString(),
+        obsolete_stash_case: match[0],
+      },
+    });
+    if (updated) closed.push(updated);
+  }
+
+  return closed;
 }
 
 function appendStashCases(memoryDir: string, cases: StashGovernanceCase[]): void {

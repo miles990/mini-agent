@@ -52,7 +52,7 @@ describe('autonomous work closure', () => {
       }));
   });
 
-  it('completes emitted expression tasks and releases expired holds', async () => {
+  it('completes emitted expression tasks and releases non-provider expired holds back to pending', async () => {
     const now = new Date('2026-05-07T06:00:00.000Z');
     const expression = await appendMemoryIndexEntry(memoryDir, {
       type: 'task',
@@ -74,6 +74,66 @@ describe('autonomous work closure', () => {
     expect(result.releasedHolds).toBe(1);
     expect(queryMemoryIndexSync(memoryDir, { id: expression.id })[0].status).toBe('completed');
     expect(queryMemoryIndexSync(memoryDir, { id: hold.id })[0].status).toBe('pending');
+  });
+
+  it('completes elapsed provider quota holds instead of returning them to the P0 queue', async () => {
+    const now = new Date('2026-05-08T06:00:00.000Z');
+    const hold = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'hold',
+      source: 'middleware-self-healing',
+      summary: 'Hold claude middleware delegation until provider quota resets',
+      payload: {
+        holdCondition: { type: 'date-after', value: '2026-05-08T05:00:00.000Z' },
+        provider_resource_hold: {
+          type: 'provider-quota',
+          provider: 'claude',
+          resumeAt: '2026-05-08T05:00:00.000Z',
+          reason: 'claude provider quota/resource exhausted; retry after 2026-05-08T05:00:00.000Z',
+        },
+      },
+    });
+
+    const result = await sweepAutonomousWorkClosure(memoryDir, { repoRoot, now });
+
+    expect(result.releasedHolds).toBe(1);
+    expect(result.completedElapsedProviderHolds).toBe(0);
+    expect(queryMemoryIndexSync(memoryDir, { id: hold.id })[0]).toEqual(expect.objectContaining({
+      status: 'completed',
+      payload: expect.objectContaining({
+        completed_by: 'autonomous-work-closure',
+        completed_reason: expect.stringContaining('should not return to the P0 queue'),
+      }),
+    }));
+  });
+
+  it('closes provider quota holds that were already released to pending', async () => {
+    const now = new Date('2026-05-08T06:00:00.000Z');
+    const hold = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      source: 'middleware-self-healing',
+      summary: 'Hold claude middleware delegation until provider quota resets',
+      payload: {
+        provider_resource_hold: {
+          type: 'provider-quota',
+          provider: 'claude',
+          resumeAt: '2026-05-08T05:00:00.000Z',
+          reason: 'claude provider quota/resource exhausted; retry after 2026-05-08T05:00:00.000Z',
+        },
+        hold_released_by: 'autonomous-work-closure',
+      },
+    });
+
+    const result = await sweepAutonomousWorkClosure(memoryDir, { repoRoot, now });
+
+    expect(result.completedElapsedProviderHolds).toBe(1);
+    expect(queryMemoryIndexSync(memoryDir, { id: hold.id })[0]).toEqual(expect.objectContaining({
+      status: 'completed',
+      payload: expect.objectContaining({
+        completed_reason: expect.stringContaining('already released'),
+      }),
+    }));
   });
 
   it('deduplicates active held correction tasks instead of letting P0 holds accumulate', async () => {

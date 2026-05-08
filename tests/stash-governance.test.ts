@@ -69,10 +69,42 @@ describe('stash governance', () => {
     expect(tasks[0]).toEqual(expect.objectContaining({
       status: 'pending',
       summary: expect.stringContaining('regenerate ai-trend artifact'),
+      payload: expect.objectContaining({
+        priority: 1,
+      }),
     }));
     expect(tasks[0].payload).toEqual(expect.objectContaining({
       verify_command: expect.stringContaining('stash-governance.ts'),
       acceptance_criteria: expect.stringContaining('no generated HTML is manually merged'),
+    }));
+  });
+
+  it('closes active stash tasks when the underlying stash case disappears', async () => {
+    const memoryDir = path.join(tmpDir, 'memory');
+    mkdirSync(path.join(memoryDir, 'state'), { recursive: true });
+    mkdirSync(path.join(memoryDir, 'state', 'index'), { recursive: true });
+    writeFileSync(path.join(memoryDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(memoryDir, 'state', 'index', 'relations.jsonl'), '', { encoding: 'utf-8', flag: 'w' });
+
+    const first = await governGitStashes(memoryDir, tmpDir, {
+      createTasks: true,
+      reason: 'test',
+      stashes: [aiTrendStash()],
+    });
+    const second = await governGitStashes(memoryDir, tmpDir, {
+      createTasks: true,
+      reason: 'test',
+      stashes: [],
+    });
+
+    expect(first.createdTasks).toHaveLength(1);
+    expect(second.closedTasks).toHaveLength(1);
+    expect(queryMemoryIndexSync(memoryDir, { id: first.createdTasks[0].id })[0]).toEqual(expect.objectContaining({
+      status: 'completed',
+      payload: expect.objectContaining({
+        completed_by: 'stash-governance',
+        completed_reason: expect.stringContaining('no longer present'),
+      }),
     }));
   });
 });

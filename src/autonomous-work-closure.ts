@@ -23,6 +23,7 @@ export interface AutonomousWorkClosureResult {
   completedExpressionTasks: number;
   deduplicatedTasks: number;
   releasedHolds: number;
+  completedElapsedProviderHolds: number;
   productRepairsQueued: number;
   productRepairsClosed: number;
   productVerifiers: ProductVerifierResult[];
@@ -45,18 +46,20 @@ export async function sweepAutonomousWorkClosure(
   const pruned = await pruneNonActionableRoomTasks(memoryDir, { sources: ['room', 'room-promoted', 'ooda-expression'] });
   const deduplicatedTasks = await deduplicateActiveTasks(memoryDir, now);
   const releasedHolds = await releaseExpiredHolds(memoryDir, now);
+  const completedElapsedProviderHolds = await completeElapsedProviderHoldTasks(memoryDir, now);
   const { queued: productRepairsQueued, closed: productRepairsClosed } = await reconcileProductRepairTasks(memoryDir, productVerifiers, now);
   const result = {
     prunedNonActionable: pruned.pruned,
     completedExpressionTasks,
     deduplicatedTasks,
     releasedHolds,
+    completedElapsedProviderHolds,
     productRepairsQueued,
     productRepairsClosed,
     productVerifiers,
   };
-  const changed = result.prunedNonActionable + completedExpressionTasks + deduplicatedTasks + releasedHolds + productRepairsQueued + productRepairsClosed;
-  if (changed > 0) slog('WORK-CLOSURE', `sweep changed=${changed} pruned=${result.prunedNonActionable} expression=${completedExpressionTasks} dedup=${deduplicatedTasks} holds=${releasedHolds} repairs=${productRepairsQueued} closedRepairs=${productRepairsClosed}`);
+  const changed = result.prunedNonActionable + completedExpressionTasks + deduplicatedTasks + releasedHolds + completedElapsedProviderHolds + productRepairsQueued + productRepairsClosed;
+  if (changed > 0) slog('WORK-CLOSURE', `sweep changed=${changed} pruned=${result.prunedNonActionable} expression=${completedExpressionTasks} dedup=${deduplicatedTasks} holds=${releasedHolds} providerHolds=${completedElapsedProviderHolds} repairs=${productRepairsQueued} closedRepairs=${productRepairsClosed}`);
   return result;
 }
 
@@ -188,13 +191,49 @@ async function releaseExpiredHolds(memoryDir: string, now: Date): Promise<number
     if (condition?.type !== 'date-after' || typeof condition.value !== 'string') continue;
     const resumeAt = Date.parse(condition.value);
     if (!Number.isFinite(resumeAt) || resumeAt > now.getTime()) continue;
+    const providerHold = payload.provider_resource_hold;
+    const nextStatus = providerHold ? 'completed' : 'pending';
+    const completedFields = providerHold
+      ? {
+          completed_by: 'autonomous-work-closure',
+          completed_reason: 'provider quota hold elapsed; this wait task should not return to the P0 queue',
+          completed_at: now.toISOString(),
+        }
+      : {};
     const updated = await updateMemoryIndexEntry(memoryDir, hold.id, {
-      status: 'pending',
-      payload: { ...payload, hold_released_at: now.toISOString(), hold_released_by: 'autonomous-work-closure' },
+      status: nextStatus,
+      payload: {
+        ...payload,
+        ...completedFields,
+        hold_released_at: now.toISOString(),
+        hold_released_by: 'autonomous-work-closure',
+      },
     });
     if (updated) released++;
   }
   return released;
+}
+
+async function completeElapsedProviderHoldTasks(memoryDir: string, now: Date): Promise<number> {
+  const tasks = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress'] });
+  let completed = 0;
+  for (const task of tasks) {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    const hold = payload.provider_resource_hold as Record<string, unknown> | undefined;
+    const resumeAt = typeof hold?.resumeAt === 'string' ? Date.parse(hold.resumeAt) : Number.NaN;
+    if (!Number.isFinite(resumeAt) || resumeAt > now.getTime()) continue;
+    const updated = await updateMemoryIndexEntry(memoryDir, task.id, {
+      status: 'completed',
+      payload: {
+        ...payload,
+        completed_by: 'autonomous-work-closure',
+        completed_reason: 'elapsed provider quota hold was already released and should not stay pending',
+        completed_at: now.toISOString(),
+      },
+    });
+    if (updated) completed++;
+  }
+  return completed;
 }
 
 async function reconcileProductRepairTasks(memoryDir: string, verifiers: ProductVerifierResult[], now: Date): Promise<{ queued: number; closed: number }> {
