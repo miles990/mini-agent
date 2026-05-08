@@ -68,6 +68,7 @@ import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLoc
 import { recordCascadeMetric } from './cascade.js';
 import { appendProvenance, memoryIdForContent } from './memory-provenance.js';
 import { getMemoryRootDir, getMemoryStateRootDir } from './memory-paths.js';
+import { buildAuthorizationGovernancePrompt, getGithubAuthorizationEvaluation, type GithubAuthorizationEvaluation } from './authorization-governance.js';
 
 const PROMPT_WRAPPER_LINE_RE = /^<\/?(?:foreground_reply_mode|cached_perception|parameter|invoke|tool_result|user_context)>$/i;
 const PROMPT_DIRECTIVE_LINE_RE = /^\((?:Generate response as Kuro|continue the conversation organically)[^)]+\)$/i;
@@ -168,6 +169,9 @@ export interface CapabilitiesSnapshot {
   readiness: {
     score: number;
     level: 'low' | 'medium' | 'high';
+  };
+  authorization?: {
+    github: GithubAuthorizationEvaluation;
   };
 }
 
@@ -462,6 +466,9 @@ function formatCapabilitiesContext(cap: CapabilitiesSnapshot): string {
     .join(', ');
   lines.push(`Tool availability: ${toolSummary}`);
   lines.push(`Capability readiness: ${cap.readiness.score}% (${cap.readiness.level}) [${cap.tools.readyCount}/${cap.tools.total} tools ready]`);
+  if (cap.authorization?.github) {
+    lines.push(buildAuthorizationGovernancePrompt(cap.authorization.github));
+  }
 
   lines.push(`Tool use today: total=${cap.toolUseToday.totalCalls}, webFetch=${cap.toolUseToday.webFetchCount}`);
   if (cap.toolUseToday.topTools.length > 0) {
@@ -484,6 +491,7 @@ export async function getCapabilitiesSnapshot(instanceId = getCurrentInstanceId(
   const level: 'low' | 'medium' | 'high' = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
 
   const toolUseToday = await readToolUseToday(instanceId);
+  const authorization = await getGithubAuthorizationEvaluation();
 
   return {
     provider: {
@@ -504,6 +512,9 @@ export async function getCapabilitiesSnapshot(instanceId = getCurrentInstanceId(
     },
     toolUseToday,
     readiness: { score, level },
+    authorization: {
+      github: authorization,
+    },
   };
 }
 

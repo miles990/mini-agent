@@ -178,6 +178,7 @@ import { syncMyelinToKnowledge } from './myelin-kg-sync.js';
 import { readActorOutcomeStatsSync } from './actor-outcome-stats.js';
 import type { WorkIntent } from './brain-types.js';
 import { listAgentCapabilities, loadAgentRelationshipRegistry } from './agent-owned-identity.js';
+import { GITHUB_AUTHORIZATION_POLICY, getGithubAuthorizationEvaluation } from './authorization-governance.js';
 import { evaluatePublicWriteIdentity } from './public-write-identity.js';
 import { selectAgentSkills, summarizeSkillHealth, suggestPatternPromotions } from './agent-skill-manager.js';
 import { summarizeSkillPromotionAutopilot } from './skill-promotion-autopilot.js';
@@ -950,7 +951,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/agent-arsenal', '/api/dashboard/public-write-identity', '/api/dashboard/agent-skills/select', '/api/dashboard/agent-skills/promotions', '/api/dashboard/agent-skills/autopilot', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/dashboard/work-closure', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/agent-arsenal', '/api/dashboard/authorization-governance', '/api/dashboard/public-write-identity', '/api/dashboard/agent-skills/select', '/api/dashboard/agent-skills/promotions', '/api/dashboard/agent-skills/autopilot', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/dashboard/work-closure', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -2598,10 +2599,13 @@ export function createApi(port = 3001): express.Express {
 
   // Agent arsenal registry — accounts, APIs, servers, tools, skills, and relationship boundaries.
   // Secret values are never returned; only env var names and expected identities are exposed.
-  app.get('/api/dashboard/agent-arsenal', (_req: Request, res: Response) => {
+  app.get('/api/dashboard/agent-arsenal', async (_req: Request, res: Response) => {
+    const authorization = await getGithubAuthorizationEvaluation();
     res.json({
       capabilities: listAgentCapabilities(),
       relationships: loadAgentRelationshipRegistry(),
+      authorization,
+      authorizationPolicy: GITHUB_AUTHORIZATION_POLICY,
       publicWriteIdentity: evaluatePublicWriteIdentity(getMemoryRootDir()),
       skillHealth: summarizeSkillHealth(getMemoryRootDir()),
       patternPromotions: suggestPatternPromotions(getMemoryRootDir()),
@@ -2612,6 +2616,13 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/dashboard/public-write-identity', (_req: Request, res: Response) => {
     res.json(evaluatePublicWriteIdentity(getMemoryRootDir()));
+  });
+
+  app.get('/api/dashboard/authorization-governance', async (_req: Request, res: Response) => {
+    res.json({
+      github: await getGithubAuthorizationEvaluation(),
+      policy: GITHUB_AUTHORIZATION_POLICY,
+    });
   });
 
   app.get('/api/dashboard/agent-skills/select', (req: Request, res: Response) => {
