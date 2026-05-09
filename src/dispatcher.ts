@@ -976,12 +976,15 @@ export function extractDecisionBlock(
   // Field-line prefix supports: optional bullet (-/*/+ or `N.`), then optional **bold** label.
   // Tail allows optional trailing ** before colon. Tolerates bullet+bold combos and numbered lists.
   const FIELD_PFX = String.raw`^[-*+]?\s*\d*\.?\s*\**\s*`;
-  const FIELD_TAIL = String.raw`\**\s*:\s*(.+)$`;
+  // Issue #457: tail uses [ \t] instead of \s before/after the colon's value to
+  // prevent the `.+$` capture from being short-circuited by intervening newlines
+  // (e.g. `chose:\nfalsifier: ...` previously mis-attributed the falsifier line).
+  const FIELD_TAIL = String.raw`\**[ \t]*:[ \t]*(.+)$`;
   const buildRe = (name: string) => new RegExp(FIELD_PFX + name + FIELD_TAIL, 'im');
   const serving = extractField(buildRe('serving'));
   const chose = extractField(buildRe('chose'));
   const falsifier = extractField(buildRe('(?:falsifier|falsify)'));
-  const ttlStr = block.match(new RegExp(FIELD_PFX + 'ttl' + String.raw`\**\s*:\s*(\d+)$`, 'im'))?.[1];
+  const ttlStr = block.match(new RegExp(FIELD_PFX + 'ttl' + String.raw`\**[ \t]*:[ \t]*(\d+)$`, 'im'))?.[1];
   const ttl = ttlStr ? Math.min(20, Math.max(1, parseInt(ttlStr, 10))) : undefined;
 
   if (!serving && !chose && !falsifier) return null;
@@ -1008,17 +1011,19 @@ export function synthesizeDecisionFromProse(
   // Anchor: explicit `chose:` line. Without it we can't reliably distinguish a
   // commitment from a status update. `verified X / shipped Y` prose alone is
   // too noisy — it would fire on chat-only responses.
-  const choseMatch = response.match(/^\s*[-*+]?\s*\**\s*chose\**\s*:\s*(.+)$/im);
+  // Issue #457: same fix as extractDecisionBlock — replace \s with [ \t]
+  // around the colon so `.+$` stops at end-of-line, not at newline-via-\s.
+  const choseMatch = response.match(/^[ \t]*[-*+]?[ \t]*\**[ \t]*chose\**[ \t]*:[ \t]*(.+)$/im);
   if (!choseMatch) return null;
   const chose = choseMatch[1].trim();
   if (chose.length < 8) return null;
 
   // Optional falsifier line. Synthesis is allowed without it (#132 spec).
-  const falsifierMatch = response.match(/^\s*[-*+]?\s*\**\s*(?:falsifier|falsify)\**\s*:\s*(.+)$/im);
+  const falsifierMatch = response.match(/^[ \t]*[-*+]?[ \t]*\**[ \t]*(?:falsifier|falsify)\**[ \t]*:[ \t]*(.+)$/im);
   const falsifier = falsifierMatch ? falsifierMatch[1].trim() : undefined;
 
   // Optional ttl line.
-  const ttlMatch = response.match(/^\s*[-*+]?\s*\**\s*ttl\**\s*:\s*(\d+)$/im);
+  const ttlMatch = response.match(/^[ \t]*[-*+]?[ \t]*\**[ \t]*ttl\**[ \t]*:[ \t]*(\d+)$/im);
   const ttl = ttlMatch ? Math.min(20, Math.max(1, parseInt(ttlMatch[1], 10))) : 3;
 
   return { chose, falsifier, ttl };
