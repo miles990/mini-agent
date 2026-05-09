@@ -353,6 +353,48 @@ export function shouldFastFailFastBand(args: {
 }
 
 /**
+ * Issue #438: outer caller-level rate gate for fast-band failures.
+ *
+ * PR #339's `shouldFastFailFastBand` is a per-call breaker: it stops the in-call
+ * exp-backoff sleep when the upstream rejects in <10s. But it does not throttle
+ * the loop. When upstream is genuinely down for 30-60min the loop keeps invoking
+ * callClaude every cycle, every call hits fast-band, every call logs a separate
+ * occurrence (observed: 20 occurrences in a 72-min burst window 2026-05-09).
+ *
+ * This helper is meant to be checked by the caller BEFORE invoking callClaude on
+ * fast-band-prone paths. Returns true once the rolling-window count of recent
+ * fast-band failures crosses `maxInWindow`, signalling the loop to skip the call,
+ * surface a `slog('CIRCUIT', ...)` line, and back off (route to delegate / pause
+ * with cooldown / switch model).
+ *
+ * Tunable via env:
+ *   - KURO_FAST_BAND_WINDOW_MS  (default 5 * 60_000)
+ *   - KURO_FAST_BAND_WINDOW_MAX (default 5)
+ */
+export function shouldThrottleFastBandWindow(args: {
+  recentFailures: string[];
+  windowMs?: number;
+  maxInWindow?: number;
+  nowMs?: number;
+}): boolean {
+  const windowMs =
+    args.windowMs ?? (Number(process.env.KURO_FAST_BAND_WINDOW_MS) || 5 * 60_000);
+  const maxInWindow =
+    args.maxInWindow ?? (Number(process.env.KURO_FAST_BAND_WINDOW_MAX) || 5);
+  const now = args.nowMs ?? Date.now();
+  const cutoff = now - windowMs;
+  let inWindow = 0;
+  for (const ts of args.recentFailures) {
+    if (!ts) continue;
+    const t = Date.parse(ts);
+    if (!Number.isFinite(t)) continue;
+    if (t >= cutoff && t <= now) inWindow += 1;
+    if (inWindow >= maxInWindow) return true;
+  }
+  return false;
+}
+
+/**
  * 掃描今天的 error log，按 (code + subtype + context) 分群。
  * 同模式 >= 3 次 → 寫入 HEARTBEAT.md 作為 P1 task。
  * 已建過的模式不重複建。
