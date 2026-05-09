@@ -11,6 +11,7 @@ type Pattern = {
   resolved?: boolean;
   resolvedAt?: string;
   resolvedBy?: string;
+  mitigationKind?: 'circuit_breaker' | 'retry' | 'fallback' | 'expected_steady_state';
 };
 
 const state: { patterns: Record<string, Pattern> } = { patterns: {} };
@@ -141,5 +142,24 @@ describe('buildErrorPatternsHint — issue #315 staleness filter', () => {
     };
     const out = buildErrorPatternsHint();
     expect(out).toContain('[REGRESSION] UNKNOWN:transient_fast_band::callClaude');
+  });
+
+  it('suppresses [REGRESSION] tag for mitigated patterns after grace window — issue #455', () => {
+    // mitigationKind signals the recurrence is expected steady-state (e.g. circuit-breaker
+    // fast-fails still increment the counter). Should NOT spawn a P0 triage loop.
+    state.patterns = {
+      'UNKNOWN:transient_fast_band::callClaude': {
+        count: 38,
+        taskCreated: false,
+        lastSeen: '2026-05-10',
+        resolvedAt: '2026-05-08T02:47:00.000Z',
+        resolvedBy: 'fdfc60b6',
+        mitigationKind: 'circuit_breaker',
+      },
+    };
+    const out = buildErrorPatternsHint();
+    expect(out).not.toContain('[REGRESSION]');
+    // The pattern itself should not surface (mitigated recurrence after grace returns false)
+    expect(out).toBe('');
   });
 });
