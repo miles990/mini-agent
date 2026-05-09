@@ -79,6 +79,43 @@ describe('stash governance', () => {
     }));
   });
 
+  it('routes managed deploy-backup with append-only memory conflicts to merge-append-union without a fallback task', () => {
+    const diagnostic = classifyStash(deployBackupAppendOnlyStash());
+
+    expect(diagnostic).toEqual(expect.objectContaining({
+      decision: 'merge-append-union',
+      mechanicalAction: 'append-union-and-drop',
+      fallbackTask: null,
+      rootCause: expect.stringContaining('append-only'),
+    }));
+    expect(diagnostic.assessment.manual).toHaveLength(0);
+    expect(diagnostic.assessment.autoResolvable.every(f => f.resolution === 'append-union')).toBe(true);
+  });
+
+  it('does not create scheduler tasks for managed deploy-backup append-only stashes (regression: phantom P1 loop)', async () => {
+    const memoryDir = path.join(tmpDir, 'memory');
+    mkdirSync(path.join(memoryDir, 'state'), { recursive: true });
+    mkdirSync(path.join(memoryDir, 'state', 'index'), { recursive: true });
+    writeFileSync(path.join(memoryDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(memoryDir, 'state', 'index', 'relations.jsonl'), '', { encoding: 'utf-8', flag: 'w' });
+
+    const first = await governGitStashes(memoryDir, tmpDir, {
+      createTasks: true,
+      reason: 'test',
+      stashes: [deployBackupAppendOnlyStash()],
+    });
+    const second = await governGitStashes(memoryDir, tmpDir, {
+      createTasks: true,
+      reason: 'test',
+      stashes: [deployBackupAppendOnlyStash()],
+    });
+
+    expect(first.createdTasks).toHaveLength(0);
+    expect(second.createdTasks).toHaveLength(0);
+    expect(first.cases).toHaveLength(1);
+    expect(first.cases[0].decision).toBe('merge-append-union');
+  });
+
   it('closes active stash tasks when the underlying stash case disappears', async () => {
     const memoryDir = path.join(tmpDir, 'memory');
     mkdirSync(path.join(memoryDir, 'state'), { recursive: true });
@@ -118,5 +155,13 @@ function aiTrendStash(): GitStashRecord {
       'kuro-portfolio/ai-trend/index.html',
       'kuro-portfolio/ai-trend/preview.html',
     ],
+  };
+}
+
+function deployBackupAppendOnlyStash(): GitStashRecord {
+  return {
+    ref: 'stash@{0}',
+    message: 'On runtime/main: deploy-backup-20260508T165720Z',
+    files: ['memory/handoffs/active.md'],
   };
 }
