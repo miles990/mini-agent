@@ -286,6 +286,33 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
     expect(decision.taskId).not.toBe(correction.id);
   });
 
+  it('does not pick a task whose stack-rank resolved summary is a title variant', async () => {
+    const resolved = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 GitHub issue #453: silent_exit_void_midprompt follow-up recovery recipe',
+      payload: { priority: 0 },
+    });
+    const active = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 active fallback work',
+      payload: { priority: 0 },
+    });
+    fs.mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'state', 'task-events.jsonl'), JSON.stringify({
+      kind: 'stack_rank',
+      task: 'silent_exit_void_midprompt follow-up recovery recipe',
+      to: 'resolved-phantom',
+    }) + '\n');
+    invalidateIndexCache();
+
+    const decision = schedulerPick(tmpDir, []);
+
+    expect(decision.taskId).toBe(active.id);
+    expect(decision.taskId).not.toBe(resolved.id);
+  });
+
   it('resets suppression on a human-directed scheduler event', async () => {
     const task = await appendMemoryIndexEntry(tmpDir, {
       type: 'task',
