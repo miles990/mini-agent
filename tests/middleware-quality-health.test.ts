@@ -53,4 +53,25 @@ describe('middleware quality stale-failed suppression', () => {
     expect(result.evidence).toContain('classifiedFailed=2');
     expect(result.evidence).toContain('failed=0');
   });
+
+  it('does not gate terminal agent-brain max-turn telemetry before the self-healing sweep runs', () => {
+    const result = evaluateMiddlewareQuality({
+      tasks: [
+        {
+          id: 'brain-max-turns',
+          status: 'failed',
+          worker: 'agent-brain',
+          task: 'Think through the current autonomous cycle',
+          error: 'Claude Code returned an error result: Reached maximum number of turns (30)',
+        },
+        { id: 'running-1', status: 'running', worker: 'coder' },
+      ],
+      now: new Date('2026-05-09T01:10:00.000Z'),
+    });
+
+    expect(result.status).toBe('ok');
+    expect(result.evidence).toContain('terminalFailed=1');
+    expect(result.evidence).toContain('failed=0');
+    expect(result.evidence.some(line => line.startsWith('failureBuckets=max-turns'))).toBe(false);
+  });
 });

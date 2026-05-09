@@ -602,10 +602,12 @@ function operationalEfficiencyStage(
     if ((kgQueued ?? 0) > 0) evidence.push(`kgQueuedStaleDiscussions=${kgQueued}`);
   }
 
-  const middlewareStaleFailed = extractEvidenceNumber(middlewareStage.evidence, 'staleFailed');
-  const middlewareBuckets = middlewareStage.evidence.find(item => item.startsWith('failureBuckets='));
-  if ((middlewareStaleFailed ?? 0) > 0) evidence.push(`middlewareStaleFailed=${middlewareStaleFailed}`);
-  if (middlewareBuckets?.includes('max-turns')) evidence.push(middlewareBuckets);
+  if (middlewareStage.status !== 'ok') {
+    const middlewareStaleFailed = extractEvidenceNumber(middlewareStage.evidence, 'staleFailed');
+    const middlewareBuckets = middlewareStage.evidence.find(item => item.startsWith('failureBuckets='));
+    if ((middlewareStaleFailed ?? 0) > 0) evidence.push(`middlewareStaleFailed=${middlewareStaleFailed}`);
+    if (middlewareBuckets?.includes('max-turns')) evidence.push(middlewareBuckets);
+  }
 
   if (evidence.length === 0) {
     return {
