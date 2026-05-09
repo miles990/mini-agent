@@ -1798,7 +1798,7 @@ export function getHighPriorityPendingCount(memDir: string): number {
  * the guard and re-injected verbatim every cycle even after a stack_rank
  * resolved-phantom event was written.
  */
-function loadResolvedTaskKeysFromEvents(memoryDir: string): {
+export function loadResolvedTaskKeysFromEvents(memoryDir: string): {
   ids: Set<string>;
   summaries: Set<string>;
 } {
