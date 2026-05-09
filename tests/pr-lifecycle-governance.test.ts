@@ -358,4 +358,33 @@ describe('PR lifecycle governance', () => {
       risk: 'high',
     }));
   });
+
+  // Issue #476: hasCompletedVerification must accept ## Test plan as a verification heading,
+  // matching the gh pr create / Claude Code default template (PR #475 widened the same regex
+  // in pr-review-runner; this site is the higher-impact gate because it changes the routed action).
+  it('accepts a completed `## Test plan` block as verification evidence on conflicting PRs (issue #476)', () => {
+    expect(decidePrConflictAction({
+      number: 476,
+      title: 'fix: narrow conflict with test-plan heading',
+      body: '## Test plan\n- [x] `pnpm test` passed',
+      mergeable: 'CONFLICTING',
+      reviewDecision: 'APPROVED',
+      changedFiles: ['src/feedback-loops.ts'],
+    })).toEqual(expect.objectContaining({
+      action: 'attempt-update-branch',
+    }));
+  });
+
+  it('still rejects PRs with neither verification heading (no over-acceptance)', () => {
+    expect(decidePrConflictAction({
+      number: 477,
+      title: 'fix: missing both headings',
+      body: '## Summary\n- [x] some checked task but no verification heading',
+      mergeable: 'CONFLICTING',
+      reviewDecision: 'APPROVED',
+      changedFiles: ['src/feedback-loops.ts'],
+    })).toEqual(expect.objectContaining({
+      action: 'needs-verification',
+    }));
+  });
 });

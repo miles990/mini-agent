@@ -50,6 +50,10 @@ import {
 import { assertKuroGithubIdentity, expectedKuroGithubLogin, kuroGithubCliEnv } from './github-identity.js';
 import { recordPublicWriteProvenance } from './public-write-identity.js';
 import { evaluateIssueEvidenceGuard } from './issue-evidence-guard.js';
+import {
+  VERIFICATION_HEADING_REGEX_LINE_START,
+  hasVerificationHeadingLineStart,
+} from './verification-heading.js';
 
 const execFileAsync = promisify(execFile);
 let loggedReviewRequestsDegrade = false;
@@ -1087,7 +1091,7 @@ export async function githubAutoActions(): Promise<void> {
 }
 
 function hasVerificationSection(body: string): boolean {
-  return /^##\s+Verification\b/im.test(body);
+  return hasVerificationHeadingLineStart(body);
 }
 
 function hasForgeVerificationClaim(body: string): boolean {
@@ -1096,7 +1100,7 @@ function hasForgeVerificationClaim(body: string): boolean {
 }
 
 function autofixRuntimeAutocorrectVerification(body: string): PrVerificationAutofixResult {
-  if (!/^##\s+Verification\b/im.test(body)) {
+  if (!hasVerificationHeadingLineStart(body)) {
     return { changed: false, body, reason: 'no verification section present' };
   }
   if (!/pending isolated PR review/i.test(body)) {
@@ -1113,7 +1117,7 @@ function autofixRuntimeAutocorrectVerification(body: string): PrVerificationAuto
   ].join('\n');
   return {
     changed: true,
-    body: replaceMarkdownSection(body, /^##\s+Verification\b/im, replacement),
+    body: replaceMarkdownSection(body, VERIFICATION_HEADING_REGEX_LINE_START, replacement),
     reason: 'replaced pending runtime-autocorrect verification with completed preservation evidence',
   };
 }

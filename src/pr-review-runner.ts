@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { requiresHumanPrReview, type PrReviewFramework, type PrReviewer } from './pr-lifecycle-governance.js';
+import { hasVerificationHeadingAny } from './verification-heading.js';
 
 export type PrReviewVerdict = 'approve' | 'request_changes' | 'comment';
 export type PrReviewConsensusStatus = 'pending' | 'approved' | 'changes_requested' | 'commented' | 'disputed';
@@ -228,7 +229,7 @@ export function createInternalPrReviewClaim(candidate: InternalPrReviewCandidate
 
   const changedFiles = uniqueStrings(candidate.changedFiles);
   const touchesCode = changedFiles.some(file => /^(src|tests|scripts|plugins|\.githooks)\//.test(file) || file === 'package.json');
-  const hasVerification = /(^|\n)##\s+(?:Verification|Test\s+plan)\b/i.test(text)
+  const hasVerification = hasVerificationHeadingAny(text)
     && /\b(pnpm|npm|npx|node|zsh|vitest|tsc|test|typecheck|build|passed|passes|clean|parses cleanly|exits 0|smoke|verified in an isolated worktree|runtime checkout was not used)\b/i.test(text);
 
   if (changedFiles.length === 0) {

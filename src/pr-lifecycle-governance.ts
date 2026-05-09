@@ -1,3 +1,5 @@
+import { VERIFICATION_HEADING_REGEX_LINE_START } from './verification-heading.js';
+
 export interface CommitSummary {
   sha: string;
   subject: string;
@@ -447,7 +449,7 @@ function riskClass(pr: OpenPullRequestSummary): string {
 }
 
 function hasCompletedVerification(text: string): boolean {
-  const section = extractMarkdownSection(text, /^##\s+Verification\b/im);
+  const section = extractMarkdownSection(text, VERIFICATION_HEADING_REGEX_LINE_START);
   if (!section) return false;
   return /(?:^|\n)\s*-\s*\[[xX]\]\s+/.test(section)
     || /\b(?:passed|passes|clean|success|ok)\b/i.test(section);
