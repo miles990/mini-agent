@@ -8,7 +8,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
-import { queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
+import { queryMemoryIndexSync, updateMemoryIndexEntry, loadResolvedTaskKeysFromEvents, type MemoryIndexEntry } from './memory-index.js';
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 import { getProcess } from './process-table.js';
@@ -391,6 +391,7 @@ export function schedulerPick(
   resetSuppressionsForExternalEvents(events);
 
   const phantomTitles = loadPhantomTaskTitles(memoryDir);
+  const resolvedKeys = loadResolvedTaskKeysFromEvents(memoryDir);
 
   const tasks: TaskSnapshot[] = entries.map(entryToSnapshot)
     .filter(t => {
@@ -414,6 +415,18 @@ export function schedulerPick(
     .filter(t => {
       if (suppressedTaskIds.has(t.id)) {
         slog('SCHED', `dispatch-suppression: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)}`);
+        return false;
+      }
+      return true;
+    })
+    .filter(t => {
+      if (resolvedKeys.ids.has(t.id)) {
+        slog('SCHED', `dispatch-resolved: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)} (stack_rank overlay)`);
+        return false;
+      }
+      const summary = (t.summary ?? '').trim();
+      if (summary && resolvedKeys.summaries.has(summary)) {
+        slog('SCHED', `dispatch-resolved: skipping task=${t.id.slice(0, 12)} ${summary.slice(0, 50)} (stack_rank summary match)`);
         return false;
       }
       return true;
