@@ -328,6 +328,20 @@ describe('PR lifecycle governance', () => {
     }));
   });
 
+  it('accepts ## Test plan with checked evidence as completed verification (issue #476)', () => {
+    expect(decidePrConflictAction({
+      number: 476,
+      title: 'fix: narrow bug with default Test plan heading',
+      body: '## Summary\n- adds endpoint\n\n## Test plan\n- [x] `pnpm test` passed\n- [x] `pnpm typecheck` passes',
+      mergeable: 'CONFLICTING',
+      reviewDecision: 'APPROVED',
+      changedFiles: ['src/feedback-loops.ts', 'tests/feedback-loops.test.ts'],
+    })).toEqual(expect.objectContaining({
+      action: 'attempt-update-branch',
+      risk: 'medium',
+    }));
+  });
+
   it('closes conflicting PRs that target the protected runtime branch instead of main', () => {
     expect(decidePrConflictAction({
       number: 280,
