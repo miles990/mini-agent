@@ -431,6 +431,33 @@ export function schedulerPick(
       }
       return true;
     });
+
+  // Issue #P0-stack-rank: filter tasks whose latest stack_rank event marks them
+  // resolved. Mirrors memory-index.getP0TaskPreviews logic so scheduler dispatch
+  // stays consistent with prompt display — without this, resolved-phantom tasks
+  // re-dispatch every cycle despite being hidden from the heartbeat.
+  const resolvedKeys = loadResolvedTaskKeysFromEvents(memoryDir);
+  const tasksAfterResolved = tasks.filter(t => {
+    if (resolvedKeys.ids.has(t.id)) {
+      slog('SCHED', `dispatch-stack-rank-resolved: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)} (resolved via stack_rank)`);
+      return false;
+    }
+    const summary = t.summary.trim();
+    if (summary && resolvedKeys.summaries.has(summary)) {
+      slog('SCHED', `dispatch-stack-rank-resolved: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)} (resolved via stack_rank summary match)`);
+      return false;
+    }
+    if (summary.length >= 24) {
+      for (const resolvedSummary of resolvedKeys.summaries) {
+        if (resolvedSummary.length < 24) continue;
+        if (summary.includes(resolvedSummary) || resolvedSummary.includes(summary)) {
+          slog('SCHED', `dispatch-stack-rank-resolved: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)} (resolved via stack_rank substring)`);
+          return false;
+        }
+      }
+    }
+    return true;
+  });
   // Issue #316: drop correction tasks whose hold is still active. Mirrors the
   // filter already applied in memory-index.getP0TaskPreviews so the dispatch
   // path stays consistent with the prompt-header preview path. Without this,
