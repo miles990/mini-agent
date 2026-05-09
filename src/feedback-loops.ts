@@ -395,6 +395,21 @@ export function shouldThrottleFastBandWindow(args: {
 }
 
 /**
+ * Read recent fast-band failure timestamps from error-patterns.json (#445).
+ * Pure helper extracted from loop.ts wire so the gate read-path is unit-testable.
+ * Returns [] on missing/malformed state — caller should treat empty as "no throttle".
+ */
+export function readRecentFastBandFailures(stateDir: string): string[] {
+  const epPath = path.join(stateDir, 'error-patterns.json');
+  if (!existsSync(epPath)) return [];
+  try {
+    const raw = JSON.parse(readFileSync(epPath, 'utf8'));
+    const entry = raw['UNKNOWN:transient_fast_band::callClaude'] as { occurrences?: string[] } | undefined;
+    return entry?.occurrences ?? [];
+  } catch { return []; }
+}
+
+/**
  * 掃描今天的 error log，按 (code + subtype + context) 分群。
  * 同模式 >= 3 次 → 寫入 HEARTBEAT.md 作為 P1 task。
  * 已建過的模式不重複建。
