@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { assessConflicts, type ConflictAssessment } from './conflict-governance.js';
 import type { MemoryIndexEntry } from './memory-index.js';
@@ -39,10 +40,19 @@ export interface StashGovernanceCase {
   taskId?: string;
 }
 
+export interface AppendUnionMergeOutcome {
+  caseId: string;
+  stashRef: string;
+  mergedFiles: string[];
+  dropped: boolean;
+  error?: string;
+}
+
 export interface StashGovernanceResult {
   cases: StashGovernanceCase[];
   createdTasks: MemoryIndexEntry[];
   closedTasks: MemoryIndexEntry[];
+  appendUnionMerges?: AppendUnionMergeOutcome[];
 }
 
 export async function governGitStashes(
@@ -51,6 +61,7 @@ export async function governGitStashes(
   opts: {
     createTasks?: boolean;
     dropAbsorbed?: boolean;
+    executeAppendUnion?: boolean;
     maxCases?: number;
     record?: boolean;
     reason?: string;
@@ -66,6 +77,7 @@ export async function governGitStashes(
   const createdTasks: MemoryIndexEntry[] = [];
   const closedTasks: MemoryIndexEntry[] = [];
   const absorbedDrops: string[] = [];
+  const appendUnionMerges: AppendUnionMergeOutcome[] = [];
 
   if (opts.record || opts.createTasks) appendStashCases(memoryDir, cases);
 
@@ -74,6 +86,24 @@ export async function governGitStashes(
       if (diagnostic.decision !== 'drop-absorbed') continue;
       if (dropStash(repoRoot, diagnostic.stashRef)) {
         absorbedDrops.push(diagnostic.stashRef);
+      }
+    }
+  }
+
+  // Mechanical executor: drain merge-append-union cases by union-merging
+  // append-only memory files in-place and dropping the stash. Iterate in
+  // reverse so dropping earlier stash refs (e.g. stash@{0}) doesn't shift
+  // higher indices we still need to process.
+  if (opts.executeAppendUnion) {
+    for (const diagnostic of [...cases].reverse()) {
+      if (diagnostic.decision !== 'merge-append-union') continue;
+      if (diagnostic.mechanicalAction !== 'append-union-and-drop') continue;
+      const outcome = executeAppendUnionAndDrop(repoRoot, diagnostic);
+      appendUnionMerges.push(outcome);
+      if (outcome.error) {
+        slog('HOUSEKEEPING', `stash governance append-union failed for ${diagnostic.id}: ${outcome.error}`);
+      } else {
+        slog('HOUSEKEEPING', `stash governance append-union merged ${diagnostic.id}: files=${outcome.mergedFiles.length} dropped=${outcome.dropped}`);
       }
     }
   }
@@ -108,10 +138,129 @@ export async function governGitStashes(
   }
 
   if (cases.length > 0 && (opts.record || opts.createTasks)) {
-    slog('HOUSEKEEPING', `stash governance diagnosed ${cases.length} stash case(s); tasks=${createdTasks.length} closed=${closedTasks.length} absorbedDrops=${absorbedDrops.length}`);
+    slog('HOUSEKEEPING', `stash governance diagnosed ${cases.length} stash case(s); tasks=${createdTasks.length} closed=${closedTasks.length} absorbedDrops=${absorbedDrops.length} appendUnionDrops=${appendUnionMerges.filter(m => m.dropped).length}`);
   }
 
-  return { cases, createdTasks, closedTasks };
+  return { cases, createdTasks, closedTasks, appendUnionMerges };
+}
+
+/**
+ * Drain a `merge-append-union` case by:
+ *   1. Reading the stashed version of each file via `git show stash@{N}:path`
+ *   2. Computing the merge base from `stash@{N}^1:path` (HEAD when stashed)
+ *   3. Producing a union merge with `git merge-file --union`
+ *   4. Writing the merged content back in-place
+ *   5. Dropping the stash if every file merged cleanly
+ *
+ * Safety gates:
+ *   - Only acts on `decision === 'merge-append-union'` with
+ *     `mechanicalAction === 'append-union-and-drop'`
+ *   - Aborts (without dropping) if any file fails to read or merge, leaving
+ *     the stash and any partial writes in place for manual diagnosis
+ *   - Refuses to write if the merged output is shorter than the current file
+ *     (append-only invariant: union-merging append-only memory should never
+ *     shrink the file)
+ */
+export function executeAppendUnionAndDrop(
+  repoRoot: string,
+  diagnostic: StashGovernanceCase,
+): AppendUnionMergeOutcome {
+  const out: AppendUnionMergeOutcome = {
+    caseId: diagnostic.id,
+    stashRef: diagnostic.stashRef,
+    mergedFiles: [],
+    dropped: false,
+  };
+
+  if (diagnostic.decision !== 'merge-append-union' || diagnostic.mechanicalAction !== 'append-union-and-drop') {
+    out.error = 'wrong-decision-or-action';
+    return out;
+  }
+  if (diagnostic.assessment.manual.length !== 0) {
+    out.error = 'has-manual-conflicts';
+    return out;
+  }
+  if (diagnostic.files.length === 0) {
+    out.error = 'no-files';
+    return out;
+  }
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stash-append-union-'));
+  try {
+    for (const relPath of diagnostic.files) {
+      const absPath = path.join(repoRoot, relPath);
+      let currentContent: string;
+      try {
+        currentContent = fs.readFileSync(absPath, 'utf-8');
+      } catch {
+        currentContent = '';
+      }
+      const stashedContent = safeGitStdout(repoRoot, ['show', `${diagnostic.stashRef}:${relPath}`]);
+      if (stashedContent === null) {
+        out.error = `cannot-read-stashed:${relPath}`;
+        return out;
+      }
+      // Merge base: HEAD when the stash was created. May be empty if file
+      // didn't exist (newly added in stash); treat that as empty base.
+      const baseContent = safeGitStdout(repoRoot, ['show', `${diagnostic.stashRef}^1:${relPath}`]) ?? '';
+
+      const oursPath = path.join(tmpDir, 'ours');
+      const basePath = path.join(tmpDir, 'base');
+      const theirsPath = path.join(tmpDir, 'theirs');
+      fs.writeFileSync(oursPath, currentContent, 'utf-8');
+      fs.writeFileSync(basePath, baseContent, 'utf-8');
+      fs.writeFileSync(theirsPath, stashedContent, 'utf-8');
+
+      let mergedContent: string;
+      try {
+        // `git merge-file --union -p` writes the merged content to stdout
+        // and exits 0 (no conflicts possible with --union).
+        mergedContent = execFileSync('git', ['merge-file', '--union', '-p', oursPath, basePath, theirsPath], {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: 15_000,
+        });
+      } catch (error) {
+        out.error = `merge-file-failed:${relPath}:${(error as Error).message}`;
+        return out;
+      }
+
+      // Append-only invariant: union output must not shrink the current file.
+      if (mergedContent.length < currentContent.length) {
+        out.error = `append-only-shrink-detected:${relPath}`;
+        return out;
+      }
+
+      if (mergedContent !== currentContent) {
+        fs.mkdirSync(path.dirname(absPath), { recursive: true });
+        fs.writeFileSync(absPath, mergedContent, 'utf-8');
+      }
+      out.mergedFiles.push(relPath);
+    }
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+
+  // All files merged successfully; drop the stash.
+  out.dropped = dropStash(repoRoot, diagnostic.stashRef);
+  if (!out.dropped) {
+    out.error = 'merge-ok-but-stash-drop-failed';
+  }
+  return out;
+}
+
+function safeGitStdout(repoRoot: string, args: string[]): string | null {
+  try {
+    return execFileSync('git', args, {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 15_000,
+    });
+  } catch {
+    return null;
+  }
 }
 
 export function listGitStashes(repoRoot = process.cwd()): GitStashRecord[] {

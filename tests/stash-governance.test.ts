@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -114,6 +115,107 @@ describe('stash governance', () => {
     expect(second.createdTasks).toHaveLength(0);
     expect(first.cases).toHaveLength(1);
     expect(first.cases[0].decision).toBe('merge-append-union');
+  });
+
+  it('executor union-merges append-only memory stashes in a real repo and drops the stash (closing #431 acceptance #1)', async () => {
+    const repo = path.join(tmpDir, 'repo');
+    mkdirSync(repo, { recursive: true });
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.email', 'test@test');
+    git('config', 'user.name', 'test');
+    git('config', 'commit.gpgsign', 'false');
+
+    mkdirSync(path.join(repo, 'memory', 'handoffs'), { recursive: true });
+    const file = path.join(repo, 'memory', 'handoffs', 'active.md');
+    writeFileSync(file, 'line1\nline2\n', 'utf-8');
+    git('add', '.');
+    git('commit', '-q', '-m', 'init');
+
+    // Stash side: append a STASH-only line.
+    writeFileSync(file, 'line1\nline2\nSTASH-ONLY-LINE\n', 'utf-8');
+    git('stash', 'push', '-q', '-m', 'On runtime/main: deploy-backup-20260508T000000Z', '--', 'memory/handoffs/active.md');
+
+    // Main advances with a different append.
+    writeFileSync(file, 'line1\nline2\nMAIN-ONLY-LINE\n', 'utf-8');
+    git('add', '.');
+    git('commit', '-q', '-m', 'main append');
+
+    const memoryDir = path.join(tmpDir, 'memory');
+    mkdirSync(path.join(memoryDir, 'state', 'index'), { recursive: true });
+    writeFileSync(path.join(memoryDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(memoryDir, 'state', 'index', 'relations.jsonl'), '', 'utf-8');
+
+    const result = await governGitStashes(memoryDir, repo, {
+      executeAppendUnion: true,
+      createTasks: true,
+      reason: 'test',
+    });
+
+    expect(result.appendUnionMerges).toHaveLength(1);
+    expect(result.appendUnionMerges![0].error).toBeUndefined();
+    expect(result.appendUnionMerges![0].dropped).toBe(true);
+    expect(result.appendUnionMerges![0].mergedFiles).toEqual(['memory/handoffs/active.md']);
+    // Classifier already routes to merge-append-union without a fallback task,
+    // so the executor should not need to remove tasks — just confirm none created.
+    expect(result.createdTasks).toHaveLength(0);
+
+    const merged = readFileSync(file, 'utf-8');
+    expect(merged).toContain('MAIN-ONLY-LINE');
+    expect(merged).toContain('STASH-ONLY-LINE');
+    expect(merged).toContain('line1');
+
+    const stashList = execFileSync('git', ['stash', 'list'], { cwd: repo, encoding: 'utf-8' });
+    expect(stashList.trim()).toBe('');
+  });
+
+  it('executor refuses to drop the stash if the merged output would shrink (append-only invariant)', async () => {
+    const repo = path.join(tmpDir, 'repo');
+    mkdirSync(repo, { recursive: true });
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.email', 'test@test');
+    git('config', 'user.name', 'test');
+    git('config', 'commit.gpgsign', 'false');
+
+    mkdirSync(path.join(repo, 'memory', 'handoffs'), { recursive: true });
+    const file = path.join(repo, 'memory', 'handoffs', 'active.md');
+    writeFileSync(file, 'line1\nline2\nline3\nline4\nline5\n', 'utf-8');
+    git('add', '.');
+    git('commit', '-q', '-m', 'init');
+
+    // Stash a SHRUNK version (deletion). Should never happen for genuine
+    // append-only memory — the safety gate must catch it.
+    writeFileSync(file, 'line1\n', 'utf-8');
+    git('stash', 'push', '-q', '-m', 'On runtime/main: deploy-backup-shrink', '--', 'memory/handoffs/active.md');
+
+    // Main keeps the full content.
+    const memoryDir = path.join(tmpDir, 'memory');
+    mkdirSync(path.join(memoryDir, 'state', 'index'), { recursive: true });
+    writeFileSync(path.join(memoryDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(memoryDir, 'state', 'index', 'relations.jsonl'), '', 'utf-8');
+
+    const result = await governGitStashes(memoryDir, repo, {
+      executeAppendUnion: true,
+      createTasks: true,
+      reason: 'test',
+    });
+
+    // With base==stash-side==deletion, union of (main-full, base-empty-no-wait, stash-shrunk)
+    // can shrink. The gate should catch and refuse to drop.
+    // (This test is permissive: either the merge keeps full content — fine — OR
+    // the gate catches a shrink — also fine. What we forbid is drop+shrink.)
+    const merged = readFileSync(file, 'utf-8');
+    expect(merged).toContain('line1');
+    if (merged.length < 'line1\nline2\nline3\nline4\nline5\n'.length) {
+      expect(result.appendUnionMerges![0].dropped).toBe(false);
+      expect(result.appendUnionMerges![0].error).toContain('shrink');
+    }
+    // Either way: post-condition — file is not shorter than current length.
+    // (We assert no drop+shrink combo.)
+    if (result.appendUnionMerges![0].dropped) {
+      expect(merged.length).toBeGreaterThanOrEqual('line1\nline2\nline3\nline4\nline5\n'.length);
+    }
   });
 
   it('closes active stash tasks when the underlying stash case disappears', async () => {
