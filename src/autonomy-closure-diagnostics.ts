@@ -211,7 +211,7 @@ function diagnosticBase(stage: AutonomyClosureStageResult, ts: string): Pick<Aut
 
 export function diagnosticFingerprint(stage: AutonomyClosureStageResult): string {
   const evidenceKey = stage.evidence
-    .map(line => line.replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/g, '<ts>').replace(/\b\d{6,}\b/g, '<n>'))
+    .map(line => line.replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/g, '<ts>'))
     .slice(0, 5)
     .join('|');
   return `${stage.stage}:${stage.status}:${stableSlug(stage.summary)}:${stableSlug(evidenceKey)}`;
