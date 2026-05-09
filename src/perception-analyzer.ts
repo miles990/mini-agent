@@ -10,6 +10,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { sanitizeUnpairedSurrogates } from './sanitize.js';
 import { slog } from './utils.js';
 import type { PerceptionResult } from './perception.js';
 import type { PerceptionInsight, SituationReport } from './types.js';
@@ -78,7 +79,7 @@ async function analyzeOne(result: PerceptionResult): Promise<PerceptionInsight> 
 
   try {
     const prompt = ANALYSIS_PROMPTS[result.name] ?? FALLBACK_PROMPT;
-    const userMessage = `<raw_output plugin="${result.name}">\n${result.output}\n</raw_output>\n\n${prompt}`;
+    const userMessage = sanitizeUnpairedSurrogates(`<raw_output plugin="${result.name}">\n${result.output}\n</raw_output>\n\n${prompt}`);
 
     const response = await getClient().messages.create({
       model: HAIKU_MODEL,
