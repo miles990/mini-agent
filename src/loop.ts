@@ -2325,6 +2325,9 @@ export class AgentLoop {
 
       }
 
+      // #350: capture pre-dynamic snapshot for rebuildPriorityPrefix on retry
+      const staticPriorityPrefix = priorityPrefix;
+
       // Fix 3: Pending foreground delegations — OODA must follow up, not reflect/learn
       const pendingFgDelegations = getPendingForegroundDelegations();
       if (pendingFgDelegations.length > 0) {
@@ -2362,6 +2365,36 @@ export class AgentLoop {
         const p0Preview = p0Previews.slice(0, 3).map(i => `  「${i.slice(0, 100)}」`).join('\n');
         priorityPrefix += `\nP0 items pending:\n${p0Preview}\n\n`;
       }
+
+      // #350: re-derive dynamic banner (foreground delegations + P0 items) for retry path.
+      // Static front (Alex/room/chat banner) doesn't drift in 30s retry; only dynamic part does.
+      const rebuildPriorityPrefixFn = async (): Promise<string> => {
+        let fresh = staticPriorityPrefix;
+        const fgPendingNow = getPendingForegroundDelegations();
+        if (fgPendingNow.length > 0) {
+          const fgPreview = fgPendingNow.map(d =>
+            `  - [${d.source}] "${d.text.slice(0, 120)}" (delegated at ${new Date(d.delegatedAt).toLocaleTimeString()})`
+          ).join('\n');
+          fresh += `\n背景委派待跟進：\n${fgPreview}\n收斂條件：委派結果被吸收，原始發問者得到回覆。\n\n`;
+        }
+        const rawPreviews = getP0TaskPreviews(memDir);
+        const ctxLocal = { repoRoot: path.resolve(memDir, '..', '..'), memoryDir: memDir };
+        const previews: string[] = [];
+        for (const preview of rawPreviews) {
+          const m = preview.match(/correction gate: resolve ([a-z-]+)/i);
+          if (!m) { previews.push(preview); continue; }
+          let stillStale: boolean | null = null;
+          try { stillStale = await reverifyPredicate(m[1] as PredicateType, ctxLocal); }
+          catch { stillStale = null; /* fail-open */ }
+          if (stillStale === false) continue;
+          previews.push(preview);
+        }
+        if (previews.length > 0) {
+          const p0Preview = previews.slice(0, 3).map(i => `  「${i.slice(0, 100)}」`).join('\n');
+          fresh += `\nP0 items pending:\n${p0Preview}\n\n`;
+        }
+        return fresh;
+      };
 
       // ── Agent OS Scheduler: deterministic task selection ──
       const schedulerEvents: SchedulerEvent[] = [];
@@ -2855,6 +2888,9 @@ export class AgentLoop {
           `cycle#${this.cycleCount}.callClaude`,
           () => callClaude(effectivePrompt, context, 2, {
             rebuildContext: (mode, budget) => memory.buildContext({ mode, cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined, contextBudget: budget }),
+            // #350: enable retry-time priorityPrefix refresh to drop stale P0/delegation banner
+            priorityPrefix,
+            rebuildPriorityPrefix: rebuildPriorityPrefixFn,
             source: 'loop',
             onPartialOutput,
             cycleMode,
