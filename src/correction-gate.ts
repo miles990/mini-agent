@@ -12,6 +12,7 @@ import {
   type CorrectionHold,
 } from './correction-holds.js';
 import { evaluateWorkspaceIsolation, isCodePath, isSafeRuntimeBranch, refreshGitIndex } from './workspace-isolation.js';
+import { readPublicWriteProvenanceSync, type PublicWriteProvenanceRecord } from './public-write-identity.js';
 
 export type CorrectionReasonType =
   | 'pending-pledge'
@@ -57,8 +58,11 @@ export interface CorrectionGateSnapshot {
   acknowledgedHolds: ActiveHoldMatch[];
 }
 
+const DURABLE_OUTPUT_WINDOW_MS = 6 * 60 * 60 * 1000;
+
 export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd()): CorrectionGateSnapshot {
   const signals = getHealthSignals();
+  const durableOutput = evaluateDurableOutputMomentum(memoryDir);
   const allTasks = queryMemoryIndexSync(memoryDir, { type: ['task'] });
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
 
@@ -80,7 +84,9 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
 
   const outputRate = signals.visibleOutputRate;
   const hasPulseHistory = signals.cycleCount >= 5 && existsSync(path.join(memoryDir, 'state', 'pulse-state.json'));
-  const quality = hasPulseHistory ? Math.min(outputRate * 1.5, 1) : 0.7;
+  const pulseQuality = hasPulseHistory ? Math.min(outputRate * 1.5, 1) : 0.7;
+  const durableQuality = durableOutput.count > 0 ? Math.min(0.4 + durableOutput.count * 0.15, 1) : 0;
+  const quality = Math.max(pulseQuality, durableQuality);
   const score = Math.min(Math.round(fulfillment * 40 + responsiveness * 35 + quality * 25), 100);
 
   const holds = loadCorrectionHolds(memoryDir);
@@ -110,10 +116,14 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
     }
   }
 
-  if (hasPulseHistory && quality < 0.4 && signals.momentumStreak === 0) {
+  if (hasPulseHistory && pulseQuality < 0.4 && signals.momentumStreak === 0 && durableOutput.count === 0) {
     const message = `產出品質低 (${Math.round(quality * 100)}%) — 多數 cycle 無 visible output。交付成品，不要只思考。`;
     reasons.push({ type: 'low-output-quality', severity: 'medium', message });
     guidance.push(message);
+  } else if (hasPulseHistory && pulseQuality < 0.4 && durableOutput.count > 0) {
+    guidance.push(
+      `LLM visible output 偏低 (${Math.round(outputRate * 100)}%)，但近 ${DURABLE_OUTPUT_WINDOW_MS / 3600000}h 有 ${durableOutput.count} 個 durable output：${durableOutput.evidence.slice(0, 3).join(', ')}`,
+    );
   }
 
   const shipTruth = readShipTruth(repoRoot);
@@ -192,7 +202,14 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
     breakdown: {
       fulfillment: { value: fulfillment, weight: 40, contribution: Math.round(fulfillment * 40 * 10) / 10, detail: `${pledgesDone}/${pledgesTotal} pledges` },
       responsiveness: { value: responsiveness, weight: 35, contribution: Math.round(responsiveness * 35 * 10) / 10, detail: `avg staleness ${avgStaleness.toFixed(1)}` },
-      quality: { value: quality, weight: 25, contribution: Math.round(quality * 25 * 10) / 10, detail: `output rate ${Math.round(outputRate * 100)}%` },
+      quality: {
+        value: quality,
+        weight: 25,
+        contribution: Math.round(quality * 25 * 10) / 10,
+        detail: durableOutput.count > 0
+          ? `output rate ${Math.round(outputRate * 100)}%, durable outputs ${durableOutput.count}`
+          : `output rate ${Math.round(outputRate * 100)}%`,
+      },
     },
     guidance,
     anomalies: needsCorrection ? ['needs-correction'] : [],
@@ -201,6 +218,42 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
     shipTruth,
     acknowledgedHolds,
   };
+}
+
+export interface DurableOutputMomentum {
+  count: number;
+  evidence: string[];
+}
+
+export function evaluateDurableOutputMomentum(
+  memoryDir: string,
+  now = new Date(),
+): DurableOutputMomentum {
+  let records: PublicWriteProvenanceRecord[];
+  try {
+    records = readPublicWriteProvenanceSync(memoryDir);
+  } catch {
+    return { count: 0, evidence: [] };
+  }
+
+  const since = now.getTime() - DURABLE_OUTPUT_WINDOW_MS;
+  const durable = records.filter(record => {
+    const observedAt = Date.parse(record.observedAt);
+    if (!Number.isFinite(observedAt) || observedAt < since || observedAt > now.getTime() + 60_000) return false;
+    if (record.intentActor !== 'kuro') return false;
+    if (record.actualActor !== record.expectedActor) return false;
+    return isDurablePublicWrite(record);
+  });
+
+  return {
+    count: durable.length,
+    evidence: durable.map(record => `${record.service}.${record.action}:${record.subject}`),
+  };
+}
+
+function isDurablePublicWrite(record: PublicWriteProvenanceRecord): boolean {
+  if (record.service !== 'github') return true;
+  return /^(pr\.(?:create|merge|review|close)|issue\.(?:create|comment|close)|api\.write)$/.test(record.action);
 }
 
 function isBackgroundMaintenanceTask(task: MemoryIndexEntry): boolean {
