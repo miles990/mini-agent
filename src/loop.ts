@@ -26,7 +26,7 @@ import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir, loadInstanceConfig } from './instance.js';
 import { githubAutoActions } from './github.js';
-import { runFeedbackLoops, flushFeedbackState } from './feedback-loops.js';
+import { runFeedbackLoops, flushFeedbackState, shouldThrottleFastBandWindow, extractErrorSubtype } from './feedback-loops.js';
 import { runPulseCheck } from './pulse.js';
 import { runDailyPruning } from './context-pruner.js';
 import { mushiTriage, mushiContinuationCheck } from './mushi-client.js';
