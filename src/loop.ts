@@ -2728,7 +2728,7 @@ export class AgentLoop {
       }
 
       // Idle mode: replace prompt entirely with a lightweight idle prompt to avoid noop spirals
-      const effectivePrompt = cycleMode === 'idle'
+      let effectivePrompt = cycleMode === 'idle'
         ? buildIdlePrompt()
         : prompt + (selectedSkillPrompt ? `\n\n${selectedSkillPrompt}` : '');
 
@@ -2760,8 +2760,16 @@ export class AgentLoop {
         const contextBefore = context.length;
         try {
           context = await memory.buildContext({ mode: 'minimal', cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined });
-          slog('LOOP', `[preflight.drain] effectivePrompt ${effectivePrompt.length} >= ${PREFLIGHT_SIZE_THRESHOLD} — context rebuilt minimal: ${contextBefore} → ${context.length}`);
-          eventBus.emit('action:loop', { event: 'preflight.drain', promptSize: effectivePrompt.length, threshold: PREFLIGHT_SIZE_THRESHOLD, contextBefore, contextAfter: context.length, cycleMode, trigger: currentTriggerReason ?? null });
+          // Issue #468: drain previously rebuilt only `context`; effectivePrompt stayed at the original
+          // pre-drain size, so callClaude still sent a 30K+ prompt → silent_exit_void_http TIMEOUT.
+          // Path B stopgap: replace effectivePrompt with the lightweight idle prompt during drain so
+          // the call actually shrinks. We accept temporary loss of full task-signal continuity in
+          // exchange for unblocking the cycle; Path A′ (re-run buildAutonomousPromptFn with
+          // minimalMode) remains the proper fix tracked in #468.
+          const promptBefore = effectivePrompt.length;
+          effectivePrompt = buildIdlePrompt();
+          slog('LOOP', `[preflight.drain] effectivePrompt ${promptBefore} >= ${PREFLIGHT_SIZE_THRESHOLD} — context ${contextBefore} → ${context.length}, prompt ${promptBefore} → ${effectivePrompt.length} (idle)`);
+          eventBus.emit('action:loop', { event: 'preflight.drain', promptSize: promptBefore, promptAfter: effectivePrompt.length, threshold: PREFLIGHT_SIZE_THRESHOLD, contextBefore, contextAfter: context.length, cycleMode, trigger: currentTriggerReason ?? null });
         } catch (drainErr) {
           // Drain failed — fall back to observability-only; call proceeds with original context.
           slog('LOOP', `[preflight.observe] context rebuild failed, proceeding with original context: ${String(drainErr)}`);
