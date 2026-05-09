@@ -385,6 +385,50 @@ describe('correction gate', () => {
     }
   });
 
+  it('does not flag low-output-quality when recent Kuro durable output exists', () => {
+    const previousMemoryDir = process.env.MINI_AGENT_MEMORY_DIR;
+    process.env.MINI_AGENT_MEMORY_DIR = tmpDir;
+    mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
+    mkdirSync(path.join(tmpDir, 'index'), { recursive: true });
+    writeFileSync(path.join(tmpDir, 'state/pulse-state.json'), JSON.stringify({
+      cycleCount: 8,
+      recentOutputFlags: [
+        false, false, false, false, false,
+        false, false, false, false, false,
+        false, false, false, false, false,
+        false, false, false, false, false,
+      ],
+      recentDecisionScores: [],
+      signalHistory: {},
+      errorPatterns: {},
+    }), 'utf-8');
+    writeFileSync(path.join(tmpDir, 'index/public-write-provenance.jsonl'), JSON.stringify({
+      id: 'pub-recent-merge',
+      observedAt: new Date().toISOString(),
+      service: 'github',
+      action: 'pr.merge',
+      subject: 'pr#426',
+      expectedActor: 'kuro-agent',
+      actualActor: 'kuro-agent',
+      intentActor: 'kuro',
+      source: 'gh pr merge 426',
+      status: 'open',
+      evidence: ['args=pr merge 426 --merge --delete-branch'],
+    }) + '\n', 'utf-8');
+
+    try {
+      const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+      expect(snapshot.reasons.map(r => r.type)).not.toContain('low-output-quality');
+      expect(snapshot.needsCorrection).toBe(false);
+      expect(snapshot.breakdown.quality.detail).toContain('durable outputs 1');
+      expect(snapshot.guidance.join('\n')).toContain('durable output');
+    } finally {
+      if (previousMemoryDir === undefined) delete process.env.MINI_AGENT_MEMORY_DIR;
+      else process.env.MINI_AGENT_MEMORY_DIR = previousMemoryDir;
+    }
+  });
+
   it('acknowledges an active low-responsiveness hold instead of emitting a correction reason', async () => {
     await appendMemoryIndexEntry(tmpDir, {
       type: 'task',
