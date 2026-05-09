@@ -436,6 +436,7 @@ export function buildErrorPatternsHint(): string {
       resolved?: boolean;
       resolvedAt?: string;
       resolvedBy?: string;
+      mitigationKind?: 'circuit_breaker' | 'retry' | 'fallback' | 'expected_steady_state';
     }>>('error-patterns.json', {});
     const STALE_MS = 7 * 24 * 60 * 60 * 1000;
     const RESOLVED_GRACE_MS = 24 * 60 * 60 * 1000;
@@ -453,10 +454,10 @@ export function buildErrorPatternsHint(): string {
         const lastSeenTs = /^\d{4}-\d{2}-\d{2}$/.test(v.lastSeen)
           ? Date.parse(`${v.lastSeen}T23:59:59.999Z`)
           : ts;
-        const isRegression = lastSeenTs > resolvedTs + RESOLVED_GRACE_MS;
+        const isRegression = !v.mitigationKind && lastSeenTs > resolvedTs + RESOLVED_GRACE_MS;
         return isRegression ? ([key, v, true] as const) : false;
       })
-      .filter((entry): entry is readonly [string, { count: number; taskCreated: boolean; lastSeen: string; resolved?: boolean; resolvedAt?: string; resolvedBy?: string }, boolean] => Boolean(entry))
+      .filter((entry): entry is readonly [string, { count: number; taskCreated: boolean; lastSeen: string; resolved?: boolean; resolvedAt?: string; resolvedBy?: string; mitigationKind?: 'circuit_breaker' | 'retry' | 'fallback' | 'expected_steady_state' }, boolean] => Boolean(entry))
       .sort(([, a], [, b]) => b.count - a.count)
       .slice(0, 5);
     if (actionable.length === 0) return '';
