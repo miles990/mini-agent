@@ -66,6 +66,12 @@ function inferRuntimeWorkspace(root: string): string {
   const baseName = path.basename(root);
   if (baseName === 'mini-agent') return root;
   if (baseName.startsWith('mini-agent-')) return path.join(path.dirname(root), 'mini-agent');
+  // Generic worktree dirs (e.g. /tmp/wt-468) should not self-identify as the
+  // protected runtime root. Resolve to a sibling `mini-agent` checkout when
+  // present so isProtectedRuntime correctly returns false for the worktree.
+  if (baseName.startsWith('wt-') || baseName.startsWith('worktree-')) {
+    return path.join(path.dirname(root), 'mini-agent');
+  }
   return root;
 }
 
