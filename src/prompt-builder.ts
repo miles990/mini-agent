@@ -592,6 +592,11 @@ export interface PromptBuilderState {
   hasPendingTasks?: boolean;
   controlMode?: 'calm' | 'reserved' | 'autonomous' | 'custom';
   cycleCount?: number;
+  /** Issue #468 Path A′: when true, skip expensive sections (rumination, threads,
+   *  innerVoice, backgroundLane, verifiedRoutes, pendingFetchArrivals) to produce a
+   *  compact prompt during preflight drain. Commitment gate + ledger are retained so
+   *  task-signal continuity is preserved across the drained cycle. */
+  minimalMode?: boolean;
 }
 
 /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */
@@ -616,6 +621,23 @@ export async function buildAutonomousPrompt(
     );
 
   const memory = getMemory();
+
+  // Issue #468 Path A′: in minimalMode, skip all expensive I/O sections — rumination,
+  // threads, innerVoice, backgroundLane, verifiedRoutes, pendingFetchArrivals — and
+  // keep only base + commitment gate + ledger + delegationReviewGate so the resulting
+  // prompt is small enough to unblock a drained cycle while preserving task continuity.
+  if (state.minimalMode) {
+    const commitmentGateSectionMin = buildCommitmentSection(memory.getMemoryDir());
+    const ledgerSectionMin = state.cycleCount != null ? buildLedgerSection(state.cycleCount) : '';
+    const delegationReviewGateMin = buildDelegationReviewGate();
+    const parts = [base];
+    if (commitmentGateSectionMin) parts.push(commitmentGateSectionMin);
+    if (ledgerSectionMin) parts.push(ledgerSectionMin);
+    if (delegationReviewGateMin) parts.push(delegationReviewGateMin);
+    const prompt = parts.join('\n\n');
+    slog('PROMPT', `prompt size (minimal): ${prompt.length} chars (${parts.length} sections)`);
+    return { prompt, lastValidConfig, researchLoopActive: false };
+  }
 
   // Conversation threads already injected by buildContext() as <conversation-threads> section.
   // Only inject chat-mode time awareness here.

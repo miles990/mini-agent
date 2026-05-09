@@ -108,4 +108,31 @@ describe('preflight threshold — issue #414', () => {
     expect(loopSrc).toContain("mode: 'minimal'");
     expect(loopSrc).toContain("event: 'preflight.drain'");
   });
+
+  // Issue #468 Path A′: drain must re-derive prompt and effectivePrompt from a
+  // minimalMode buildAutonomousPromptFn call so the actual HTTP payload shrinks,
+  // not just the context string. Task-signal continuity is preserved (vs Path B
+  // buildIdlePrompt stopgap which discarded scheduler task context entirely).
+  it('loop.ts drain re-runs buildAutonomousPromptFn with minimalMode:true (issue #468 Path A′)', () => {
+    const loopSrc = readFileSync(resolve(import.meta.dirname!, '../src/loop.ts'), 'utf8');
+    expect(loopSrc).toContain('minimalMode: true');
+  });
+
+  it('loop.ts drain rebuilds prompt and effectivePrompt from minimal result (issue #468 Path A′)', () => {
+    const loopSrc = readFileSync(resolve(import.meta.dirname!, '../src/loop.ts'), 'utf8');
+    expect(loopSrc).toContain('drainPromptResult');
+    expect(loopSrc).toContain('(minimal)');
+  });
+
+  it('prompt-builder.ts PromptBuilderState declares minimalMode field (issue #468 Path A′)', () => {
+    const pbSrc = readFileSync(resolve(import.meta.dirname!, '../src/prompt-builder.ts'), 'utf8');
+    expect(pbSrc).toContain('minimalMode?: boolean');
+  });
+
+  it('prompt-builder.ts buildAutonomousPrompt honours minimalMode early-return (issue #468 Path A′)', () => {
+    const pbSrc = readFileSync(resolve(import.meta.dirname!, '../src/prompt-builder.ts'), 'utf8');
+    const hits = (pbSrc.match(/minimalMode/g) ?? []).length;
+    expect(hits).toBeGreaterThanOrEqual(2);
+    expect(pbSrc).toContain('state.minimalMode');
+  });
 });

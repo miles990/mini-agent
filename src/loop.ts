@@ -2696,7 +2696,7 @@ export class AgentLoop {
         slog('LOOP', `[telemetry] trueNoopStreak=${this.trueNoopStreak} — no prompt injection, trusting SOUL`);
       }
 
-      const prompt = priorityPrefix + schedulerTaskPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix;
+      let prompt = priorityPrefix + schedulerTaskPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
@@ -2790,18 +2790,33 @@ export class AgentLoop {
       if (effectivePrompt.length >= PREFLIGHT_SIZE_THRESHOLD) {
         // Phase-2 drain (issue #414): rebuild context in minimal mode to reduce total token load
         // and avoid the HTTP-stall pattern (25K+ prompt × 800s+ duration → CLI silent exit).
+        // Issue #468 Path A′: after rebuilding context, also re-run buildAutonomousPromptFn with
+        // minimalMode:true so prompt and effectivePrompt actually shrink. The minimal build keeps
+        // commitment gate + ledger + delegationReviewGate for task-signal continuity, skipping
+        // rumination/threads/innerVoice/backgroundLane/verifiedRoutes (the expensive sections).
+        // This replaces the Path B stopgap (buildIdlePrompt) that discarded task context entirely.
         const contextBefore = context.length;
         try {
           context = await memory.buildContext({ mode: 'minimal', cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined });
-          // Issue #468: drain previously rebuilt only `context`; effectivePrompt stayed at the original
-          // pre-drain size, so callClaude still sent a 30K+ prompt → silent_exit_void_http TIMEOUT.
-          // Path B stopgap: replace effectivePrompt with the lightweight idle prompt during drain so
-          // the call actually shrinks. We accept temporary loss of full task-signal continuity in
-          // exchange for unblocking the cycle; Path A′ (re-run buildAutonomousPromptFn with
-          // minimalMode) remains the proper fix tracked in #468.
+          const drainPromptResult = await buildAutonomousPromptFn({
+            lastAutonomousActions: this.lastAutonomousActions,
+            consecutiveLearnCycles: this.consecutiveLearnCycles,
+            lastValidConfig: this.lastValidConfig,
+            hasPendingTasks,
+            cycleCount: this.cycleCount,
+            minimalMode: true,
+          });
           const promptBefore = effectivePrompt.length;
-          effectivePrompt = buildIdlePrompt();
-          slog('LOOP', `[preflight.drain] effectivePrompt ${promptBefore} >= ${PREFLIGHT_SIZE_THRESHOLD} — context ${contextBefore} → ${context.length}, prompt ${promptBefore} → ${effectivePrompt.length} (idle)`);
+          prompt = priorityPrefix + schedulerTaskPrefix + drainPromptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix;
+          effectivePrompt = cycleMode === 'idle'
+            ? buildIdlePrompt()
+            : prompt + (selectedSkillPrompt ? `\n\n${selectedSkillPrompt}` : '');
+          // Safety guard: if the rebuilt prompt still exceeds the threshold (e.g. suffix-heavy),
+          // log a warning and proceed — do not recurse.
+          if (effectivePrompt.length >= PREFLIGHT_SIZE_THRESHOLD) {
+            slog('LOOP', `[preflight.drain.guard] rebuilt effectivePrompt still ${effectivePrompt.length} >= ${PREFLIGHT_SIZE_THRESHOLD} — proceeding with minimal payload`);
+          }
+          slog('LOOP', `[preflight.drain] effectivePrompt ${promptBefore} >= ${PREFLIGHT_SIZE_THRESHOLD} — context ${contextBefore} → ${context.length}, prompt ${promptBefore} → ${effectivePrompt.length} (minimal)`);
           eventBus.emit('action:loop', { event: 'preflight.drain', promptSize: promptBefore, promptAfter: effectivePrompt.length, threshold: PREFLIGHT_SIZE_THRESHOLD, contextBefore, contextAfter: context.length, cycleMode, trigger: currentTriggerReason ?? null });
         } catch (drainErr) {
           // Drain failed — fall back to observability-only; call proceeds with original context.
