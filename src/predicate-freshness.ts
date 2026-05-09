@@ -34,6 +34,18 @@ const execFileAsync = promisify(execFile);
 export interface FreshnessContext {
   repoRoot: string;
   memoryDir: string;
+  /**
+   * Optional task entry being re-verified. Predicates that need
+   * task-specific metadata (e.g. github-issue-open needs repo + issue number)
+   * read it from here. Other predicates ignore it.
+   */
+  entry?: { id?: string; summary?: string; payload?: Record<string, unknown> };
+  /**
+   * Test injection: override the live `gh issue view` call. Returns the
+   * issue state (`OPEN` | `CLOSED`) or null when unavailable. Defaults to
+   * a real `execFile('gh', ['issue', 'view', ...])` when not provided.
+   */
+  ghIssueView?: (repo: string, issueNumber: number) => Promise<{ state: string } | null>;
 }
 
 export type PredicateType =
@@ -42,6 +54,7 @@ export type PredicateType =
   | 'low-responsiveness'
   | 'memory-state-truth'
   | 'ship-truth'
+  | 'github-issue-open'
   | string;
 
 /**
@@ -64,6 +77,8 @@ export async function reverifyPredicate(
       return checkMemoryStateTruth(ctx);
     case 'ship-truth':
       return checkShipTruth(ctx);
+    case 'github-issue-open':
+      return checkGitHubIssueOpen(ctx);
     default:
       return null;
   }
@@ -217,3 +232,61 @@ function isCorrectionTask(entry: Pick<MemoryIndexEntry, 'summary' | 'payload'>):
   const payload = (entry.payload ?? {}) as Record<string, unknown>;
   return (entry.summary ?? '').includes('correction gate') || payload.origin === 'correction-gate';
 }
+
+/**
+ * Source-of-truth: `gh issue view N --repo R --json state` against GitHub.
+ *
+ * Used for heartbeat-derived `idx-github-issue-*` tasks. Without this
+ * predicate the scheduler dispatches an issue-task whose underlying
+ * issue was already closed (autopilot reconciliation may not have run
+ * yet between snapshot and dispatch), producing phantom P0 cycles —
+ * the failure mode reported in mini-agent#465.
+ *
+ * Stale (true) when the live issue state is `OPEN` (matches snapshot →
+ * proceed with dispatch). Fresh (false) when the live state is `CLOSED`
+ * (snapshot was lagging → caller skips dispatch). Fail-open (null) when:
+ *   - ctx.entry is missing or lacks `repo`/`issue_number` payload fields;
+ *   - the `gh` call throws or returns malformed JSON.
+ *
+ * Test injection via `ctx.ghIssueView` bypasses the real `gh` binary.
+ */
+export async function checkGitHubIssueOpen(ctx: FreshnessContext): Promise<boolean | null> {
+  const meta = extractGitHubIssueMeta(ctx.entry);
+  if (!meta) return null;
+  try {
+    const result = ctx.ghIssueView
+      ? await ctx.ghIssueView(meta.repo, meta.issueNumber)
+      : await defaultGhIssueView(meta.repo, meta.issueNumber);
+    if (!result || typeof result.state !== 'string') return null;
+    return result.state.toUpperCase() === 'OPEN';
+  } catch {
+    return null;
+  }
+}
+
+function extractGitHubIssueMeta(
+  entry: FreshnessContext['entry'],
+): { repo: string; issueNumber: number } | null {
+  if (!entry) return null;
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  const repo = typeof payload.repo === 'string' ? payload.repo.trim() : '';
+  const issueNumber = Number(payload.issue_number);
+  if (!repo || !/^[^/\s]+\/[^/\s]+$/.test(repo)) return null;
+  if (!Number.isInteger(issueNumber) || issueNumber <= 0) return null;
+  return { repo, issueNumber };
+}
+
+async function defaultGhIssueView(
+  repo: string,
+  issueNumber: number,
+): Promise<{ state: string } | null> {
+  const { stdout } = await execFileAsync(
+    'gh',
+    ['issue', 'view', String(issueNumber), '--repo', repo, '--json', 'state'],
+    { timeout: 5000 },
+  );
+  const parsed = JSON.parse(stdout) as { state?: unknown };
+  if (typeof parsed.state !== 'string') return null;
+  return { state: parsed.state };
+}
+
