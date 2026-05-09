@@ -1809,6 +1809,10 @@ export async function callClaude(
     triggerReason?: string | null;
     /** Whether there are pending tasks — used by small model prompt builder */
     hasPendingTasks?: boolean;
+    /** #350: original priorityPrefix snapshot — used as boundary for retry-time refresh */
+    priorityPrefix?: string;
+    /** #350: callback to re-derive priorityPrefix on TIMEOUT retry, dropping stale P0/delegation banner */
+    rebuildPriorityPrefix?: () => Promise<string>;
   },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean; error?: ErrorClassification }> {
   const source = options?.source ?? 'loop';
@@ -2062,9 +2066,21 @@ export async function callClaude(
             const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
             const minimalBudget = PROMPT_HARD_CAP - minimalSystemPrompt.length - prompt.length - 20;
             currentContext = await options.rebuildContext('minimal', minimalBudget);
+            // #350: swap stale priorityPrefix banner with freshly-derived one (drops post-resolution P0 items + cleared delegations).
+            // Static Alex/room front carries through; only the dynamic dynamic-banner suffix is re-derived.
+            let retryPrompt = prompt;
+            if (options?.priorityPrefix && options?.rebuildPriorityPrefix && prompt.startsWith(options.priorityPrefix)) {
+              try {
+                const fresh = await options.rebuildPriorityPrefix();
+                retryPrompt = fresh + prompt.slice(options.priorityPrefix.length);
+                slog('RETRY', `priorityPrefix refreshed ${options.priorityPrefix.length}→${fresh.length} chars (#350 fix)`);
+              } catch (rebuildPrefixErr) {
+                slog('RETRY', `rebuildPriorityPrefix failed: ${rebuildPrefixErr}, keeping stale prefix`);
+              }
+            }
             // Error trace retention: models avoid repeating mistakes when they see what went wrong
             const errorTrace = `## Previous Attempt Failed\nType: ${classified.type} | Duration: ${attemptDuration}ms | Tool calls: ${errToolCount}\nGuidance: ${classified.modelGuidance}\nContext reduced from ${prevLen} to ${currentContext.length} chars for retry.`;
-            fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n${errorTrace}\n\n---\n\nUser: ${prompt}`;
+            fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n${errorTrace}\n\n---\n\nUser: ${retryPrompt}`;
             slog('RETRY', `TIMEOUT tools=${errToolCount} on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (minimal + error trace, sysPrompt ${minimalSystemPrompt.length}), retrying in ${delay / 1000}s`);
           } catch (rebuildErr) {
             // Emergency fallback: even if rebuildContext fails, at least strip the system prompt
