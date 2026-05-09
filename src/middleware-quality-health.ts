@@ -1,5 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { classifyMiddlewareFailureBucket, type MiddlewareTaskRecord } from './middleware-failure-self-healing.js';
+import {
+  classifyMiddlewareFailureBucket,
+  isTerminalBrainMaxTurnText,
+  type MiddlewareTaskRecord,
+} from './middleware-failure-self-healing.js';
 
 export interface MiddlewareQualityHealthResult {
   status: 'ok' | 'warn' | 'blocked';
@@ -87,7 +91,7 @@ function evaluateTaskQuality(
   const now = options.now ?? new Date();
   const staleFailedMinutes = options.staleFailedMinutes ?? 20;
   const classifiedFailedTaskIds = new Set(options.classifiedFailedTaskIds ?? []);
-  const { activeFailed, staleFailed, classifiedFailed } = partitionFailedByRecency(
+  const { activeFailed, staleFailed, classifiedFailed, terminalFailed } = partitionFailedByRecency(
     tasks,
     now,
     staleFailedMinutes,
@@ -96,7 +100,7 @@ function evaluateTaskQuality(
 
   // Treat the in-flight task population as "everything except stale-failed
   // residue". Stale residue still gets reported, but it doesn't gate new work.
-  const activeTotal = tasks.length - staleFailed.length - classifiedFailed.length;
+  const activeTotal = tasks.length - staleFailed.length - classifiedFailed.length - terminalFailed.length;
   const counts = countStatuses(tasks);
   const failed = activeFailed.length;
   const running = counts.running ?? 0;
@@ -115,6 +119,9 @@ function evaluateTaskQuality(
   }
   if (classifiedFailed.length > 0) {
     evidence.push(`classifiedFailed=${classifiedFailed.length}`);
+  }
+  if (terminalFailed.length > 0) {
+    evidence.push(`terminalFailed=${terminalFailed.length}`);
   }
   if (Object.keys(failureBuckets).length > 0) {
     evidence.push(`failureBuckets=${Object.entries(failureBuckets).map(([k, v]) => `${k}:${v}`).join(',')}`);
@@ -186,13 +193,23 @@ function partitionFailedByRecency(
   now: Date,
   staleMinutes: number,
   classifiedTaskIds: Set<string> = new Set(),
-): { activeFailed: MiddlewareTaskRecord[]; staleFailed: MiddlewareTaskRecord[]; classifiedFailed: MiddlewareTaskRecord[] } {
+): {
+  activeFailed: MiddlewareTaskRecord[];
+  staleFailed: MiddlewareTaskRecord[];
+  classifiedFailed: MiddlewareTaskRecord[];
+  terminalFailed: MiddlewareTaskRecord[];
+} {
   const thresholdMs = staleMinutes * 60 * 1000;
   const activeFailed: MiddlewareTaskRecord[] = [];
   const staleFailed: MiddlewareTaskRecord[] = [];
   const classifiedFailed: MiddlewareTaskRecord[] = [];
+  const terminalFailed: MiddlewareTaskRecord[] = [];
   for (const task of tasks) {
     if (task.status !== 'failed') continue;
+    if (isTerminalBrainMaxTurnFailure(task)) {
+      terminalFailed.push(task);
+      continue;
+    }
     if (task.id && classifiedTaskIds.has(task.id)) {
       classifiedFailed.push(task);
       continue;
@@ -205,7 +222,17 @@ function partitionFailedByRecency(
       activeFailed.push(task);
     }
   }
-  return { activeFailed, staleFailed, classifiedFailed };
+  return { activeFailed, staleFailed, classifiedFailed, terminalFailed };
+}
+
+function isTerminalBrainMaxTurnFailure(task: MiddlewareTaskRecord): boolean {
+  const text = [
+    task.task,
+    task.error,
+    task.result,
+  ].filter(value => typeof value === 'string' && value.trim()).join('\n');
+  return classifyMiddlewareFailureBucket(text) === 'max-turns'
+    && isTerminalBrainMaxTurnText(task.worker ?? '', text);
 }
 
 function findStaleRunning(tasks: MiddlewareTaskRecord[], now: Date, maxMinutes: number): MiddlewareTaskRecord[] {

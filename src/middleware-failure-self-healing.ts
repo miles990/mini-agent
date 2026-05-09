@@ -592,7 +592,7 @@ function isTerminalBrainMaxTurnTask(task: MiddlewareTaskRecord): boolean {
   ].filter(value => typeof value === 'string' && value.trim()).join('\n'));
 }
 
-function isTerminalBrainMaxTurnText(worker: string, text: string): boolean {
+export function isTerminalBrainMaxTurnText(worker: string, text: string): boolean {
   const lower = `${worker}\n${text}`.toLowerCase();
   return worker.toLowerCase() === 'agent-brain'
     || /mini-agent delegated brain provider/.test(lower)
