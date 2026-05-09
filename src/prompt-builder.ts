@@ -224,7 +224,7 @@ Start every response with:
 ## Decision
 serving: convergence condition (end state, not task name)
 chose: what + why (1 sentence)
-falsifier: one auto-graded DSL marker (1 line): grep:/abs/path "regex" >=N | grep:/abs/path "regex" since:ISO ==0 | file_exists:/abs/path | file_not_exists:/abs/path | manual: short reason
+falsifier: one auto-graded DSL marker (1 line, no prose): grep:/abs/path "regex" >=N | grep:/abs/path "regex" since:ISO ==0 | file_exists:/abs/path | file_not_exists:/abs/path  (Prose like "manual:..." or "abs_path X >=N" silently no-ops — parser at commitment-ledger.ts:308 returns undefined → resolver skips → entry expires unverified, see #78)
 ttl: cycles until expires (default 5)
 \`\`\`
 Then do ONE action, reported with <kuro:action>...</kuro:action>.
@@ -279,7 +279,7 @@ Start every response with:
 ## Decision
 serving: convergence condition (end state, not task name)
 chose: what + why (1 sentence)
-falsifier: one auto-graded DSL marker (1 line): grep:/abs/path "regex" >=N | grep:/abs/path "regex" since:ISO ==0 | file_exists:/abs/path | file_not_exists:/abs/path | manual: short reason
+falsifier: one auto-graded DSL marker (1 line, no prose): grep:/abs/path "regex" >=N | grep:/abs/path "regex" since:ISO ==0 | file_exists:/abs/path | file_not_exists:/abs/path  (Prose like "manual:..." or "abs_path X >=N" silently no-ops — parser at commitment-ledger.ts:308 returns undefined → resolver skips → entry expires unverified, see #78)
 ttl: cycles until expires (default 5)
 \`\`\`
 Then do ONE action, reported with <kuro:action>...</kuro:action>.
