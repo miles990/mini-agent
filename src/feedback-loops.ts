@@ -119,7 +119,32 @@ export function flushFeedbackState(): void {
       const dir = path.dirname(p);
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       try {
-        writeFileSync(p, JSON.stringify(entry.data, null, 2), 'utf-8');
+        let dataToWrite = entry.data;
+        // Issue #439 / #422: if disk was updated out-of-band since our last read
+        // (e.g. resolvedAt stamped by an external script), merge to preserve fields
+        // we didn't touch. Strategy: for each top-level record key, spread disk
+        // entry first then our entry — our changes win, but disk-only fields survive.
+        const diskMtime = getDiskMtimeMs(p);
+        if (diskMtime > entry.mtimeMs &&
+            typeof entry.data === 'object' && entry.data !== null) {
+          try {
+            const diskData = readJsonFile(p, {}) as Record<string, unknown>;
+            const ourData = entry.data as Record<string, unknown>;
+            const merged: Record<string, unknown> = { ...diskData };
+            for (const key of Object.keys(ourData)) {
+              const dv = diskData[key];
+              const ov = ourData[key];
+              if (typeof dv === 'object' && dv !== null &&
+                  typeof ov === 'object' && ov !== null) {
+                merged[key] = { ...(dv as object), ...(ov as object) };
+              } else {
+                merged[key] = ov;
+              }
+            }
+            dataToWrite = merged;
+          } catch { /* best effort — fall back to our data */ }
+        }
+        writeFileSync(p, JSON.stringify(dataToWrite, null, 2), 'utf-8');
         entry.mtimeMs = getDiskMtimeMs(p);
       } catch { /* best effort */ }
       entry.dirty = false;

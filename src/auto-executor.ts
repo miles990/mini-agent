@@ -137,7 +137,7 @@ export function buildRetryEnvelopeDelegation(
 ): DelegationTask {
   const topPayload = (top.payload ?? {}) as Record<string, unknown>;
   const acceptance = (topPayload.acceptance_criteria as string) ?? envelope.acceptance;
-  const delegationId = `retry-${top.id.slice(0, 16)}-${now}`;
+  const delegationId = `retry-${top.id.slice(0, 16).replace(/-+$/, '')}-${now}`;
 
   const prompt = [
     `## Retry Task: ${top.summary}`,
