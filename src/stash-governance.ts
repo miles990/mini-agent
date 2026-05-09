@@ -17,6 +17,7 @@ export type StashGovernanceDecision =
   | 'ignore'
   | 'drop-absorbed'
   | 'regenerate-generated-artifacts'
+  | 'merge-append-union'
   | 'manual-diagnostic';
 
 export interface StashGovernanceCase {
@@ -175,6 +176,32 @@ export function classifyStash(stash: GitStashRecord, reason = 'periodic-scan'): 
       rootCause: 'Stash is unrelated to autonomous runtime recovery.',
       evidence: [`reason=${reason}`, `message=${stash.message}`],
       mechanicalAction: 'none',
+      fallbackTask: null,
+    };
+  }
+
+  const onlyAppendUnion = assessment.manual.length === 0
+    && assessment.autoResolvable.length > 0
+    && assessment.autoResolvable.every(file => file.resolution === 'append-union');
+
+  if (isManagedStash(stash) && onlyAppendUnion) {
+    return {
+      id,
+      ts: new Date().toISOString(),
+      stashRef: stash.ref,
+      message: stash.message,
+      files: stash.files,
+      assessment,
+      decision: 'merge-append-union',
+      rootCause: 'Managed recovery stash contains only append-only memory files; safe to append-union and drop instead of opening a manual diagnose task.',
+      evidence: [
+        `trigger=${reason}`,
+        `stash=${stash.ref}`,
+        `message=${stash.message}`,
+        `files=${stash.files.join(',')}`,
+        'policy=managed deploy-backup with append-only conflicts auto-merges and drops; no fallback task needed',
+      ],
+      mechanicalAction: 'append-union-and-drop',
       fallbackTask: null,
     };
   }
