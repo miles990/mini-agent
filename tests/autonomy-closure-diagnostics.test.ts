@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diagnoseAutonomyClosure } from '../src/autonomy-closure-diagnostics.js';
+import { diagnoseAutonomyClosure, diagnosticFingerprint } from '../src/autonomy-closure-diagnostics.js';
 import type { AutonomyClosureSnapshot } from '../src/autonomy-closure-health.js';
 
 describe('autonomy closure diagnostics', () => {
@@ -15,6 +15,13 @@ describe('autonomy closure diagnostics', () => {
     expect(cases).toContainEqual(expect.objectContaining({
       stage: 'pr-review-consensus',
       rootCause: expect.stringContaining('machine-readable verification evidence'),
+      fingerprint: expect.stringContaining('pr-review-consensus:blocked'),
+      probeCommands: expect.arrayContaining([
+        expect.stringContaining('gh pr list'),
+      ]),
+      constraintTexture: expect.objectContaining({
+        convergenceRule: expect.stringContaining('machine-readable verification evidence'),
+      }),
       mechanicalAction: 'repair-pr-verification-evidence',
       fallbackTask: null,
     }));
@@ -32,10 +39,55 @@ describe('autonomy closure diagnostics', () => {
     expect(cases[0]).toEqual(expect.objectContaining({
       stage: 'runtime-workspace',
       mechanicalAction: 'none',
+      probeCommands: expect.arrayContaining([
+        'git status --short --branch',
+      ]),
       fallbackTask: expect.objectContaining({
         title: 'P0 diagnostic: classify and drain runtime workspace dirt',
       }),
     }));
+  });
+
+  it('diagnoses warning-only degraded states before they become blockers', () => {
+    const cases = diagnoseAutonomyClosure({
+      ...snapshotWithStage({
+        stage: 'operational-efficiency',
+        status: 'warn',
+        summary: '1 efficiency signal(s) need autonomous convergence',
+        evidence: ['failureBuckets=max-turns:1'],
+        repair: 'Convert advisory signals into bounded autonomous work.',
+      }),
+      status: 'degraded',
+      blockingStages: [],
+      warningStages: ['operational-efficiency'],
+    });
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0]).toEqual(expect.objectContaining({
+      stage: 'operational-efficiency',
+      status: 'fallback-task',
+      rootCause: expect.stringContaining('advisory residue'),
+      fallbackTask: expect.objectContaining({
+        title: 'P1 diagnostic: close operational-efficiency residue',
+      }),
+    }));
+  });
+
+  it('normalizes timestamps and ids into stable fingerprints for recurrence detection', () => {
+    const first = diagnosticFingerprint({
+      stage: 'middleware-quality',
+      status: 'blocked',
+      summary: 'middleware quality unhealthy: 42 task(s), 8 failed',
+      evidence: ['failedTask=task-1778289376823-8w agent-brain failed 2026-05-09T01:20:00.000Z'],
+    });
+    const second = diagnosticFingerprint({
+      stage: 'middleware-quality',
+      status: 'blocked',
+      summary: 'middleware quality unhealthy: 43 task(s), 9 failed',
+      evidence: ['failedTask=task-1778289999999-xy agent-brain failed 2026-05-09T01:30:00.000Z'],
+    });
+
+    expect(first).toBe(second);
   });
 });
 
