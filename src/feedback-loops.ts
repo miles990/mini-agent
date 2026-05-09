@@ -23,11 +23,24 @@ import { getMemory, getMemoryStateDir, invalidateFlagCache } from './memory.js';
 // Types
 // =============================================================================
 
+// Issue #430: per-occurrence timestamps + firstSeen/lastSeen ISO timestamps for
+// slope-based regression detection. Date-only `lastSeen` cannot distinguish
+// (A) fix worked, 1 stray hit from (B) fix didn't bind — both look identical
+// as `count: 33, lastSeen: 2026-05-09`. Ring buffer of last N=20 ISO timestamps
+// gives panel/agent enough signal to compute pre/post-resolvedAt slope.
+const OCCURRENCE_RING_SIZE = 20;
+
 interface ErrorPatternState {
   [key: string]: {
     count: number;
     taskCreated: boolean;
     lastSeen: string;
+    /** ISO timestamp — first observation. Set on creation, never updated. */
+    firstSeenAt?: string;
+    /** ISO timestamp — most recent observation. Updated each cycle. */
+    lastSeenAt?: string;
+    /** Ring buffer of last OCCURRENCE_RING_SIZE ISO timestamps, sorted asc. */
+    occurrences?: string[];
     lastMessage?: string;
     resolvedAt?: string;
     resolvedBy?: string;
@@ -126,6 +139,17 @@ export function _resetFeedbackStateCacheForTests(): void {
 // =============================================================================
 // Loop A: Error Pattern Detection
 // =============================================================================
+
+/**
+ * Issue #430: merge new ISO timestamps into the existing ring buffer.
+ * Dedup, sort ascending, retain only the last N (most recent).
+ */
+function mergeOccurrences(existing: string[] | undefined, fresh: string[]): string[] {
+  if (fresh.length === 0) return existing ?? [];
+  const set = new Set<string>([...(existing ?? []), ...fresh]);
+  return Array.from(set).sort().slice(-OCCURRENCE_RING_SIZE);
+}
+
 
 /**
  * Subtypes 代表「保護機制正常工作」而非 bug — 不該進入 recurring-error task 通道。
@@ -348,16 +372,18 @@ export async function detectErrorPatterns(): Promise<void> {
   // Group by (context + error code + subtype) — subtype splits polymorphic TIMEOUT/UNKNOWN buckets.
   // sampleMsg captures first error string per bucket (240ch) — restores postmortem visibility for
   // opaque buckets like silent_exit_void / no_diag where lastSeen+count alone gave zero diagnostic.
-  const groups = new Map<string, { count: number; sampleMsg: string }>();
+  // Issue #430: also collect per-occurrence ISO timestamps for slope visibility.
+  const groups = new Map<string, { count: number; sampleMsg: string; timestamps: string[] }>();
   for (const err of errors) {
     const context = err.data.context ?? 'unknown';
     const errorMsg = err.data.error ?? '';
     const code = extractErrorCode(errorMsg);
     const subtype = extractErrorSubtype(errorMsg);
     const key = `${code}:${subtype}::${context}`;
-    const cur = groups.get(key) ?? { count: 0, sampleMsg: '' };
+    const cur = groups.get(key) ?? { count: 0, sampleMsg: '', timestamps: [] };
     cur.count += 1;
     if (!cur.sampleMsg && errorMsg) cur.sampleMsg = errorMsg.slice(0, 240);
+    if (err.timestamp) cur.timestamps.push(err.timestamp);
     groups.set(key, cur);
   }
 
@@ -377,21 +403,40 @@ export async function detectErrorPatterns(): Promise<void> {
     }
   }
 
-  for (const [key, { count, sampleMsg }] of groups) {
+  for (const [key, { count, sampleMsg, timestamps }] of groups) {
     if (count < 3) continue;
+
+    // Issue #430: derive earliest/latest from this cycle's batch.
+    const sortedTs = timestamps.slice().sort();
+    const earliestTs = sortedTs[0];
+    const latestTs = sortedTs[sortedTs.length - 1];
 
     const existing = state[key];
     if (existing) {
       existing.count = count;
       existing.lastSeen = today;
       if (sampleMsg) existing.lastMessage = sampleMsg;
+      // Issue #430: firstSeenAt is sticky; backfill only if missing.
+      if (!existing.firstSeenAt && earliestTs) existing.firstSeenAt = earliestTs;
+      if (latestTs && (!existing.lastSeenAt || latestTs > existing.lastSeenAt)) {
+        existing.lastSeenAt = latestTs;
+      }
+      existing.occurrences = mergeOccurrences(existing.occurrences, timestamps);
       changed = true;
       continue;
     }
 
     // Observation only — pulse.ts owns task creation via its own state.
     // taskCreated here is just a "seen" flag to prevent re-logging.
-    state[key] = { count, taskCreated: false, lastSeen: today, lastMessage: sampleMsg };
+    state[key] = {
+      count,
+      taskCreated: false,
+      lastSeen: today,
+      lastMessage: sampleMsg,
+      firstSeenAt: earliestTs,
+      lastSeenAt: latestTs,
+      occurrences: mergeOccurrences(undefined, timestamps),
+    };
     changed = true;
     slog('FEEDBACK', `Error pattern detected: ${key} (${count}×)`);
   }
