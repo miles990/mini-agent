@@ -185,6 +185,63 @@ export function validate(content) {
   return issues;
 }
 
+// -- URL liveness check (#436) ----------------------------------------------
+/** Extract [text](url) links from the kuro-take section. Returns array of urls. */
+export function extractTakeUrls(content) {
+  const m = content.match(/## kuro-take([\s\S]*?)(?=\n## |\s*$)/);
+  if (!m) return [];
+  const body = m[1] || '';
+  const out = [];
+  const re = /\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/g;
+  let mm;
+  while ((mm = re.exec(body)) !== null) out.push(mm[1]);
+  return out;
+}
+
+/**
+ * Check liveness of each URL: HEAD first, fall back to GET on 403/405/501.
+ * Returns { broken: [{url,status,reason}], warned: [{url,reason}] }.
+ *  - broken: 4xx/5xx (excluding HEAD-blocking 403/405/501) — gates the run
+ *  - warned: network/timeout errors — does NOT gate (avoid cron flake)
+ *
+ * Options: { fetchImpl, timeoutMs=5000, concurrency=8 }
+ */
+export async function checkUrlLiveness(urls, options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const timeoutMs = options.timeoutMs ?? 5000;
+  const broken = [];
+  const warned = [];
+  const seen = new Set();
+  const unique = urls.filter(u => { if (seen.has(u)) return false; seen.add(u); return true; });
+
+  async function probe(url, method) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetchImpl(url, { method, redirect: 'follow', signal: ctrl.signal });
+      return { status: res.status };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  await Promise.all(unique.map(async (url) => {
+    try {
+      let r = await probe(url, 'HEAD');
+      if (r.status === 403 || r.status === 405 || r.status === 501) {
+        r = await probe(url, 'GET');
+      }
+      if (r.status >= 200 && r.status < 400) return; // ok
+      // 403/405/501 after GET fallback => treat as broken
+      broken.push({ url, status: r.status, reason: `HTTP ${r.status}` });
+    } catch (err) {
+      warned.push({ url, reason: err.name === 'AbortError' ? 'timeout' : (err.message || 'fetch-error') });
+    }
+  }));
+
+  return { broken, warned };
+}
+
 async function verifyWrittenArtifact(filePath, expectedDate) {
   const fileStat = await stat(filePath);
   if (!fileStat.isFile() || fileStat.size <= 0) {
@@ -382,17 +439,30 @@ async function main() {
 
   const _en=(generated.match(/[a-zA-Z][a-zA-Z'\-]*/g)||[]).length;const _cjk=(generated.match(/[\u4e00-\u9fff]/g)||[]).length;console.log(`[kuro-content] generated ${_en+Math.ceil(_cjk/1.6)} words (en=${_en} cjk=${_cjk})`);
 
-  // 6. Validation gate
+  // 6. Validation gate (sync structural) + URL liveness (async, #436)
   const validationErrors = validate(generated);
+  const takeUrls = extractTakeUrls(generated);
+  let urlCheck = { broken: [], warned: [] };
+  if (takeUrls.length > 0) {
+    try {
+      urlCheck = await checkUrlLiveness(takeUrls, { timeoutMs: 5000 });
+      console.log(`[kuro-content] url-liveness: checked=${takeUrls.length} broken=${urlCheck.broken.length} warned=${urlCheck.warned.length}`);
+      for (const w of urlCheck.warned) console.warn(`[kuro-content]   url-warn (non-blocking): ${w.url} — ${w.reason}`);
+      for (const b of urlCheck.broken) console.warn(`[kuro-content]   url-broken: ${b.url} — ${b.reason}`);
+    } catch (e) {
+      console.warn(`[kuro-content] url-liveness check threw: ${e.message} (treating as warn, not block)`);
+    }
+  }
+  const allFailures = [...validationErrors, ...urlCheck.broken.map(b => `broken-url: ${b.url} (${b.reason})`)];
   const outDir = join(STATE_DIR, 'kuro-content');
 
   if (!dryRun) {
     await mkdir(outDir, { recursive: true });
   }
 
-  if (validationErrors.length > 0) {
+  if (allFailures.length > 0) {
     console.warn('[kuro-content] VALIDATION FAILED:');
-    for (const e of validationErrors) console.warn(`  - ${e}`);
+    for (const e of allFailures) console.warn(`  - ${e}`);
     const draftPath = join(outDir, `${DATE}.md.draft`);
     if (!dryRun) {
       await writeFile(draftPath, generated, 'utf8');
