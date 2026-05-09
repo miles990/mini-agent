@@ -2781,6 +2781,23 @@ export class AgentLoop {
         slog('MODEL', `→ Sonnet (${modelRoute.reason})`);
       }
 
+      // Issue #438 step 2: outer caller-level fast-band rate gate.
+      // Checked before callClaude so a sustained upstream outage (20+ fast-band hits in 72 min)
+      // does not produce a separate error-pattern occurrence per cycle.
+      // Throttled-skip returns null WITHOUT touching error-patterns.json, so the counter
+      // stays accurate (only real callClaude invocations count).
+      try {
+        const epPath = path.join(getMemoryStateDir(), 'error-patterns.json');
+        const epRaw = fs.existsSync(epPath) ? JSON.parse(fs.readFileSync(epPath, 'utf8')) : {};
+        const fastBandEntry = epRaw['UNKNOWN:transient_fast_band::callClaude'] as { occurrences?: string[] } | undefined;
+        const recentFailures = fastBandEntry?.occurrences ?? [];
+        if (shouldThrottleFastBandWindow({ recentFailures })) {
+          slog('CIRCUIT', `[fast-band-window] throttle tripped — skipping callClaude this cycle (${recentFailures.length} recent failures in ring buffer)`);
+          eventBus.emit('action:loop', { event: 'circuit.fast_band_throttled', cycleCount: this.cycleCount, recentFailuresCount: recentFailures.length });
+          return null;
+        }
+      } catch { /* best-effort: if state unreadable, proceed with callClaude normally */ }
+
       // Phase 2: Concurrent Action — run perception refresh + housekeeping during Claude await
       const concurrentPromise = isEnabled('concurrent-action')
         ? (() => {
