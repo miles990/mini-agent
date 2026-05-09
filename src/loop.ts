@@ -26,7 +26,7 @@ import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir, loadInstanceConfig } from './instance.js';
 import { githubAutoActions } from './github.js';
-import { runFeedbackLoops, flushFeedbackState, shouldThrottleFastBandWindow, readRecentFastBandFailures, extractErrorSubtype } from './feedback-loops.js';
+import { runFeedbackLoops, flushFeedbackState, shouldThrottleFastBandWindow, readRecentFastBandFailures, shouldThrottleSlowBandWindow, readRecentSlowBandFailures, extractErrorSubtype } from './feedback-loops.js';
 import { runPulseCheck } from './pulse.js';
 import { runDailyPruning } from './context-pruner.js';
 import { mushiTriage, mushiContinuationCheck } from './mushi-client.js';
@@ -2791,6 +2791,22 @@ export class AgentLoop {
         if (shouldThrottleFastBandWindow({ recentFailures })) {
           slog('CIRCUIT', `[fast-band-window] throttle tripped — skipping callClaude this cycle (${recentFailures.length} recent failures in ring buffer)`);
           eventBus.emit('action:loop', { event: 'circuit.fast_band_throttled', cycleCount: this.cycleCount, recentFailuresCount: recentFailures.length });
+          return null;
+        }
+      } catch { /* best-effort: if state unreadable, proceed with callClaude normally */ }
+
+      // Issue #439 step 2: outer caller-level slow-band rate gate.
+      // Mirror of #438/#445 fast-band gate, tighter defaults (MAX=3 vs 5) because each
+      // slow-band call costs ~11s + 90s baseDelay × 3 retries ≈ 5min wall-clock. 3
+      // same-shape failures in 5min already proves the upstream isn't time-sensitive
+      // — "wait it out" doesn't apply (issue #439, observed 10× burst 2026-05-09).
+      // Throttled-skip returns null WITHOUT touching error-patterns.json so the counter
+      // stays accurate (only real callClaude invocations count).
+      try {
+        const recentSlowFailures = readRecentSlowBandFailures(getMemoryStateDir());
+        if (shouldThrottleSlowBandWindow({ recentFailures: recentSlowFailures })) {
+          slog('CIRCUIT', `[slow-band-window] throttle tripped — skipping callClaude this cycle (${recentSlowFailures.length} recent failures in ring buffer)`);
+          eventBus.emit('action:loop', { event: 'circuit.slow_band_throttled', cycleCount: this.cycleCount, recentFailuresCount: recentSlowFailures.length });
           return null;
         }
       } catch { /* best-effort: if state unreadable, proceed with callClaude normally */ }
