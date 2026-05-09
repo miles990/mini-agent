@@ -1064,9 +1064,10 @@ export async function postProcess(
   const tagsProcessed: string[] = [];
 
   // 2a. Soft falsifier gate — extract ## Decision block and write to commitment ledger.
-  // Only runs for loop/foreground lanes. Never blocks postProcess (fire-and-forget, wrapped in try/catch).
+  // Runs for all lanes except background/silent. Never blocks postProcess (fire-and-forget, wrapped in try/catch).
+  // Fix #452: previously whitelisted only loop/foreground, silently dropping middleware-driven instances.
   try {
-    const isLedgerLane = meta.source === 'loop' || meta.source === 'foreground';
+    const isLedgerLane = meta.source !== 'background' && meta.source !== 'silent';
     if (isLedgerLane) {
       const decision = extractDecisionBlock(mappedResponse);
       if (decision?.chose) {
