@@ -410,6 +410,67 @@ export function readRecentFastBandFailures(stateDir: string): string[] {
 }
 
 /**
+ * Issue #439: outer caller-level rate gate for slow-band failures.
+ *
+ * Mirror of `shouldThrottleFastBandWindow` (#438) for the 10-59s slow-band tier.
+ * Slow-band attempts cost ~11s each with a 90s baseDelay between retries, so a
+ * single failed call burns ~5 minutes of wall-clock and budget. Without an outer
+ * gate, the loop retries the same shape every cycle and the bucket logs 10+
+ * occurrences in a 30-min window (observed UNKNOWN:transient_slow_band::callClaude
+ * 2026-05-09T00:08-00:37Z, issue #439).
+ *
+ * Returns true once the rolling-window count of recent slow-band failures
+ * crosses `maxInWindow`, signalling the loop to skip the call (route to delegate /
+ * pause with cooldown / surface a `slog('CIRCUIT', ...)` line) rather than
+ * paying for another 5-minute deterministic failure.
+ *
+ * Tunable via env:
+ *   - KURO_SLOW_BAND_WINDOW_MS  (default 5 * 60_000)
+ *   - KURO_SLOW_BAND_WINDOW_MAX (default 3, since each slow-band call costs ~5min
+ *     and 3 same-shape failures inside one window proves the upstream isn't
+ *     time-sensitive — "wait it out" doesn't apply).
+ */
+export function shouldThrottleSlowBandWindow(args: {
+  recentFailures: string[];
+  windowMs?: number;
+  maxInWindow?: number;
+  nowMs?: number;
+}): boolean {
+  const windowMs =
+    args.windowMs ?? (Number(process.env.KURO_SLOW_BAND_WINDOW_MS) || 5 * 60_000);
+  const maxInWindow =
+    args.maxInWindow ?? (Number(process.env.KURO_SLOW_BAND_WINDOW_MAX) || 3);
+  const now = args.nowMs ?? Date.now();
+  const cutoff = now - windowMs;
+  let inWindow = 0;
+  for (const ts of args.recentFailures) {
+    if (!ts) continue;
+    const t = Date.parse(ts);
+    if (!Number.isFinite(t)) continue;
+    if (t >= cutoff && t <= now) inWindow += 1;
+    if (inWindow >= maxInWindow) return true;
+  }
+  return false;
+}
+
+/**
+ * Read recent slow-band failure timestamps from error-patterns.json (#439).
+ * Mirror of readRecentFastBandFailures (#445) — pure helper so the gate
+ * read-path is unit-testable without booting AgentLoop.
+ * Returns [] on missing/malformed state — caller treats empty as "no throttle"
+ * (fail-safe to callClaude, matches fast-band gate semantics).
+ */
+export function readRecentSlowBandFailures(stateDir: string): string[] {
+  const epPath = path.join(stateDir, 'error-patterns.json');
+  if (!existsSync(epPath)) return [];
+  try {
+    const raw = JSON.parse(readFileSync(epPath, 'utf8'));
+    const entry = raw['UNKNOWN:transient_slow_band::callClaude'] as { occurrences?: string[] } | undefined;
+    return entry?.occurrences ?? [];
+  } catch { return []; }
+}
+
+/**
  * 掃描今天的 error log，按 (code + subtype + context) 分群。
  * 同模式 >= 3 次 → 寫入 HEARTBEAT.md 作為 P1 task。
  * 已建過的模式不重複建。
