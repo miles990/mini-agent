@@ -98,6 +98,18 @@ function buildDiagnosis(memoryDir: string, record: DelegationFailureRecord): Del
   const lower = `${record.prompt}\n${record.error}`.toLowerCase();
   const reportPath = path.join(memoryDir, 'reports', 'delegation-failures', `${code}.md`);
 
+  if (/forge worktree allocation failed|workspace isolation policy/.test(lower)) {
+    return {
+      signature: record.signature,
+      code,
+      status: 'needs_human',
+      category: 'missing_environment',
+      summary: 'The repeated failure is caused by forge worktree allocation being blocked by workspace isolation policy.',
+      recommendedAction: 'Ensure the forge worktree setup is functional (run scripts/forge-lite.sh create <name>), or mark this failure resolved if it was a test envelope task.',
+      reportPath,
+    };
+  }
+
   if (/api[_-]?key|not set|missing (env|environment)|enoent.*\/users\/user\/myelin|linked_pkg_dir_not_found/.test(lower)) {
     return {
       signature: record.signature,

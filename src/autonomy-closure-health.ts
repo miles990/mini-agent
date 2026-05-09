@@ -12,6 +12,7 @@ import { evaluateMiddlewareQuality } from './middleware-quality-health.js';
 import { readClassifiedMiddlewareTaskIds } from './middleware-failure-self-healing.js';
 import { getFeature } from './features.js';
 import { evaluatePublicWriteIdentity } from './public-write-identity.js';
+import { readDelegationFailureRecordsSync } from './delegation-failure-guard.js';
 
 export type AutonomyClosureStage =
   | 'runtime-workspace'
@@ -74,7 +75,7 @@ export function evaluateAutonomyClosure(
   const middlewareStage = middlewareQualityStage(memoryDir, options.now ?? new Date());
   const stages: AutonomyClosureStageResult[] = [
     runtimeWorkspaceStage(correction),
-    taskExecutionStage(openTasks),
+    taskExecutionStage(openTasks, memoryDir),
     testHealthStage(memoryDir),
     issueAutopilotStage(openTasks, options.now ?? new Date()),
     prReviewConsensusStage(memoryDir, options.now ?? new Date()),
@@ -278,12 +279,18 @@ function runtimeWorkspaceStage(correction: CorrectionGateSnapshot): AutonomyClos
   };
 }
 
-function taskExecutionStage(openTasks: MemoryIndexEntry[]): AutonomyClosureStageResult {
+function taskExecutionStage(openTasks: MemoryIndexEntry[], memoryDir: string): AutonomyClosureStageResult {
   const exhausted = openTasks.filter(task => {
     const payload = (task.payload ?? {}) as Record<string, unknown>;
     return task.status === 'hold' && Number(payload.auto_executor_failures ?? 0) >= 3;
   });
   const blocked = openTasks.filter(task => ['blocked', 'needs-decomposition'].includes(String(task.status)));
+
+  // Check for open repeated delegation failures (frequency >= 2 means guard has flagged it as repeated)
+  const openDelegationFailures = readDelegationFailureRecordsSync(memoryDir).filter(
+    record => record.status === 'open' && record.frequency >= 2,
+  );
+
   if (exhausted.length > 0) {
     return {
       stage: 'task-execution',
@@ -291,6 +298,17 @@ function taskExecutionStage(openTasks: MemoryIndexEntry[]): AutonomyClosureStage
       summary: `${exhausted.length} task(s) exhausted autonomous retries`,
       evidence: exhausted.slice(0, 5).map(formatTaskEvidence),
       repair: 'Create a diagnostic repair task or split the failing task into smaller verified slices.',
+    };
+  }
+  if (openDelegationFailures.length > 0) {
+    return {
+      stage: 'task-execution',
+      status: 'blocked',
+      summary: `${openDelegationFailures.length} repeated delegation failure(s) need diagnosis`,
+      evidence: openDelegationFailures.slice(0, 5).map(
+        record => `${record.taskId} freq=${record.frequency}: ${record.error.slice(0, 80)}`,
+      ),
+      repair: 'Run diagnoseDelegationFailure for each open failure, then resolve or hold the origin task with a bounded repair slice.',
     };
   }
   if (blocked.length > 0) {
