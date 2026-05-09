@@ -26,7 +26,7 @@ import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir, loadInstanceConfig } from './instance.js';
 import { githubAutoActions } from './github.js';
-import { runFeedbackLoops, flushFeedbackState, shouldThrottleFastBandWindow, extractErrorSubtype } from './feedback-loops.js';
+import { runFeedbackLoops, flushFeedbackState, shouldThrottleFastBandWindow, readRecentFastBandFailures, extractErrorSubtype } from './feedback-loops.js';
 import { runPulseCheck } from './pulse.js';
 import { runDailyPruning } from './context-pruner.js';
 import { mushiTriage, mushiContinuationCheck } from './mushi-client.js';
@@ -2787,10 +2787,7 @@ export class AgentLoop {
       // Throttled-skip returns null WITHOUT touching error-patterns.json, so the counter
       // stays accurate (only real callClaude invocations count).
       try {
-        const epPath = path.join(getMemoryStateDir(), 'error-patterns.json');
-        const epRaw = fs.existsSync(epPath) ? JSON.parse(fs.readFileSync(epPath, 'utf8')) : {};
-        const fastBandEntry = epRaw['UNKNOWN:transient_fast_band::callClaude'] as { occurrences?: string[] } | undefined;
-        const recentFailures = fastBandEntry?.occurrences ?? [];
+        const recentFailures = readRecentFastBandFailures(getMemoryStateDir());
         if (shouldThrottleFastBandWindow({ recentFailures })) {
           slog('CIRCUIT', `[fast-band-window] throttle tripped — skipping callClaude this cycle (${recentFailures.length} recent failures in ring buffer)`);
           eventBus.emit('action:loop', { event: 'circuit.fast_band_throttled', cycleCount: this.cycleCount, recentFailuresCount: recentFailures.length });
