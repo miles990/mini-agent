@@ -13,6 +13,7 @@ import { readClassifiedMiddlewareTaskIds } from './middleware-failure-self-heali
 import { getFeature } from './features.js';
 import { evaluatePublicWriteIdentity } from './public-write-identity.js';
 import { readDelegationFailureRecordsSync } from './delegation-failure-guard.js';
+import { evaluateDesignGovernance } from './design-governance.js';
 
 export type AutonomyClosureStage =
   | 'runtime-workspace'
@@ -23,6 +24,7 @@ export type AutonomyClosureStage =
   | 'public-write-identity'
   | 'ship-and-deploy'
   | 'self-improvement'
+  | 'design-governance'
   | 'memory-context'
   | 'memory-state-truth'
   | 'kg-context-fabric'
@@ -70,8 +72,7 @@ export function evaluateAutonomyClosure(
   const repoRoot = options.repoRoot ?? process.cwd();
   const correction = evaluateCorrectionGate(memoryDir, repoRoot);
   const resolvedKeys = loadResolvedTaskKeysFromEvents(memoryDir);
-  const openTasks = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ACTIVE_STATUSES })
-    .filter(task => !isAutonomyClosureTask(task))
+  const activeTasks = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ACTIVE_STATUSES })
     .filter(task => {
       if (resolvedKeys.ids.has(task.id)) return false;
       const summary = task.summary?.trim() ?? '';
@@ -84,6 +85,7 @@ export function evaluateAutonomyClosure(
       }
       return true;
     });
+  const openTasks = activeTasks.filter(task => !isAutonomyClosureTask(task));
   const kgStage = kgContextFabricStage(memoryDir, options.now ?? new Date());
   const middlewareStage = middlewareQualityStage(memoryDir, options.now ?? new Date());
   const stages: AutonomyClosureStageResult[] = [
@@ -95,6 +97,7 @@ export function evaluateAutonomyClosure(
     publicWriteIdentityStage(memoryDir),
     shipAndDeployStage(correction),
     selfImprovementStage(openTasks),
+    designGovernanceStage(memoryDir, activeTasks),
     memoryContextStage(memoryDir, repoRoot),
     memoryStateTruthStage(memoryDir, repoRoot),
     kgStage,
@@ -526,6 +529,29 @@ function selfImprovementStage(openTasks: MemoryIndexEntry[]): AutonomyClosureSta
   };
 }
 
+function designGovernanceStage(memoryDir: string, openTasks: MemoryIndexEntry[]): AutonomyClosureStageResult {
+  const result = evaluateDesignGovernance(memoryDir, openTasks);
+  if (result.status !== 'ok') {
+    return {
+      stage: 'design-governance',
+      status: result.status,
+      summary: result.summary,
+      evidence: result.evidence,
+      repair: [
+        'Before implementation, create memory/proposals/design-artifacts/<task-id>.md with Constraint Texture, Mermaid data flow, state machine, user/operator flow, failure path, acceptance/falsifier, test plan, review plan, and effect backtest.',
+        'For trivial one-line work, mark the task design_depth=trivial or tag design-exempt with evidence.',
+        'Implementation should cite the design artifact, tests should enforce the critical invariants, and post-merge backtest should update KG/memory.',
+      ].join(' '),
+    };
+  }
+  return {
+    stage: 'design-governance',
+    status: 'ok',
+    summary: result.summary,
+    evidence: result.evidence,
+  };
+}
+
 function memoryContextStage(memoryDir: string, repoRoot: string): AutonomyClosureStageResult {
   const placement = evaluateRuntimeMemoryPlacement(repoRoot);
   const hasTaskEvents = existsSync(path.join(memoryDir, 'state', 'task-events.jsonl'));
@@ -684,6 +710,7 @@ function buildRecommendedTask(
       'Before retrying broad LLM work, read the latest state/autonomy-closure-diagnostics.jsonl case for this stage and run its probes.',
       'The fix must improve the operating process, not only the symptom: add a reusable classifier, probe, guardrail, or self-healing transition when the failure mode can recur.',
       'Do not leave unmanaged technical debt: either remove obsolete state/tasks, document a bounded hold with release criteria, or add a follow-up with a falsifiable acceptance check.',
+      'For high-risk autonomy/data-flow/state/workflow changes, pass design-governance first: Constraint Texture -> Mermaid/ASCII design artifact -> implementation -> review -> invariant tests -> deploy -> effect backtest -> KG/memory update.',
       'Expected loop: issue/task visible -> isolated worktree -> PR -> review consensus -> merge -> deploy -> runtime clean -> memory/KG context updated.',
     ].join(' '),
   };

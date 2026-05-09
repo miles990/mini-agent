@@ -89,6 +89,28 @@ describe('autonomy closure diagnostics', () => {
 
     expect(first).toBe(second);
   });
+
+  it('diagnoses missing design artifacts as a bounded design-governance task', () => {
+    const cases = diagnoseAutonomyClosure(snapshotWithStage({
+      stage: 'design-governance',
+      status: 'blocked',
+      summary: '1 missing and 0 incomplete design artifact(s)',
+      evidence: ['idx-design missing design artifact: high-risk summary touches autonomous workflow/data/state infrastructure'],
+      repair: 'Create design artifact before implementation.',
+    }));
+
+    expect(cases[0]).toEqual(expect.objectContaining({
+      stage: 'design-governance',
+      rootCause: expect.stringContaining('High-risk autonomous work lacks'),
+      probeCommands: expect.arrayContaining([
+        expect.stringContaining('proposals/design-artifacts'),
+      ]),
+      fallbackTask: expect.objectContaining({
+        title: 'P1 diagnostic: create missing design-governance artifact',
+        acceptanceCriteria: expect.stringContaining('Mermaid data flow/state/operator diagrams'),
+      }),
+    }));
+  });
 });
 
 function snapshotWithStage(stage: AutonomyClosureSnapshot['stages'][number]): AutonomyClosureSnapshot {
