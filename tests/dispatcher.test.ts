@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTags } from '../src/dispatcher.js';
+import { parseTags, extractDecisionBlock, synthesizeDecisionFromProse } from '../src/dispatcher.js';
 
 // =============================================================================
 // parseTags Tests
@@ -144,5 +144,75 @@ describe('parseTags', () => {
   it('does not accept unclosed inner tags as working memory', () => {
     const result = parseTags('<kuro:inner>\n</foreground_reply_mode>\n</parameter>\n</invoke>');
     expect(result.inner).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// extractDecisionBlock Tests — issue #457 regression coverage
+// =============================================================================
+
+describe('extractDecisionBlock — newline boundary (#457)', () => {
+  it('does NOT pull falsifier text into chose when chose value is empty', () => {
+    const block = [
+      '## Decision',
+      'serving: condition',
+      'chose:   ',
+      'falsifier: file_exists:/tmp/x',
+      'ttl: 3',
+    ].join('\n');
+    const result = extractDecisionBlock(block);
+    // Before #457 fix, `\s*:\s*(.+)$` allowed \s to swallow the newline,
+    // so chose mis-captured "falsifier: file_exists:/tmp/x".
+    expect(result).not.toBeNull();
+    expect(result!.chose).toBeUndefined();
+    expect(result!.falsifier).toBe('file_exists:/tmp/x');
+  });
+
+  it('does NOT pull next-line content into serving when serving value is empty', () => {
+    const block = [
+      '## Decision',
+      'serving:',
+      'chose: do thing because reason',
+      'falsifier: grep:/abs "x" >=1',
+      'ttl: 5',
+    ].join('\n');
+    const result = extractDecisionBlock(block);
+    expect(result).not.toBeNull();
+    expect(result!.serving).toBeUndefined();
+    expect(result!.chose).toBe('do thing because reason');
+  });
+
+  it('handles bullet + bold-before-colon prefix and CRLF line endings', () => {
+    const block = [
+      '## Decision',
+      '- **chose**: ship the patch',
+      '- **falsifier**: file_exists:/tmp/y',
+      '- **ttl**: 3',
+    ].join('\r\n');
+    const result = extractDecisionBlock(block);
+    expect(result).not.toBeNull();
+    expect(result!.chose).toBe('ship the patch');
+    expect(result!.falsifier).toBe('file_exists:/tmp/y');
+    expect(result!.ttl).toBe(3);
+  });
+
+  it('returns null when no fields present', () => {
+    expect(extractDecisionBlock('## Decision\nrandom prose')).toBeNull();
+  });
+});
+
+describe('synthesizeDecisionFromProse — newline boundary (#457)', () => {
+  it('does NOT consume the falsifier line when chose value is empty', () => {
+    const prose =
+      'I am working on issue #457. ' .repeat(10) + '\n' +
+      'chose:   \nfalsifier: file_exists:/tmp/x\n';
+    const result = synthesizeDecisionFromProse(prose);
+    // Either returns null (chose < 8 chars) or chose is empty/short — must NOT
+    // produce chose === "falsifier: file_exists:/tmp/x" mis-capture.
+    if (result) {
+      expect(result.chose.startsWith('falsifier:')).toBe(false);
+    } else {
+      expect(result).toBeNull();
+    }
   });
 });
