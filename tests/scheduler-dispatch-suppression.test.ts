@@ -300,7 +300,7 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
       payload: { priority: 0 },
     });
     fs.mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'state', 'task-events.jsonl'), JSON.stringify({
+    fs.appendFileSync(path.join(tmpDir, 'state', 'task-events.jsonl'), JSON.stringify({
       kind: 'stack_rank',
       task: 'silent_exit_void_midprompt follow-up recovery recipe',
       to: 'resolved-phantom',
