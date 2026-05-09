@@ -150,6 +150,35 @@ describe('delegation failure guard', () => {
     expect(second.record.resolvedAt).toBeUndefined();
   });
 
+  it('keeps terminal max-turns recurrences resolved as telemetry', () => {
+    const first = recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'code',
+      prompt: 'Fix broad autonomy closure task',
+      output: 'task task-123 failed: Claude Code returned an error result: Reached maximum number of turns (15)',
+    });
+    transitionDelegationFailureStatus(
+      tmpDir,
+      first.record.signature,
+      'resolved',
+      'Do not retry the same prompt unchanged; split the origin task into smaller probes.',
+      new Date('2026-05-05T00:01:00.000Z'),
+    );
+
+    const second = recordDelegationFailure(tmpDir, {
+      taskId: 'del-2',
+      taskType: 'code',
+      prompt: 'Fix broad autonomy closure task',
+      output: 'task task-456 failed: Claude Code returned an error result: Reached maximum number of turns (15)',
+    }, new Date('2026-05-05T00:02:00.000Z'));
+
+    expect(second.record.status).toBe('resolved');
+    expect(second.record.frequency).toBe(2);
+    expect(second.record.resolution).toContain('split the origin task');
+    expect(second.needsDiagnosticTask).toBe(false);
+    expect(isActionableDelegationFailure(second.record)).toBe(false);
+  });
+
   it('normalizes historical records that are open but already resolved', () => {
     const filePath = getDelegationFailureGuardPath(tmpDir);
     mkdirSync(path.dirname(filePath), { recursive: true });

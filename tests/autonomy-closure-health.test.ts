@@ -7,7 +7,7 @@ import {
   ensureAutonomyClosureTask,
   evaluateAutonomyClosure,
 } from '../src/autonomy-closure-health.js';
-import { queryMemoryIndexSync } from '../src/memory-index.js';
+import { invalidateIndexCache, queryMemoryIndexSync } from '../src/memory-index.js';
 import { writeOpenPrSnapshot } from '../src/pr-autopilot.js';
 import { appendPrReviewClaim, createPrReviewClaim } from '../src/pr-review-runner.js';
 
@@ -32,6 +32,7 @@ describe('autonomy closure health', () => {
   it('reports a healthy closed loop when observable memory has no blockers', () => {
     writeFileSync(path.join(tmpDir, 'state/task-events.jsonl'), '', 'utf-8');
     writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+    invalidateIndexCache();
 
     const snapshot = evaluateAutonomyClosure(tmpDir, { repoRoot });
 
@@ -127,6 +128,7 @@ describe('autonomy closure health', () => {
       'utf-8',
     );
     writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+    invalidateIndexCache();
 
     const snapshot = evaluateAutonomyClosure(tmpDir, { repoRoot });
 
@@ -140,6 +142,34 @@ describe('autonomy closure health', () => {
     const task = await ensureAutonomyClosureTask(tmpDir, snapshot);
     expect(task?.summary).toBe('P1 autonomy closure: repair operational-efficiency');
     expect(task?.payload?.closure_status).toBe('degraded');
+  });
+
+  it('blocks high-risk active implementation until design governance is explicit', () => {
+    writeFileSync(
+      path.join(tmpDir, 'state/task-events.jsonl'),
+      JSON.stringify({
+        id: 'idx-design-gate',
+        ts: '2026-05-10T00:00:00.000Z',
+        type: 'task',
+        status: 'in_progress',
+        summary: 'P1 autonomy closure: repair middleware data flow',
+        refs: [],
+        tags: ['autonomy-closure', 'middleware'],
+        payload: {
+          origin: 'github-issue',
+          priority: 1,
+        },
+      }) + '\n',
+      'utf-8',
+    );
+    writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+
+    const snapshot = evaluateAutonomyClosure(tmpDir, { repoRoot });
+
+    expect(snapshot.status).toBe('blocked');
+    expect(snapshot.blockingStages).toContain('design-governance');
+    expect(snapshot.recommendedTask?.title).toBe('P0 autonomy closure: repair design-governance');
+    expect(snapshot.recommendedTask?.acceptanceCriteria).toContain('Constraint Texture -> Mermaid/ASCII design artifact');
   });
 
   it('creates one repair task for exhausted autonomous execution', async () => {

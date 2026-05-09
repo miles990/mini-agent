@@ -180,6 +180,27 @@ function diagnoseStage(stage: AutonomyClosureStageResult, ts: string): AutonomyC
     };
   }
 
+  if (stage.stage === 'design-governance') {
+    return {
+      ...base,
+      status: 'fallback-task',
+      rootCause: 'High-risk autonomous work lacks a versioned design artifact or executable invariant plan.',
+      evidence: stage.evidence,
+      probeCommands: [
+        'pnpm check:autonomy-closure -- --json',
+        'find "$MINI_AGENT_MEMORY_DIR/proposals/design-artifacts" -maxdepth 1 -type f -name "*.md" 2>/dev/null | sort | tail -n 20',
+        'rg -n "design_governance_required|design-depth|Constraint Texture|```mermaid" "$MINI_AGENT_MEMORY_DIR" src tests',
+      ],
+      constraintTexture: constraintTextureFor(stage, 'high-risk work must externalize the intended data flow, state machine, failure path, tests, and backtest before implementation proceeds'),
+      mechanicalAction: 'none',
+      fallbackTask: {
+        title: 'P1 diagnostic: create missing design-governance artifact',
+        verifyCommand: 'pnpm check:autonomy-closure -- --json',
+        acceptanceCriteria: 'Every high-risk active implementation task has a design artifact or an explicit trivial exemption; artifacts include Constraint Texture, Mermaid data flow/state/operator diagrams, failure path, acceptance/falsifier, test plan, review plan, and effect backtest.',
+      },
+    };
+  }
+
   return {
     ...base,
     status: 'fallback-task',

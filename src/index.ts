@@ -246,6 +246,16 @@ export type {
   AutonomyClosureStageStatus,
   AutonomyClosureStatus,
 } from './autonomy-closure-health.js';
+export {
+  buildDesignArtifactTemplate,
+  evaluateDesignGovernance,
+} from './design-governance.js';
+export type {
+  DesignGovernanceDepth,
+  DesignGovernanceReport,
+  DesignGovernanceStatus,
+  DesignGovernanceTaskFinding,
+} from './design-governance.js';
 export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middleware-provider.js';
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';

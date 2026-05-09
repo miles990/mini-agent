@@ -61,7 +61,8 @@ export function recordDelegationFailure(
   const signature = failureSignature(input.taskType, input.prompt, input.output);
   const existing = latest.get(signature);
   const timestamp = now.toISOString();
-  const reopened = existing ? shouldReopen(existing.status) : false;
+  const keepTerminalResolved = existing ? shouldKeepTerminalResolution(existing, input.output) : false;
+  const reopened = existing && !keepTerminalResolved ? shouldReopen(existing.status) : false;
   const record: DelegationFailureRecord = existing
     ? {
       ...existing,
@@ -70,7 +71,7 @@ export function recordDelegationFailure(
       prompt: input.prompt.slice(0, 500),
       error: failureError(input.output),
       frequency: existing.frequency + 1,
-      status: reopened ? 'open' : existing.status,
+      status: keepTerminalResolved ? existing.status : reopened ? 'open' : existing.status,
       lastSeen: timestamp,
       ...(reopened ? { resolution: undefined, resolvedAt: undefined } : {}),
     }
@@ -241,4 +242,13 @@ export function isActionableDelegationFailure(record: DelegationFailureRecord): 
 
 function shouldReopen(status: DelegationFailureStatus): boolean {
   return status === 'resolved' || status === 'ignored';
+}
+
+function shouldKeepTerminalResolution(existing: DelegationFailureRecord, output: string): boolean {
+  if (!['resolved', 'ignored'].includes(existing.status)) return false;
+  const resolution = (existing.resolution ?? '').toLowerCase();
+  const error = failureError(output).toLowerCase();
+  const isMaxTurns = /maximum number of turns|max turns|reached maximum number of turns/.test(error);
+  const terminalResolution = /terminal telemetry|do not retry the same prompt unchanged|split the origin task|decompose/.test(resolution);
+  return isMaxTurns && terminalResolution;
 }
