@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, appendFileSync, mkdirSync, statSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { getMemoryStateDir } from './memory.js';
 import { slog } from './utils.js';
