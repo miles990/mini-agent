@@ -185,6 +185,66 @@ export function validate(content) {
   return issues;
 }
 
+// -- GitHub repo cross-check (#436 acceptance #1) ----------------------------
+/** Extract owner/repo from the `repo:` field. Returns null if absent/malformed. */
+export function extractRepoField(content) {
+  const m = content.match(/^repo:\s*([a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)\s*$/m);
+  return m ? m[1].trim() : null;
+}
+
+/** Extract first `license:` field value from content. */
+export function extractLicenseField(content) {
+  const m = content.match(/^license:\s*(.+)$/m);
+  return m ? m[1].trim() : null;
+}
+
+/**
+ * Cross-check repo metadata via `gh api repos/<owner>/<repo>`.
+ * Returns { warnings: string[] } — never throws, never blocks the run.
+ *
+ * Options:
+ *   execImpl(cmd: string) => Promise<string>  — injectable for tests
+ */
+export async function checkRepoMetadata(content, options = {}) {
+  const warnings = [];
+  const repo = extractRepoField(content);
+  if (!repo) return { warnings };
+
+  let apiData;
+  try {
+    let raw;
+    if (options.execImpl) {
+      raw = await options.execImpl(`gh api repos/${repo}`);
+    } else {
+      const { spawnSync } = await import('node:child_process');
+      const r = spawnSync('gh', ['api', `repos/${repo}`], { encoding: 'utf8', timeout: 10_000 });
+      if (r.error) throw r.error;
+      if (r.status !== 0) throw new Error(`gh api exited ${r.status}: ${(r.stderr || '').slice(0, 200)}`);
+      raw = r.stdout;
+    }
+    apiData = JSON.parse(raw);
+  } catch (err) {
+    warnings.push(`gh-api-warn: ${err.message}`);
+    return { warnings };
+  }
+
+  // License cross-check
+  const contentLicense = extractLicenseField(content);
+  const apiLicense = apiData?.license?.spdx_id;
+  if (contentLicense && apiLicense && contentLicense !== apiLicense) {
+    warnings.push(`license-mismatch: content="${contentLicense}" api="${apiLicense}"`);
+  }
+
+  // Log actual forks/stars for reviewability (±10 tolerance; explicit fields not in template)
+  const forks = apiData?.forks_count ?? null;
+  const stars = apiData?.stargazers_count ?? null;
+  if (forks !== null) {
+    warnings.push(`repo-info: ${repo} forks=${forks} stars=${stars ?? '?'} (verify content is consistent, ±10 tolerance)`);
+  }
+
+  return { warnings };
+}
+
 // -- URL liveness check (#436) ----------------------------------------------
 /** Extract [text](url) links from the kuro-take section. Returns array of urls. */
 export function extractTakeUrls(content) {
@@ -439,7 +499,7 @@ async function main() {
 
   const _en=(generated.match(/[a-zA-Z][a-zA-Z'\-]*/g)||[]).length;const _cjk=(generated.match(/[\u4e00-\u9fff]/g)||[]).length;console.log(`[kuro-content] generated ${_en+Math.ceil(_cjk/1.6)} words (en=${_en} cjk=${_cjk})`);
 
-  // 6. Validation gate (sync structural) + URL liveness (async, #436)
+  // 6. Validation gate (sync structural) + URL liveness (#436 #2) + repo cross-check (#436 #1)
   const validationErrors = validate(generated);
   const takeUrls = extractTakeUrls(generated);
   let urlCheck = { broken: [], warned: [] };
@@ -452,6 +512,13 @@ async function main() {
     } catch (e) {
       console.warn(`[kuro-content] url-liveness check threw: ${e.message} (treating as warn, not block)`);
     }
+  }
+  // Repo cross-check (non-blocking — warn only)
+  try {
+    const repoCheck = await checkRepoMetadata(generated);
+    for (const w of repoCheck.warnings) console.warn(`[kuro-content]   ${w}`);
+  } catch (e) {
+    console.warn(`[kuro-content] repo-check threw: ${e.message} (non-blocking)`);
   }
   const allFailures = [...validationErrors, ...urlCheck.broken.map(b => `broken-url: ${b.url} (${b.reason})`)];
   const outDir = join(STATE_DIR, 'kuro-content');

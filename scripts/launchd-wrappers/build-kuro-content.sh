@@ -12,6 +12,10 @@ set -a
 . ./.env
 set +a
 export MINI_AGENT_MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-/Users/user/Workspace/mini-agent-memory/memory}"
+# Cron heartbeat (#436 acceptance #3): append tick before generator runs
+_LOG_DIR="${MINI_AGENT_MEMORY_DIR}/logs"
+mkdir -p "$_LOG_DIR"
+printf '[kuro-content] cron-tick %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$_LOG_DIR/build-kuro-content-launchd.log"
 # build-kuro-content.mjs returns:
 #   0 = wrote live <DATE>.md (gate passed)
 #   1 = hard error before output
