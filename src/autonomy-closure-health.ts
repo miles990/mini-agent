@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { evaluateCorrectionGate, type CorrectionGateSnapshot } from './correction-gate.js';
-import { createTask, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
+import { createTask, queryMemoryIndexSync, updateMemoryIndexEntry, loadResolvedTaskKeysFromEvents, type MemoryIndexEntry } from './memory-index.js';
 import { evaluatePrReviewConsensus, parsePrReviewHandoffs, readPrReviewClaimsSync } from './pr-review-runner.js';
 import { evaluateRuntimeMemoryPlacement } from './memory-paths.js';
 import { eventBus } from './event-bus.js';
@@ -69,8 +69,21 @@ export function evaluateAutonomyClosure(
 ): AutonomyClosureSnapshot {
   const repoRoot = options.repoRoot ?? process.cwd();
   const correction = evaluateCorrectionGate(memoryDir, repoRoot);
+  const resolvedKeys = loadResolvedTaskKeysFromEvents(memoryDir);
   const openTasks = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ACTIVE_STATUSES })
-    .filter(task => !isAutonomyClosureTask(task));
+    .filter(task => !isAutonomyClosureTask(task))
+    .filter(task => {
+      if (resolvedKeys.ids.has(task.id)) return false;
+      const summary = task.summary?.trim() ?? '';
+      if (summary && resolvedKeys.summaries.has(summary)) return false;
+      if (summary.length >= 24) {
+        for (const rs of resolvedKeys.summaries) {
+          if (rs.length < 24) continue;
+          if (summary.includes(rs) || rs.includes(summary)) return false;
+        }
+      }
+      return true;
+    });
   const kgStage = kgContextFabricStage(memoryDir, options.now ?? new Date());
   const middlewareStage = middlewareQualityStage(memoryDir, options.now ?? new Date());
   const stages: AutonomyClosureStageResult[] = [

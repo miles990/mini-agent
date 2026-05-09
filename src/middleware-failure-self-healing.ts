@@ -301,6 +301,39 @@ export async function closeTerminalBrainMaxTurnFollowUps(memoryDir: string, now 
   return closed;
 }
 
+const STALE_BUDGET_HOLD_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+export async function closeStaleProviderBudgetFollowUps(memoryDir: string, now = new Date()): Promise<number> {
+  const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress', 'hold'] })
+    .filter(entry => {
+      const payload = (entry.payload ?? {}) as Record<string, unknown>;
+      return payload.origin === 'middleware-self-healing'
+        && payload.middleware_failure_bucket === 'budget-or-quota';
+    });
+
+  let closed = 0;
+  for (const entry of followUps) {
+    const payload = (entry.payload ?? {}) as Record<string, unknown>;
+    const createdAt = typeof payload.createdAt === 'string' ? new Date(payload.createdAt).getTime() : 0;
+    if (createdAt > 0 && (now.getTime() - createdAt) < STALE_BUDGET_HOLD_MS) continue;
+
+    const updated = await updateMemoryIndexEntry(memoryDir, entry.id, {
+      status: 'completed',
+      payload: {
+        ...payload,
+        terminal_resolution: 'provider budget hold expired without retry — original context is stale',
+        terminal_resolved_at: now.toISOString(),
+      },
+      tags: [...new Set([...(entry.tags ?? []), 'stale-budget-expired'])],
+    });
+    if (updated) closed++;
+  }
+  if (closed > 0) {
+    slog('MIDDLEWARE-SELF-HEAL', `closed ${closed} stale provider-budget follow-up task(s)`);
+  }
+  return closed;
+}
+
 export function getMiddlewareFailureClassificationPath(memoryDir: string): string {
   return path.join(memoryDir, 'index', LEDGER_FILE);
 }
