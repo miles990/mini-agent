@@ -650,6 +650,9 @@ function buildRecommendedTask(
     acceptanceCriteria: [
       primary.summary,
       primary.repair ?? 'Restore the autonomous closed loop and leave falsifiable evidence.',
+      'Before retrying broad LLM work, read the latest state/autonomy-closure-diagnostics.jsonl case for this stage and run its probes.',
+      'The fix must improve the operating process, not only the symptom: add a reusable classifier, probe, guardrail, or self-healing transition when the failure mode can recur.',
+      'Do not leave unmanaged technical debt: either remove obsolete state/tasks, document a bounded hold with release criteria, or add a follow-up with a falsifiable acceptance check.',
       'Expected loop: issue/task visible -> isolated worktree -> PR -> review consensus -> merge -> deploy -> runtime clean -> memory/KG context updated.',
     ].join(' '),
   };
