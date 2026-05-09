@@ -135,8 +135,8 @@ export function validate(content) {
   const enWords = (content.match(/[a-zA-Z][a-zA-Z'\-]*/g) || []).length;
   const cjkChars = (content.match(/[\u4e00-\u9fff]/g) || []).length;
   const wordCount = enWords + Math.ceil(cjkChars / 1.6);
-  if (wordCount < 600) issues.push(`word count too low: ${wordCount} (min 600, en=${enWords} cjk=${cjkChars})`);
-  if (wordCount > 2000) issues.push(`word count too high: ${wordCount} (max 2000, en=${enWords} cjk=${cjkChars})`);
+  // No word count limits per Alex (2026-05-09)
+
 
   // >=1 [text](url) link in kuro-take section
   const takeMatch = content.match(/## kuro-take([\s\S]*?)(?=\n## |\s*$)/);
