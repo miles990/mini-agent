@@ -232,6 +232,24 @@ describe('PR review runner', () => {
     }));
   });
 
+  it('accepts ## Test plan heading as verification evidence (template default)', () => {
+    const claim = createInternalPrReviewClaim({
+      prNumber: 469,
+      title: 'feat(api): add /api/dashboard/autonomy-closure',
+      body: '## Summary\n- adds endpoint\n\n## Test plan\n- [x] `pnpm test` passed\n- [x] `pnpm typecheck` passes',
+      headSha: 'abc123',
+      reviewer: 'codex',
+      framework: 'internal-governance',
+      changedFiles: ['src/index.ts', 'tests/dashboard-autonomy-closure.test.ts'],
+    }, new Date('2026-05-10T00:00:00Z'));
+
+    expect(claim).toEqual(expect.objectContaining({
+      prNumber: 469,
+      reviewer: 'codex',
+      verdict: 'approve',
+    }));
+  });
+
   it('does not create internal claims for Alex review rows', () => {
     expect(createInternalPrReviewClaim({
       prNumber: 104,
