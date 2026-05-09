@@ -447,7 +447,7 @@ function riskClass(pr: OpenPullRequestSummary): string {
 }
 
 function hasCompletedVerification(text: string): boolean {
-  const section = extractMarkdownSection(text, /^##\s+Verification\b/im);
+  const section = extractMarkdownSection(text, /^##\s+(?:Verification|Test plan)\b/im);
   if (!section) return false;
   return /(?:^|\n)\s*-\s*\[[xX]\]\s+/.test(section)
     || /\b(?:passed|passes|clean|success|ok)\b/i.test(section);
