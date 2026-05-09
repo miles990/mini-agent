@@ -9,6 +9,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { sanitizeUnpairedSurrogates } from './sanitize.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { slog } from './utils.js';
@@ -134,6 +135,7 @@ export function parsePruningProposal(response: string): PruningProposal {
 // =============================================================================
 
 async function callHaiku(prompt: string): Promise<string> {
+  prompt = sanitizeUnpairedSurrogates(prompt);
   const response = await getClient().messages.create({
     model: HAIKU_MODEL,
     max_tokens: 4096,
