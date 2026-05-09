@@ -53,3 +53,79 @@ describe('reverifyPredicate("github-issue-open")', () => {
     expect(result).toBeNull();
   });
 });
+
+describe('reverifyPredicate("github-issue-open") — kuro-agent monologue (issue #456)', () => {
+  const meta = {
+    id: 'idx-github-issue-miles990-mini-agent-456',
+    payload: { repo: 'miles990/mini-agent', issue_number: 456 },
+  };
+
+  it('returns false (skip dispatch) when last 3+ comments are all kuro-agent', async () => {
+    const result = await reverifyPredicate('github-issue-open', baseCtx({
+      entry: meta,
+      ghIssueView: async () => ({
+        state: 'OPEN',
+        comments: [
+          { author: { login: 'kuro-agent' } },
+          { author: { login: 'kuro-agent' } },
+          { author: { login: 'kuro-agent' } },
+        ],
+      }),
+    }));
+    expect(result).toBe(false);
+  });
+
+  it('returns true (dispatch) when an external comment interleaves kuro-agent', async () => {
+    const result = await reverifyPredicate('github-issue-open', baseCtx({
+      entry: meta,
+      ghIssueView: async () => ({
+        state: 'OPEN',
+        comments: [
+          { author: { login: 'kuro-agent' } },
+          { author: { login: 'kuro-agent' } },
+          { author: { login: 'miles990' } },
+          { author: { login: 'kuro-agent' } },
+        ],
+      }),
+    }));
+    expect(result).toBe(true);
+  });
+
+  it('returns true (dispatch) when fewer than 3 consecutive kuro-agent comments at tail', async () => {
+    const result = await reverifyPredicate('github-issue-open', baseCtx({
+      entry: meta,
+      ghIssueView: async () => ({
+        state: 'OPEN',
+        comments: [
+          { author: { login: 'kuro-agent' } },
+          { author: { login: 'kuro-agent' } },
+        ],
+      }),
+    }));
+    expect(result).toBe(true);
+  });
+
+  it('returns true (dispatch) when comments field is omitted', async () => {
+    const result = await reverifyPredicate('github-issue-open', baseCtx({
+      entry: meta,
+      ghIssueView: async () => ({ state: 'OPEN' }),
+    }));
+    expect(result).toBe(true);
+  });
+
+  it('treats trailing non-kuro-agent comment as breaking the monologue (3 kuro then 1 external)', async () => {
+    const result = await reverifyPredicate('github-issue-open', baseCtx({
+      entry: meta,
+      ghIssueView: async () => ({
+        state: 'OPEN',
+        comments: [
+          { author: { login: 'kuro-agent' } },
+          { author: { login: 'kuro-agent' } },
+          { author: { login: 'kuro-agent' } },
+          { author: { login: 'miles990' } },
+        ],
+      }),
+    }));
+    expect(result).toBe(true);
+  });
+});
