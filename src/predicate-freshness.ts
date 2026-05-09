@@ -45,7 +45,40 @@ export interface FreshnessContext {
    * issue state (`OPEN` | `CLOSED`) or null when unavailable. Defaults to
    * a real `execFile('gh', ['issue', 'view', ...])` when not provided.
    */
-  ghIssueView?: (repo: string, issueNumber: number) => Promise<{ state: string } | null>;
+  ghIssueView?: (repo: string, issueNumber: number) => Promise<{ state: string; comments?: GitHubComment[] } | null>;
+}
+
+
+export interface GitHubComment {
+  author?: { login?: string | null } | null;
+}
+
+/**
+ * Issue #456: when the most recent kuro-agent comments form an unbroken
+ * monologue (≥ MONOLOGUE_THRESHOLD consecutive, no external interleave),
+ * the conversation is in a self-debate spiral. Skip dispatch until an
+ * external participant comments — re-spawning kuro-agent only piles more
+ * contradicting positions on top.
+ */
+export const KURO_AGENT_LOGIN = 'kuro-agent';
+export const MONOLOGUE_THRESHOLD = 3;
+
+export function hasKuroAgentMonologue(
+  comments: ReadonlyArray<GitHubComment> | undefined,
+): boolean {
+  if (!Array.isArray(comments) || comments.length === 0) return false;
+  let consecutive = 0;
+  for (let i = comments.length - 1; i >= 0; i--) {
+    const login = comments[i]?.author?.login;
+    if (login === KURO_AGENT_LOGIN) {
+      consecutive++;
+      if (consecutive >= MONOLOGUE_THRESHOLD) return true;
+    } else {
+      // Any non-kuro-agent comment breaks the monologue.
+      return false;
+    }
+  }
+  return false;
 }
 
 export type PredicateType =
@@ -258,7 +291,12 @@ export async function checkGitHubIssueOpen(ctx: FreshnessContext): Promise<boole
       ? await ctx.ghIssueView(meta.repo, meta.issueNumber)
       : await defaultGhIssueView(meta.repo, meta.issueNumber);
     if (!result || typeof result.state !== 'string') return null;
-    return result.state.toUpperCase() === 'OPEN';
+    if (result.state.toUpperCase() !== 'OPEN') return false;
+    // Issue #456: skip dispatch when conversation is a kuro-agent monologue.
+    // Re-spawning while no external signal exists piles up more contradicting
+    // positions instead of converging.
+    if (hasKuroAgentMonologue(result.comments)) return false;
+    return true;
   } catch {
     return null;
   }
@@ -279,14 +317,17 @@ function extractGitHubIssueMeta(
 async function defaultGhIssueView(
   repo: string,
   issueNumber: number,
-): Promise<{ state: string } | null> {
+): Promise<{ state: string; comments?: GitHubComment[] } | null> {
   const { stdout } = await execFileAsync(
     'gh',
-    ['issue', 'view', String(issueNumber), '--repo', repo, '--json', 'state'],
+    ['issue', 'view', String(issueNumber), '--repo', repo, '--json', 'state,comments'],
     { timeout: 5000 },
   );
-  const parsed = JSON.parse(stdout) as { state?: unknown };
+  const parsed = JSON.parse(stdout) as { state?: unknown; comments?: unknown };
   if (typeof parsed.state !== 'string') return null;
-  return { state: parsed.state };
+  const comments = Array.isArray(parsed.comments)
+    ? (parsed.comments as GitHubComment[])
+    : undefined;
+  return { state: parsed.state, comments };
 }
 
