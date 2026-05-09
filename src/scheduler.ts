@@ -481,23 +481,38 @@ export async function schedulerPickAsync(
 ): Promise<SchedulingDecision> {
   const decision = schedulerPick(memoryDir, events);
 
-  // Only correction tasks need predicate re-verification.
+  // Re-verify the dispatch decision against live source-of-truth.
+  // Two paths:
+  //   (a) correction-gate tasks (origin: correction-gate) — original Layer 1/2 path.
+  //   (b) heartbeat-derived github-issue tasks (id prefix idx-github-issue-) —
+  //       added for #465 to skip dispatch when the issue is already closed
+  //       on GitHub but autopilot reconciliation hasn't run yet.
   if (!decision.taskId) return decision;
 
   const entries = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress'] });
   const entry = entries.find(e => e.id === decision.taskId);
-  if (!entry || !isCorrectionTask(entry)) return decision;
+  if (!entry) return decision;
 
-  // Extract the predicate type from payload or summary.
   const payload = (entry.payload ?? {}) as Record<string, unknown>;
-  const predicateType: string =
-    (typeof payload.correction_reason_type === 'string' ? payload.correction_reason_type : null)
-    ?? parseCorrectionReasonFromSummaryExported(entry.summary ?? '')
-    ?? '';
+
+  // Decide predicate type by task family. Order matters: github-issue tasks
+  // are handled before the correction-task gate because they are heartbeat-
+  // derived (not correction tasks) and the previous gate skipped them.
+  let predicateType: string = '';
+  if (typeof entry.id === 'string' && entry.id.startsWith('idx-github-issue-')) {
+    predicateType = 'github-issue-open';
+  } else if (isCorrectionTask(entry)) {
+    predicateType =
+      (typeof payload.correction_reason_type === 'string' ? payload.correction_reason_type : null)
+      ?? parseCorrectionReasonFromSummaryExported(entry.summary ?? '')
+      ?? '';
+  } else {
+    return decision; // Not a re-verifiable task family — fail-open.
+  }
 
   if (!predicateType) return decision; // Unknown type — fail-open.
 
-  const ctx = { repoRoot, memoryDir };
+  const ctx = { repoRoot, memoryDir, entry };
   let stillStale: boolean | null;
   try {
     stillStale = await reverifyPredicate(predicateType, ctx);
