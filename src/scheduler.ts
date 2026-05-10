@@ -95,12 +95,18 @@ export class DefaultScheduler implements SchedulerPolicy {
     events: IncomingEvent[],
   ): SchedulingDecision {
     const activeTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+    const hasP0Event = events.some(e => e.priority === 0 || e.isAlexDirectMessage);
+    const isDiscoverySlot = state.totalTicks > 0 && state.totalTicks % DISCOVERY_INTERVAL === 0;
 
     if (activeTasks.length === 0) {
-      return { taskId: null, reason: 'open-cycle: no tasks, agent chooses', action: 'discovery', suspended: null };
+      if (hasP0Event) {
+        return { taskId: null, reason: 'event-driven open-cycle: no tasks, direct signal needs attention', action: 'discovery', suspended: null };
+      }
+      if (isDiscoverySlot) {
+        return { taskId: null, reason: 'discovery slot: no tasks, free exploration', action: 'discovery', suspended: null };
+      }
+      return { taskId: null, reason: 'idle: no schedulable tasks until next discovery slot', action: 'idle', suspended: null };
     }
-
-    const hasP0Event = events.some(e => e.priority === 0 || e.isAlexDirectMessage);
 
     // Rule 1: P0 event preempts non-P0 current task
     if (hasP0Event && state.currentTaskId) {
@@ -148,7 +154,7 @@ export class DefaultScheduler implements SchedulerPolicy {
     }
 
     // Rule 3: Discovery slot
-    if (state.totalTicks > 0 && state.totalTicks % DISCOVERY_INTERVAL === 0) {
+    if (isDiscoverySlot) {
       return { taskId: null, reason: 'discovery slot: free exploration', action: 'discovery', suspended: null };
     }
 
@@ -244,6 +250,15 @@ export function advanceTick(): void {
 export function resetCurrentTask(): void {
   schedulerState.currentTaskId = null;
   schedulerState.ticksOnCurrent = 0;
+}
+
+export function resetSchedulerStateForTest(): void {
+  schedulerState = {
+    currentTaskId: null,
+    ticksOnCurrent: 0,
+    totalTicks: 0,
+    lastDiscoveryTick: 0,
+  };
 }
 
 export function setCurrentTask(taskId: string): void {
