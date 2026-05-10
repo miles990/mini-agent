@@ -23,7 +23,7 @@ import { slog } from './utils.js';
 import { buildForensicEntryShell, writeForensicEntry } from './forensic-log.js';
 
 const DEFAULT_POLL_INTERVAL_MS = 2_000;
-const DEFAULT_TIMEOUT_MS = 1_500_000;
+const DEFAULT_TIMEOUT_MS = 90_000;
 
 interface DispatchResponse {
   taskId: string;
@@ -58,7 +58,7 @@ export async function execClaudeViaMiddleware(
   opts?: ExecOptions,
 ): Promise<string> {
   const baseUrl = getMiddlewareUrl();
-  const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMs = resolveMiddlewareCycleTimeoutMs(opts);
   const source = opts?.source ?? 'loop';
   const startTs = Date.now();
   const pollIntervalMs = DEFAULT_POLL_INTERVAL_MS;
@@ -190,4 +190,8 @@ export async function execClaudeViaMiddleware(
       middlewareStatus: 'poll-timeout',
     },
   );
+}
+
+export function resolveMiddlewareCycleTimeoutMs(opts?: Pick<ExecOptions, 'timeoutMs'>): number {
+  return opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 }
