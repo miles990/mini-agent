@@ -178,6 +178,7 @@ describe('workspace janitor', () => {
         type: 'remove-worktree',
         target: expect.stringContaining('repo-artifact-only'),
         reason: expect.stringContaining('only disposable artifact(s) remain: .runtime-autocorrect.patch'),
+        command: expect.arrayContaining(['git', 'worktree', 'remove', '--force']),
       }),
       expect.objectContaining({
         type: 'delete-local-branch',
