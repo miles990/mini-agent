@@ -1,11 +1,20 @@
+// STATUS: SHIPPED via Phase B (verified 2026-05-10).
+// All TODO(port) items below were resolved in src/commitment-ledger.ts:
+//   - 'abandoned' added to CommitmentEntry status union (line 17).
+//   - validateCommitmentWrite checks live (lines 144-148).
+//   - computeAudit splits abandoned vs refuted (line 249, 291).
+//   - ackCommitment + nag-on-unacked surfacing live (lines 214-236, 596-602).
+// Retained as historical decision artifact; do NOT edit logic here — see
+// docs/plans/2026-05-05-commitment-counterparty-ack.md for the decision table
+// and src/commitment-ledger.ts for live behavior.
+//
 // Phase A skeleton — logic-faithful, NOT compile-tested.
 // Per Bun PORTING.md pattern (cycle 130 lobsters paper-opinion):
 // Phase A = correct logic + TODO(port) markers. Phase B = compile success.
 // Implementer reads decision table in 2026-05-05-commitment-counterparty-ack.md
 // before re-deriving any branch from prose.
 //
-// Target file (DO NOT EDIT YET): src/commitment-ledger.ts
-// This file is reference-only. Copy into src/ during Phase B + fix typecheck.
+// Target file (already shipped): src/commitment-ledger.ts
 
 // -----------------------------------------------------------------------------
 // 1. Schema extension (target: src/commitment-ledger.ts:10-25)
@@ -35,9 +44,8 @@ export interface CommitmentEntryV2 {
 function validateCommitmentWrite(entry: CommitmentEntryV2): void {
   // FORBIDDEN COMBO 1: status=abandoned + counterparty=self
   // (self-commitments cannot be "abandoned by counterparty" — only kept/refuted/expired)
-  // TODO(port): import 'abandoned' into status union (currently not in v1 union).
-  //             Decide: extend status union OR keep abandoned implicit via ack_at=null.
-  //             See decision table row 6 in 2026-05-05-commitment-counterparty-ack.md.
+  // RESOLVED(port): 'abandoned' is in status union — see src/commitment-ledger.ts:17.
+  //             Status was extended (option A from decision table row 6).
 
   // FORBIDDEN COMBO 2: counterparty.kind=agent without agent_id
   if (entry.counterparty?.kind === 'agent' && !entry.counterparty.agent_id) {
@@ -75,9 +83,9 @@ interface CommitmentAuditV2 {
 function computeTrustHealth(entries: CommitmentEntryV2[]): {
   abandoned: number; refuted: number; ratio: number;
 } {
-  // TODO(port): wire into existing computeAudit function in commitment-ledger.ts.
-  //             Currently expired+refuted are conflated; need to split expired
-  //             into (a) abandoned-with-counterparty and (b) genuine-self-timeout.
+  // RESOLVED(port): wired into computeAudit in src/commitment-ledger.ts:249,291.
+  //             Expired and abandoned are now split: abandoned = ttl-expired
+  //             with counterparty=agent && ack_at=undefined (lines 519-547).
   let abandoned = 0;
   let refuted = 0;
   for (const e of entries) {
