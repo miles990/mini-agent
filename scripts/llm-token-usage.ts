@@ -94,13 +94,18 @@ function main(): void {
       createdAt?: string,
       actor?: string,
       status?: string,
-      taskType?: string,
-      estimatedTokens?: number,
+      intent?: string,
+      event?: string,
+      usageEstimate?: { totalTokens?: number, promptTokens?: number, systemTokens?: number, contextTokens?: number },
       durationMs?: number,
     };
     if (!obj.createdAt?.startsWith(date)) continue;
-    const key = `${obj.actor ?? 'unknown'}:${obj.status ?? 'unknown'}:${obj.taskType ?? 'unknown'}`;
-    add(brain, key, Math.max(0, Number(obj.estimatedTokens ?? 0) * 4), Number(obj.durationMs ?? 0));
+    const key = `${obj.actor ?? 'runtime'}:${obj.status ?? 'unknown'}:${obj.intent ?? obj.event ?? 'unknown'}`;
+    const usageTokens = Number(
+      obj.usageEstimate?.totalTokens
+      ?? ((obj.usageEstimate?.promptTokens ?? 0) + (obj.usageEstimate?.systemTokens ?? 0) + (obj.usageEstimate?.contextTokens ?? 0)),
+    );
+    add(brain, key, Number.isFinite(usageTokens) ? usageTokens * 4 : 0, Number(obj.durationMs ?? 0));
   }
 
   formatTable(`Cloud Claude prompt usage ${date}`, cloud);
