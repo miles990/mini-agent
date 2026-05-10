@@ -184,6 +184,64 @@ export function deriveTextureProfile(item: WorkItem): ConstraintTextureProfile {
   return { criterionType, promptTexture, evaluatorTexture, modelTier, useReflect, rationale };
 }
 
+export function buildConstraintTexturePromptSection(item: WorkItem): string {
+  const profile = deriveTextureProfile(item);
+  const lines = [
+    '<constraint-texture-profile>',
+    `criterion: ${profile.criterionType}`,
+    `prompt_texture: ${profile.promptTexture}`,
+    `evaluator_texture: ${profile.evaluatorTexture}`,
+    `model_lane: ${profile.modelTier}`,
+    `reflect_pass: ${profile.useReflect ? 'yes' : 'no'}`,
+    'paper_backed_rule:',
+  ];
+
+  switch (profile.promptTexture) {
+    case 'prescription':
+      lines.push(
+        '- This is mechanically verifiable work. Prefer exact commands, schemas, fields, or pass/fail checks over open-ended reasoning.',
+        '- Completion means the requested observable check passes, not that the explanation sounds plausible.',
+      );
+      break;
+    case 'ct':
+      lines.push(
+        '- This needs convergence conditions. State the endpoint quality in context, then satisfy that endpoint directly.',
+        '- Do not pad with generic checklist compliance; preserve the audience/source boundary that makes the answer correct.',
+      );
+      break;
+    case 'ct-reflect':
+      lines.push(
+        '- First produce the answer, then do one short audience/source-boundary reflection pass before finalizing.',
+        '- The second pass must remove over-inference and improve decision usefulness, not add length for its own sake.',
+      );
+      break;
+    case 'hybrid':
+      lines.push(
+        '- Use prescriptions for mechanical subparts and convergence conditions for judgment subparts.',
+        '- Split output/checks so deterministic facts are verifiable and semantic choices are justified by context.',
+      );
+      break;
+  }
+
+  if (profile.evaluatorTexture === 'source-faithfulness') {
+    lines.push('- Evaluation focus: source faithfulness, uncertainty preservation, and no unsupported claims.');
+  } else if (profile.evaluatorTexture === 'pairwise') {
+    lines.push('- Evaluation focus: compare alternatives by which one better resolves stakeholder tension without hiding tradeoffs.');
+  } else if (profile.evaluatorTexture === 'mechanical-check') {
+    lines.push('- Evaluation focus: run or cite the concrete check; avoid semantic claims when a command/schema can decide.');
+  } else {
+    lines.push('- Evaluation focus: judge whether the result would improve the real downstream decision, not whether it mentions the right words.');
+  }
+
+  if (profile.criterionType === 'restraint') {
+    lines.push('- Restraint caveat: do not use a reflective rewrite that expands a short answer unless explicitly asked.');
+  }
+
+  lines.push(`rationale: ${profile.rationale[0] ?? 'paper-backed prompt texture selection'}`);
+  lines.push('</constraint-texture-profile>');
+  return lines.join('\n');
+}
+
 export function isCheapLocalIntent(intent: WorkIntent): boolean {
   return CHEAP_LOCAL_INTENTS.has(intent);
 }
