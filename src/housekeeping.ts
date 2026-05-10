@@ -34,6 +34,7 @@ import { classifyMemoryRepoPath } from './memory-repo-policy.js';
 import { getFeature, setEnabled } from './features.js';
 import { pruneReviewBacklog } from './review-backlog-janitor.js';
 import { sweepKgDiscussionLifecycle } from './kg-discussion-janitor.js';
+import { sweepWorktreeLifecycle } from './worktree-lifecycle-janitor.js';
 import { assertKuroGithubIdentity, kuroGitEnv } from './github-identity.js';
 import { governGitStashes } from './stash-governance.js';
 import type { MemoryIndexEntry } from './memory-index.js';
@@ -759,6 +760,10 @@ export async function runHousekeeping(): Promise<void> {
 
   await sweepKgDiscussionLifecycle(getMemoryRootDir()).catch(err => {
     slog('KG-DISCUSSION-JANITOR', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
+  });
+
+  await sweepWorktreeLifecycle(getMemoryRootDir(), { root: process.cwd() }).catch(err => {
+    slog('WORKTREE-LIFECYCLE', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
   });
 
   // KG auto-ingest: check every 5 cycles if enough new writes have accumulated
