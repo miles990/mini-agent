@@ -1029,6 +1029,26 @@ export function synthesizeDecisionFromProse(
   return { chose, falsifier, ttl };
 }
 
+export function shouldSuppressStatusNoiseChat(text: string): boolean {
+  const normalized = text.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!normalized) return true;
+  const isStatusOnly = [
+    /\bmushi\b.*status changed.*(?:online|offline|unknown)/,
+    /\bkuro status changed\b.*(?:online|offline|unknown)/,
+    /\bstatus change notification\b/,
+    /\bno response\b.*\bstatus change\b/,
+    /\bnothing to act on\b/,
+    /\bno substantive\b/,
+  ].some(pattern => pattern.test(normalized));
+  if (!isStatusOnly) return false;
+
+  const actionable = [
+    /\b(blocked|failed|error|p0|p1|needs human|action required|autonomy closure)\b/,
+    /阻塞|失敗|錯誤|需要|修復|處理/,
+  ].some(pattern => pattern.test(normalized));
+  return !actionable;
+}
+
 // =============================================================================
 // postProcess — 共用的 tag 處理 + 記憶 + 日誌
 // =============================================================================
@@ -1908,6 +1928,12 @@ export async function postProcess(
 
     if (tags.chats.length > 0) tagsProcessed.push('chat');
     for (const chat of tags.chats) {
+      if (shouldSuppressStatusNoiseChat(chat.text)) {
+        slog('GATE', `🔇 Status-noise chat suppressed: ${chat.text.slice(0, 100)}`);
+        getLogger().logBehavior('agent', 'gate.status-noise-chat', `suppressed: ${chat.text.slice(0, 120)}`);
+        eventBus.emit('log:behavior', { tag: 'status-noise-chat', msg: 'suppressed non-actionable status notification' });
+        continue;
+      }
       const askPerm = detectAskingPermission(chat.text);
       if (askPerm) {
         const isDelegation = askPerm.startsWith('delegation:');

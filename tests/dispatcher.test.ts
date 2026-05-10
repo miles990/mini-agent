@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTags, extractDecisionBlock, synthesizeDecisionFromProse } from '../src/dispatcher.js';
+import { parseTags, extractDecisionBlock, shouldSuppressStatusNoiseChat, synthesizeDecisionFromProse } from '../src/dispatcher.js';
 
 // =============================================================================
 // parseTags Tests
@@ -144,6 +144,18 @@ describe('parseTags', () => {
   it('does not accept unclosed inner tags as working memory', () => {
     const result = parseTags('<kuro:inner>\n</foreground_reply_mode>\n</parameter>\n</invoke>');
     expect(result.inner).toBeUndefined();
+  });
+});
+
+describe('shouldSuppressStatusNoiseChat', () => {
+  it('suppresses non-actionable mushi status notifications', () => {
+    expect(shouldSuppressStatusNoiseChat('[mushi] Kuro status changed: online → unknown')).toBe(true);
+    expect(shouldSuppressStatusNoiseChat('(no response — status change notification, nothing to act on)')).toBe(true);
+  });
+
+  it('keeps actionable status notifications visible', () => {
+    expect(shouldSuppressStatusNoiseChat('Autonomy closure blocked: P0 task failed and needs human action')).toBe(false);
+    expect(shouldSuppressStatusNoiseChat('[mushi] Kuro status changed: offline; autonomy closure blocked')).toBe(false);
   });
 });
 

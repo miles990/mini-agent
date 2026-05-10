@@ -8,6 +8,7 @@ import {
   markDelegationFailureDiagnosticCreated,
   readDelegationFailureRecordsSync,
   recordDelegationFailure,
+  shouldSuppressUnchangedDelegationRetry,
   transitionDelegationFailureStatus,
 } from '../src/delegation-failure-guard.js';
 
@@ -177,6 +178,52 @@ describe('delegation failure guard', () => {
     expect(second.record.resolution).toContain('split the origin task');
     expect(second.needsDiagnosticTask).toBe(false);
     expect(isActionableDelegationFailure(second.record)).toBe(false);
+  });
+
+  it('suppresses unchanged max-turn delegation retries before spending provider turns', () => {
+    const first = recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'code',
+      prompt: '## Task: Repair memory-state-truth by touching every subsystem and proving closure.',
+      output: 'task task-123 failed: Claude Code returned an error result: Reached maximum number of turns (15)',
+    });
+    recordDelegationFailure(tmpDir, {
+      taskId: 'del-2',
+      taskType: 'code',
+      prompt: '## Task: Repair memory-state-truth by touching every subsystem and proving closure.',
+      output: 'task task-456 failed: Claude Code returned an error result: Reached maximum number of turns (15)',
+    });
+
+    const decision = shouldSuppressUnchangedDelegationRetry(tmpDir, {
+      taskType: 'code',
+      prompt: '## Task: Repair memory-state-truth by touching every subsystem and proving closure.',
+    });
+
+    expect(first.record.frequency).toBe(1);
+    expect(decision.suppress).toBe(true);
+    expect(decision.reason).toContain('split the origin task');
+  });
+
+  it('does not suppress a decomposed retry with a different prompt key', () => {
+    recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'code',
+      prompt: '## Task: Repair memory-state-truth by touching every subsystem and proving closure.',
+      output: 'task task-123 failed: Claude Code returned an error result: Reached maximum number of turns (15)',
+    });
+    recordDelegationFailure(tmpDir, {
+      taskId: 'del-2',
+      taskType: 'code',
+      prompt: '## Task: Repair memory-state-truth by touching every subsystem and proving closure.',
+      output: 'task task-456 failed: Claude Code returned an error result: Reached maximum number of turns (15)',
+    });
+
+    const decision = shouldSuppressUnchangedDelegationRetry(tmpDir, {
+      taskType: 'code',
+      prompt: '## Task: Probe memory-state-truth only by running pnpm check:autonomy-closure and reporting the exact failing field.',
+    });
+
+    expect(decision.suppress).toBe(false);
   });
 
   it('normalizes historical records that are open but already resolved', () => {
