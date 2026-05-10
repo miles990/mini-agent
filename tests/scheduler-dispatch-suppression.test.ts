@@ -19,6 +19,7 @@ import {
   recordTaskTerminalSignal,
   resetTaskSuppression,
   resetAllSuppressions,
+  resetCurrentTask,
   isTaskSuppressed,
   getSuppressedTaskIds,
   getTerminalSignalCount,
@@ -31,12 +32,14 @@ beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dispatch-suppress-'));
   invalidateIndexCache();
   resetAllSuppressions();
+  resetCurrentTask();
 });
 
 afterEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
   invalidateIndexCache();
   resetAllSuppressions();
+  resetCurrentTask();
 });
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -311,6 +314,34 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
 
     expect(decision.taskId).toBe(active.id);
     expect(decision.taskId).not.toBe(resolved.id);
+  });
+
+  it('does not pick a task matched by a phantom closure marker', async () => {
+    const phantom = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Diagnose fail-8wyvhk: repeated delegation failure from an explicit test envelope',
+      payload: { priority: 0 },
+    });
+    const active = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 active incident that still exists',
+      payload: { priority: 0 },
+    });
+    fs.mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
+    fs.appendFileSync(path.join(tmpDir, 'state', 'phantom-closures.jsonl'), JSON.stringify({
+      code: 'fail-8wyvhk',
+      task: 'Diagnose fail-8wyvhk',
+      resolved_at: new Date().toISOString(),
+      evidence: 'delegation failure record is resolved as test_artifact',
+    }) + '\n');
+    invalidateIndexCache();
+
+    const decision = schedulerPick(tmpDir, []);
+
+    expect(decision.taskId).toBe(active.id);
+    expect(decision.taskId).not.toBe(phantom.id);
   });
 
   it('resets suppression on a human-directed scheduler event', async () => {

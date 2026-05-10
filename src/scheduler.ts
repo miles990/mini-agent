@@ -328,6 +328,23 @@ const phantomCache: { mtimeMs: number; titles: Set<string> } = {
   titles: new Set<string>(),
 };
 
+interface PhantomClosureEntry {
+  task?: string;
+  summary?: string;
+  title?: string;
+  task_id?: string;
+  taskId?: string;
+  code?: string;
+  failureCode?: string;
+  signature?: string;
+  artifact?: string;
+}
+
+const phantomClosureCache: { mtimeMs: number; keys: Set<string> } = {
+  mtimeMs: 0,
+  keys: new Set<string>(),
+};
+
 function loadPhantomTaskTitles(memoryDir: string): Set<string> {
   const filePath = join(memoryDir, 'state', 'phantom-tasks.jsonl');
   if (!existsSync(filePath)) {
@@ -369,6 +386,62 @@ function isPhantomTask(summary: string, phantomTitles: Set<string>): boolean {
   return false;
 }
 
+function loadPhantomClosureKeys(memoryDir: string): Set<string> {
+  const filePath = join(memoryDir, 'state', 'phantom-closures.jsonl');
+  if (!existsSync(filePath)) {
+    if (phantomClosureCache.mtimeMs !== 0) {
+      phantomClosureCache.mtimeMs = 0;
+      phantomClosureCache.keys = new Set();
+    }
+    return phantomClosureCache.keys;
+  }
+  let mtimeMs = 0;
+  try { mtimeMs = statSync(filePath).mtimeMs; } catch { return phantomClosureCache.keys; }
+  if (mtimeMs === phantomClosureCache.mtimeMs) return phantomClosureCache.keys;
+  const keys = new Set<string>();
+  try {
+    const raw = readFileSync(filePath, 'utf8');
+    for (const line of raw.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const obj = JSON.parse(trimmed) as PhantomClosureEntry;
+        for (const value of [
+          obj.task,
+          obj.summary,
+          obj.title,
+          obj.task_id,
+          obj.taskId,
+          obj.code,
+          obj.failureCode,
+          obj.signature,
+          obj.artifact,
+        ]) {
+          if (typeof value === 'string' && value.trim().length >= 8) {
+            keys.add(value.trim());
+          }
+        }
+      } catch { /* skip malformed line */ }
+    }
+  } catch { return phantomClosureCache.keys; }
+  phantomClosureCache.mtimeMs = mtimeMs;
+  phantomClosureCache.keys = keys;
+  return keys;
+}
+
+function isClosedByPhantomClosure(task: TaskSnapshot, closureKeys: Set<string>): boolean {
+  if (closureKeys.size === 0) return false;
+  const summary = task.summary.trim();
+  if (closureKeys.has(task.id) || closureKeys.has(summary)) return true;
+  for (const key of closureKeys) {
+    if (key === task.id) return true;
+    if (key.length >= 24 && (summary.includes(key) || key.includes(summary))) return true;
+    if (/^fail-[a-z0-9]+$/i.test(key) && summary.includes(key)) return true;
+    if (/^(idx|task|del)-[a-z0-9-]+$/i.test(key) && (task.id.includes(key) || summary.includes(key))) return true;
+  }
+  return false;
+}
+
 export function schedulerPick(
   memoryDir: string,
   events: IncomingEvent[] = [],
@@ -391,6 +464,7 @@ export function schedulerPick(
   resetSuppressionsForExternalEvents(events);
 
   const phantomTitles = loadPhantomTaskTitles(memoryDir);
+  const phantomClosureKeys = loadPhantomClosureKeys(memoryDir);
   const resolvedKeys = loadResolvedTaskKeysFromEvents(memoryDir);
 
   const tasks: TaskSnapshot[] = entries.map(entryToSnapshot)
@@ -408,6 +482,13 @@ export function schedulerPick(
     .filter(t => {
       if (isPhantomTask(t.summary, phantomTitles)) {
         slog('SCHED', `dispatch-phantom: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)} (phantom-tasks.jsonl)`);
+        return false;
+      }
+      return true;
+    })
+    .filter(t => {
+      if (isClosedByPhantomClosure(t, phantomClosureKeys)) {
+        slog('SCHED', `dispatch-phantom-closure: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)} (phantom-closures.jsonl)`);
         return false;
       }
       return true;
