@@ -183,6 +183,22 @@ describe('delegation failure diagnostics', () => {
     }));
   });
 
+  it('resolves stale graphify wall-clock timeouts so bounded rebuild steps can take over', async () => {
+    const first = recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'graphify',
+      prompt: 'cd /Users/user/Workspace/mini-agent && pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+      output: '[brain-runtime] status=failed primary=none claims=0 [shell:primary.failed] task task-1 did not complete within 600000ms',
+    });
+
+    const diagnosis = await diagnoseDelegationFailure(tmpDir, first.record.signature);
+
+    expect(diagnosis).toEqual(expect.objectContaining({
+      status: 'resolved',
+      category: 'middleware_failed',
+    }));
+  });
+
   it('picks up repeated open records when diagnosing pending failures', async () => {
     recordDelegationFailure(tmpDir, {
       taskId: 'del-1',
