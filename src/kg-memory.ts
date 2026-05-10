@@ -87,6 +87,10 @@ export function writeMemoryTriple(opts: WriteMemoryOpts): void {
   };
   try { appendFileSync(getCachePathForAgent(opts.agent), JSON.stringify(cacheEntry) + '\n', 'utf-8'); } catch { /* fire-and-forget */ }
 
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true' || process.env.MINI_AGENT_DISABLE_KG_WRITES === '1') {
+    return;
+  }
+
   // KG write (async, source of truth)
   fetch(`${KG_BASE}/api/write/triple`, {
     method: 'POST',

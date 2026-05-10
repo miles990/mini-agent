@@ -136,6 +136,53 @@ describe('delegation failure diagnostics', () => {
     }));
   });
 
+  it('resolves delegation test-envelope failures that leaked into live state', async () => {
+    const first = recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'code',
+      prompt: [
+        '## Task:',
+        'Update src/agent.ts',
+        '',
+        '## Context:',
+        'This is an explicit test envelope that should pass the phantom-prompt pre-dispatch guard.',
+      ].join('\n'),
+      output: 'blocked by workspace isolation policy: forge worktree allocation failed for repo',
+    });
+    const task = await createTask(tmpDir, {
+      title: 'Diagnose leaked delegation test artifact',
+      origin: 'kuro',
+      status: 'pending',
+    });
+    markDelegationFailureDiagnosticCreated(tmpDir, first.record.signature, task.id);
+
+    const diagnosis = await diagnoseDelegationFailure(tmpDir, first.record.signature);
+
+    expect(diagnosis).toEqual(expect.objectContaining({
+      status: 'resolved',
+      category: 'test_artifact',
+    }));
+    expect(queryMemoryIndexSync(tmpDir, { id: task.id })[0]).toEqual(expect.objectContaining({
+      status: 'completed',
+    }));
+  });
+
+  it('resolves stale middleware-offline delegation signatures after preflight exists', async () => {
+    const first = recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'graphify',
+      prompt: 'cd /Users/user/Workspace/mini-agent && pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+      output: '[brain-runtime] status=failed primary=none claims=0 [shell:primary.failed] middleware offline at http://localhost:3200',
+    });
+
+    const diagnosis = await diagnoseDelegationFailure(tmpDir, first.record.signature);
+
+    expect(diagnosis).toEqual(expect.objectContaining({
+      status: 'resolved',
+      category: 'middleware_failed',
+    }));
+  });
+
   it('picks up repeated open records when diagnosing pending failures', async () => {
     recordDelegationFailure(tmpDir, {
       taskId: 'del-1',
