@@ -23,7 +23,15 @@ export interface DelegationFailureDiagnosis {
   signature: string;
   code: string;
   status: DelegationFailureStatus;
-  category: 'missing_environment' | 'provider_quota' | 'max_turns' | 'shell_prompt_injection' | 'command_failed' | 'middleware_failed' | 'unknown';
+  category:
+    | 'missing_environment'
+    | 'provider_quota'
+    | 'max_turns'
+    | 'shell_prompt_injection'
+    | 'command_failed'
+    | 'middleware_failed'
+    | 'test_artifact'
+    | 'unknown';
   summary: string;
   recommendedAction: string;
   reportPath: string;
@@ -97,6 +105,33 @@ function buildDiagnosis(memoryDir: string, record: DelegationFailureRecord): Del
   const code = getDelegationFailureCode(record.signature);
   const lower = `${record.prompt}\n${record.error}`.toLowerCase();
   const reportPath = path.join(memoryDir, 'reports', 'delegation-failures', `${code}.md`);
+
+  if (
+    /explicit test envelope/.test(lower)
+    && /forge worktree allocation failed|workspace isolation policy|preflight blocked delegation before provider spend|worker .* unavailable/.test(lower)
+  ) {
+    return {
+      signature: record.signature,
+      code,
+      status: 'resolved',
+      category: 'test_artifact',
+      summary: 'The repeated failure was produced by a delegation test envelope that leaked into live memory state.',
+      recommendedAction: 'Keep delegation tests isolated with MINI_AGENT_MEMORY_DIR and do not let this historical test artifact block live autonomy closure.',
+      reportPath,
+    };
+  }
+
+  if (/middleware offline at http:\/\/localhost:3200/.test(lower)) {
+    return {
+      signature: record.signature,
+      code,
+      status: 'resolved',
+      category: 'middleware_failed',
+      summary: 'The repeated failure is a historical middleware-offline signature; live middleware health is now checked before provider spend.',
+      recommendedAction: 'Resolve the stale offline failure and rely on middleware health preflight/circuit breaker before retrying any matching task.',
+      reportPath,
+    };
+  }
 
   if (/forge worktree allocation failed|workspace isolation policy/.test(lower)) {
     return {

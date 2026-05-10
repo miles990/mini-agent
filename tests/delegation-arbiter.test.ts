@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/activity-journal.js', () => ({
   writeActivity: vi.fn(),
@@ -14,7 +17,7 @@ vi.mock('../src/middleware-client.js', () => ({
     health: vi.fn().mockResolvedValue({
       status: 'ok',
       service: 'agent-middleware',
-      workers: ['coder', 'agent-brain', 'shell', 'cloud-agent'],
+      workers: ['coder', 'agent-brain', 'shell', 'cloud-agent', 'create', 'reviewer', 'planner'],
       tasks: 0,
     }),
     dispatch: vi.fn().mockResolvedValue({ taskId: 'mw-1', status: 'pending' }),
@@ -75,7 +78,12 @@ function validPrompt(text: string): string {
   ].join('\n');
 }
 
+const ORIGINAL_MEMORY_DIR = process.env.MINI_AGENT_MEMORY_DIR;
+let testMemoryDir: string | undefined;
+
 beforeEach(() => {
+  testMemoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-delegation-arbiter-'));
+  process.env.MINI_AGENT_MEMORY_DIR = testMemoryDir;
   delete process.env.MINI_AGENT_DELEGATION_RUNTIME;
   vi.mocked(prepareForgeWorkspace).mockReset();
   vi.mocked(prepareForgeWorkspace).mockImplementation((opts: { workdir: string; requiresIsolation: boolean }) => ({
@@ -83,6 +91,20 @@ beforeEach(() => {
     ...(opts.requiresIsolation ? { worktree: '/repo-forge/default' } : {}),
   }));
   killAllDelegations();
+});
+
+afterEach(() => {
+  killAllDelegations();
+  if (testMemoryDir) {
+    rmSync(testMemoryDir, { recursive: true, force: true });
+    testMemoryDir = undefined;
+  }
+  if (ORIGINAL_MEMORY_DIR === undefined) {
+    delete process.env.MINI_AGENT_MEMORY_DIR;
+  } else {
+    process.env.MINI_AGENT_MEMORY_DIR = ORIGINAL_MEMORY_DIR;
+  }
+  delete process.env.MINI_AGENT_DELEGATION_RUNTIME;
 });
 
 describe('delegation arbitration mapping', () => {
