@@ -37,36 +37,43 @@ describe('extractErrorSubtype — transient band split (#318)', () => {
   });
 });
 
-describe('extractErrorSubtype — upstream_quickreject_cn split (#491)', () => {
+describe('extractErrorSubtype — upstream_quickreject_cn split (#491) — full message shape', () => {
   // Real fire format observed in error-patterns.json (UNKNOWN:transient_fast_band::callClaude):
   //   "claude CLI UNKNOWN (exit N/A, 8100ms this attempt, 8100ms total, attempt 1/3,
   //    prompt 36402 chars, loop lane): 處理訊息時發生錯誤 [dur=8s]。請稍後再試..."
-  // Discriminator: attempt 1/N + dur<20s + 處理訊息時發生錯誤 → upstream rejects
-  // before the caller-side fast-band gate has any prior call to throttle against.
+  // Discriminator (per issue #491 spec): localized message + dur<20s + exit N/A.
+  // Attempt number is NOT part of the discriminator — even attempt 3/3 with exit N/A
+  // is an upstream reject the caller-side gate cannot prevent. See post-merge
+  // reconciliation 2026-05-10: PR #492 (correct) shipped without attempt gate;
+  // PR #493 added one and was over-constrained. This file used to encode the
+  // wrong rule; tests are updated to match the spec.
   const mkUpstreamMsg = (durSec: number, attempt: number, totalAttempts = 3) =>
     `claude CLI UNKNOWN (exit N/A, ${durSec * 1000}ms this attempt, ${durSec * 1000}ms total, ` +
     `attempt ${attempt}/${totalAttempts}, prompt 36402 chars, loop lane): 處理訊息時發生錯誤 [dur=${durSec}s]。請稍後再試。`;
 
-  it('classifies attempt 1/N + dur<20s as upstream_quickreject_cn', () => {
+  it('classifies attempt 1/N + dur<20s + exit N/A as upstream_quickreject_cn', () => {
     expect(extractErrorSubtype(mkUpstreamMsg(8, 1))).toBe('upstream_quickreject_cn');
     expect(extractErrorSubtype(mkUpstreamMsg(1, 1))).toBe('upstream_quickreject_cn');
     expect(extractErrorSubtype(mkUpstreamMsg(19, 1))).toBe('upstream_quickreject_cn');
   });
 
-  it('keeps attempt 2-3/N retry-storm fires as transient_fast_band (existing #318 path)', () => {
-    // Genuine retry-storm: caller has prior call to gate against; #443/#446 damper applies.
-    expect(extractErrorSubtype(mkUpstreamMsg(8, 2))).toBe('transient_fast_band');
-    expect(extractErrorSubtype(mkUpstreamMsg(8, 3))).toBe('transient_fast_band');
+  it('classifies attempt 2-3/N + exit N/A as upstream_quickreject_cn (spec: discriminator is exit N/A, not attempt)', () => {
+    expect(extractErrorSubtype(mkUpstreamMsg(8, 2))).toBe('upstream_quickreject_cn');
+    expect(extractErrorSubtype(mkUpstreamMsg(8, 3))).toBe('upstream_quickreject_cn');
   });
 
-  it('does not over-match attempt 1 with dur>=20s (slow-band stays transient_slow_band)', () => {
-    // dur=20s should fall through to transient_slow_band, not upstream_quickreject_cn.
+  it('does not over-match dur>=20s + exit N/A (falls through to transient_slow_band)', () => {
     expect(extractErrorSubtype(mkUpstreamMsg(20, 1))).toBe('transient_slow_band');
     expect(extractErrorSubtype(mkUpstreamMsg(59, 1))).toBe('transient_slow_band');
   });
 
+  it('keeps genuine retry-storm WITHOUT exit N/A as transient_fast_band', () => {
+    // No exit N/A → real CLI/transient failure, not an upstream reject.
+    const msg = '處理訊息時發生錯誤 attempt 3/3, prompt 26866 chars, dur=8s';
+    expect(extractErrorSubtype(msg)).toBe('transient_fast_band');
+  });
+
   it('preserves no_diag fallback when 處理訊息時發生錯誤 has no dur= suffix', () => {
-    // Sanity: existing fallback path untouched even with attempt 1/N present.
     const msg = 'attempt 1/3 處理訊息時發生錯誤 some text without duration';
     expect(extractErrorSubtype(msg)).toBe('no_diag');
   });
