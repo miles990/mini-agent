@@ -142,6 +142,29 @@ export async function queueWorktreeLifecycleTasks(
     held: 0,
   };
 
+  // Phantom-prune (issue: P0 banner restalance): when a previously-queued lifecycle task no
+  // longer matches an actionable case (worktree pruned, branch deleted, PR opened), auto-
+  // resolve it so the P0 banner stops re-surfacing the ghost. Without this, deleted worktrees
+  // leak phantoms — see memory/topics/p0-circuit-breaker-phantom-2026-05-10.md.
+  {
+    const caseIds = new Set(cases.map(c => c.id));
+    let autoResolved = 0;
+    for (const entry of getLifecycleTasks(memoryDir, ["pending", "in_progress", "hold"])) {
+      const caseId = (entry.payload ?? {}).worktree_case_id as string | undefined;
+      if (!caseId || caseIds.has(caseId)) continue;
+      await updateMemoryIndexEntry(memoryDir, entry.id, {
+        status: "resolved",
+        payload: {
+          ...(entry.payload ?? {}),
+          resolved_at: now.toISOString(),
+          resolved_reason: "worktree case no longer present (worktree pruned, branch deleted, or PR opened)",
+        },
+      });
+      autoResolved++;
+    }
+    if (autoResolved > 0) slog("WORKTREE-LIFECYCLE", `auto-resolved ${autoResolved} stale lifecycle task(s) — case no longer present`);
+  }
+
   const maxActive = options.maxActiveTasks ?? DEFAULT_MAX_ACTIVE_TASKS;
   result.held += await rebalanceActiveTasks(memoryDir, maxActive);
   const activeBudget = Math.max(0, maxActive - countActiveTasks(memoryDir));
