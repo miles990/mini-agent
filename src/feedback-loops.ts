@@ -199,6 +199,9 @@ export const PROTECTIVE_SUBTYPES = new Set([
   // Issue #370: budget cap and user-initiated abort are expected, non-error terminations
   'budget_exceeded',
   'user_abort',
+  // Issue #491: upstream Chinese-localized 400 rejection — structurally ungatable (fires on
+  // attempt 1/3 before any window accumulates); re-fires are upstream events, not regressions.
+  'upstream_quickreject_cn',
 ]);
 
 /**
@@ -239,6 +242,18 @@ export function extractErrorSubtype(errorMsg: string): string {
   // Both are non-retryable, non-error terminations — own buckets so frequency is surfaced.
   if (lower.includes('reached maximum budget')) return 'budget_exceeded';
   if (lower.includes('aborted by user')) return 'user_abort';
+  // Issue #491: Chinese-localized upstream 400 errors — split from transient_fast_band.
+  // These fire on attempt 1/3 (no prior call for any window to throttle), dur<20s, with
+  // "exit N/A" in the message (Anthropic server rejected the request, not a CLI hang).
+  // Must be extracted BEFORE the transient_fast_band branch so they get their own subtype
+  // and stop polluting the circuit-breaker metric with structurally-ungatable events.
+  if (
+    (/處理訊息時發生錯誤|請稍後再試/.test(errorMsg)) &&
+    /exit n\/a/i.test(errorMsg)
+  ) {
+    const durMatch = /dur=(\d+)s/.exec(lower);
+    if (!durMatch || Number(durMatch[1]) < 20) return 'upstream_quickreject_cn';
+  }
   if (lower.includes('accomplish timed out') || lower.includes('middleware offline')) return 'middleware_timeout';
   // 2026-04-20: paired with delegation.ts:294 Promise.race wrapper — converts silent
   // 600s hang_no_diag (when /plan endpoint blocks) into its own actionable bucket.
