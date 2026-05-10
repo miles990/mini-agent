@@ -53,12 +53,15 @@ for (const wt of worktrees) {
     continue;
   }
   if (openPrBranches.has(wt.branch)) continue;
-  if (mergedPrBranches.has(wt.branch) && isWorktreeClean(wt.path)) {
+  if ((mergedPrBranches.has(wt.branch) || isMergedToBase(wt.branch, base)) && isWorktreeClean(wt.path)) {
     removableWorktreeBranches.add(wt.branch);
+    const githubMerged = mergedPrBranches.has(wt.branch);
     actions.push({
       type: 'remove-worktree',
       target: wt.path,
-      reason: `branch ${wt.branch} was merged and worktree is clean`,
+      reason: githubMerged
+        ? `branch ${wt.branch} was merged and worktree is clean`
+        : `branch ${wt.branch} is already merged into ${base} and worktree is clean`,
       command: ['git', 'worktree', 'remove', wt.path],
     });
   }
@@ -220,8 +223,26 @@ function isBranchCheckedOut(branch: string, records: WorktreeRecord[]): boolean 
 }
 
 function isMergedToBase(branch: string, baseBranch: string): boolean {
+  const candidates = [`origin/${baseBranch}`, baseBranch];
+  for (const candidate of candidates) {
+    if (!refExists(candidate)) continue;
+    try {
+      execFileSync('git', ['merge-base', '--is-ancestor', branch, candidate], {
+        cwd: root,
+        stdio: 'ignore',
+        timeout: 5000,
+      });
+      return true;
+    } catch {
+      // Try the next known base ref.
+    }
+  }
+  return false;
+}
+
+function refExists(ref: string): boolean {
   try {
-    execFileSync('git', ['merge-base', '--is-ancestor', branch, `origin/${baseBranch}`], {
+    execFileSync('git', ['rev-parse', '--verify', '--quiet', ref], {
       cwd: root,
       stdio: 'ignore',
       timeout: 5000,
