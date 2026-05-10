@@ -20,6 +20,8 @@ import {
   resetTaskSuppression,
   resetAllSuppressions,
   resetCurrentTask,
+  resetSchedulerStateForTest,
+  advanceTick,
   isTaskSuppressed,
   getSuppressedTaskIds,
   getTerminalSignalCount,
@@ -33,6 +35,7 @@ beforeEach(() => {
   invalidateIndexCache();
   resetAllSuppressions();
   resetCurrentTask();
+  resetSchedulerStateForTest();
 });
 
 afterEach(() => {
@@ -40,6 +43,7 @@ afterEach(() => {
   invalidateIndexCache();
   resetAllSuppressions();
   resetCurrentTask();
+  resetSchedulerStateForTest();
 });
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -186,6 +190,30 @@ describe('resetAllSuppressions', () => {
 // ─── schedulerPick integration — suppressed tasks are excluded ────────────────
 
 describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
+  it('idles instead of opening a full discovery cycle when no tasks are schedulable', () => {
+    advanceTick();
+    const decision = schedulerPick(tmpDir, []);
+
+    expect(decision.action).toBe('idle');
+    expect(decision.reason).toContain('next discovery slot');
+  });
+
+  it('keeps periodic discovery when no tasks are schedulable', () => {
+    for (let i = 0; i < 10; i++) advanceTick();
+    const decision = schedulerPick(tmpDir, []);
+
+    expect(decision.action).toBe('discovery');
+    expect(decision.reason).toContain('discovery slot');
+  });
+
+  it('keeps direct external signals on the full open-cycle path even with no tasks', () => {
+    advanceTick();
+    const decision = schedulerPick(tmpDir, [{ source: 'room', priority: 0, isAlexDirectMessage: true }]);
+
+    expect(decision.action).toBe('discovery');
+    expect(decision.reason).toContain('direct signal');
+  });
+
   it('does not pick a suppressed task', async () => {
     const task = await appendMemoryIndexEntry(tmpDir, {
       type: 'task',
