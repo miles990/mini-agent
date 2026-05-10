@@ -65,7 +65,9 @@ for (const wt of worktrees) {
       type: 'remove-worktree',
       target: wt.path,
       reason: worktreeRemovalReason(wt.branch, base, githubMerged, cleanliness.disposableArtifacts),
-      command: ['git', 'worktree', 'remove', wt.path],
+      command: cleanliness.disposableArtifacts.length > 0
+        ? ['git', 'worktree', 'remove', '--force', wt.path]
+        : ['git', 'worktree', 'remove', wt.path],
     });
   }
 }
