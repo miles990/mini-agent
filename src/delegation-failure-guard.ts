@@ -35,6 +35,12 @@ export interface DelegationFailureDecision {
   needsDiagnosticTask: boolean;
 }
 
+export interface DelegationRetrySuppression {
+  suppress: boolean;
+  reason?: string;
+  record?: DelegationFailureRecord;
+}
+
 export function getDelegationFailureGuardPath(memoryDir: string): string {
   return path.join(memoryDir, 'index', FAILURE_GUARD_FILE);
 }
@@ -115,6 +121,32 @@ export function markDelegationFailureDiagnosticCreated(
 export function readDelegationFailureRecordsSync(memoryDir: string): DelegationFailureRecord[] {
   return [...readLatestRecords(memoryDir).values()]
     .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+}
+
+export function shouldSuppressUnchangedDelegationRetry(
+  memoryDir: string,
+  input: { taskType?: string; prompt: string },
+): DelegationRetrySuppression {
+  const taskType = input.taskType ?? 'unknown';
+  const promptKey = normalizedPromptKey(input.prompt);
+  const matching = readDelegationFailureRecordsSync(memoryDir)
+    .filter(record => (record.taskType ?? 'unknown') === taskType)
+    .filter(record => normalizedPromptKey(record.prompt) === promptKey);
+
+  for (const record of matching) {
+    const terminalMaxTurns = isMaxTurns(record.error)
+      && (record.frequency >= REPEAT_THRESHOLD || isTerminalRetryResolution(record.resolution));
+    if (!terminalMaxTurns) continue;
+    if (record.status === 'resolved' || record.status === 'ignored' || record.status === 'diagnosing' || record.status === 'open') {
+      return {
+        suppress: true,
+        record,
+        reason: `unchanged ${taskType} delegation already hit max-turns ${record.frequency}x; split the origin task or use deterministic probes before retry`,
+      };
+    }
+  }
+
+  return { suppress: false };
 }
 
 export function transitionDelegationFailureStatus(
@@ -208,12 +240,16 @@ function failureSignature(taskType: string | undefined, prompt: string, output: 
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 220);
-  const promptKey = prompt
+  const promptKey = normalizedPromptKey(prompt);
+  return `${taskType ?? 'unknown'}:${promptKey}:${error}`;
+}
+
+function normalizedPromptKey(prompt: string): string {
+  return prompt
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 120);
-  return `${taskType ?? 'unknown'}:${promptKey}:${error}`;
 }
 
 function failureError(output: string): string {
@@ -248,7 +284,13 @@ function shouldKeepTerminalResolution(existing: DelegationFailureRecord, output:
   if (!['resolved', 'ignored'].includes(existing.status)) return false;
   const resolution = (existing.resolution ?? '').toLowerCase();
   const error = failureError(output).toLowerCase();
-  const isMaxTurns = /maximum number of turns|max turns|reached maximum number of turns/.test(error);
-  const terminalResolution = /terminal telemetry|do not retry the same prompt unchanged|split the origin task|decompose/.test(resolution);
-  return isMaxTurns && terminalResolution;
+  return isMaxTurns(error) && isTerminalRetryResolution(resolution);
+}
+
+function isMaxTurns(text: string): boolean {
+  return /maximum number of turns|max turns|reached maximum number of turns/.test(text.toLowerCase());
+}
+
+function isTerminalRetryResolution(text: string | undefined): boolean {
+  return /terminal telemetry|do not retry the same prompt unchanged|split the origin task|decompose/.test((text ?? '').toLowerCase());
 }
