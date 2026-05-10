@@ -282,7 +282,11 @@ export function extractErrorSubtype(errorMsg: string): string {
       // spawns false [REGRESSION] tasks for upstream events the breaker can't
       // influence. Attempt 2-3/N retry-storm fires stay as transient_fast_band
       // (genuine fast-band the damper applies to).
-      if (dur < 20 && /attempt 1\//.test(lower)) return 'upstream_quickreject_cn';
+      const hasQuickRejectShape =
+        lower.includes('exit n/a')
+        && lower.includes('ms this attempt')
+        && lower.includes('請稍後再試');
+      if (dur < 20 && /attempt 1\//.test(lower) && hasQuickRejectShape) return 'upstream_quickreject_cn';
       if (dur < 10) return 'transient_fast_band';
       if (dur < 60) return 'transient_slow_band';
     }
