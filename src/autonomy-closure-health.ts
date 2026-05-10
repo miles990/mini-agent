@@ -302,10 +302,23 @@ function taskExecutionStage(openTasks: MemoryIndexEntry[], memoryDir: string): A
   });
   const blocked = openTasks.filter(task => ['blocked', 'needs-decomposition'].includes(String(task.status)));
 
-  // Check for open repeated delegation failures (frequency >= 2 means guard has flagged it as repeated)
-  const openDelegationFailures = readDelegationFailureRecordsSync(memoryDir).filter(
-    record => record.status === 'open' && record.frequency >= 2,
+  // Check for open repeated delegation failures (frequency >= 2 means guard has flagged it as repeated).
+  // Repair A (issue #489): treat held diag tasks as "being addressed" — only flag if zero corresponding
+  // diag task exists in any non-completed state, and the failing task is not itself part of the diag chain.
+  const allFailures = readDelegationFailureRecordsSync(memoryDir);
+  const activeTaskIds = new Set(openTasks.map(t => t.id));
+  // Build the set of taskIds that are known diagnostic tasks (referenced as diagnosticTaskId anywhere)
+  const knownDiagTaskIds = new Set(
+    allFailures.filter(r => r.diagnosticTaskId).map(r => r.diagnosticTaskId as string),
   );
+  const openDelegationFailures = allFailures.filter(record => {
+    if (record.status !== 'open' || record.frequency < 2) return false;
+    // Suppress if an active diagnostic task is already addressing this failure
+    if (record.diagnosticTaskId && activeTaskIds.has(record.diagnosticTaskId)) return false;
+    // Suppress if this failure's own taskId is a diagnostic task (it's inside the diag chain, not a new root)
+    if (knownDiagTaskIds.has(record.taskId)) return false;
+    return true;
+  });
 
   if (exhausted.length > 0) {
     return {
