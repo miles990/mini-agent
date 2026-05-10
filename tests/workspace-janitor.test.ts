@@ -69,6 +69,64 @@ describe('workspace janitor', () => {
       parsed.actions.findIndex(action => action.type === 'delete-local-branch'),
     );
   });
+
+  it('removes a clean worktree whose branch is already merged into base even when GitHub history is missing it', () => {
+    const repoDir = path.join(tmpDir, 'repo');
+    const worktreeDir = path.join(tmpDir, 'repo-old-fix');
+    const binDir = path.join(tmpDir, 'bin');
+    mkdirSync(repoDir);
+    mkdirSync(binDir);
+
+    git(repoDir, ['init', '-b', 'main']);
+    git(repoDir, ['config', 'user.email', 'test@example.com']);
+    git(repoDir, ['config', 'user.name', 'Test']);
+    writeFileSync(path.join(repoDir, 'README.md'), 'base\n');
+    git(repoDir, ['add', 'README.md']);
+    git(repoDir, ['commit', '-m', 'init']);
+    git(repoDir, ['checkout', '-b', 'fix/old-merged']);
+    writeFileSync(path.join(repoDir, 'README.md'), 'base\nold fix\n');
+    git(repoDir, ['add', 'README.md']);
+    git(repoDir, ['commit', '-m', 'old fix']);
+    git(repoDir, ['checkout', 'main']);
+    git(repoDir, ['merge', '--no-ff', 'fix/old-merged', '-m', 'merge old fix']);
+    git(repoDir, ['worktree', 'add', worktreeDir, 'fix/old-merged']);
+
+    const ghPath = path.join(binDir, 'gh');
+    writeFileSync(ghPath, [
+      '#!/bin/sh',
+      'case "$*" in',
+      '  *"--state merged"*) printf \'[]\\n\' ;;',
+      '  *"--state open"*) printf \'[]\\n\' ;;',
+      '  *) exit 1 ;;',
+      'esac',
+      '',
+    ].join('\n'));
+    chmodSync(ghPath, 0o755);
+
+    const out = execFileSync(path.join(process.cwd(), 'node_modules/.bin/tsx'), [path.join(process.cwd(), 'scripts/workspace-janitor.ts'), '--json'], {
+      cwd: repoDir,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+        MINI_AGENT_RUNTIME_WORKSPACE: path.join(tmpDir, 'runtime'),
+      },
+    });
+    const parsed = JSON.parse(out) as { actions: Array<{ type: string; target: string; reason: string; command?: string[] }> };
+
+    expect(parsed.actions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'remove-worktree',
+        target: expect.stringContaining('repo-old-fix'),
+        reason: expect.stringContaining('already merged into main'),
+      }),
+      expect.objectContaining({
+        type: 'delete-local-branch',
+        target: 'fix/old-merged',
+        command: ['git', 'branch', '-d', 'fix/old-merged'],
+      }),
+    ]));
+  });
 });
 
 function git(cwd: string, args: string[]): void {
