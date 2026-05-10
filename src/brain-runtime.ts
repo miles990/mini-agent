@@ -7,7 +7,7 @@
 
 import { appendProviderClaim } from './claim-ledger.js';
 import { appendBrainRunEvent } from './brain-run-ledger.js';
-import type { BrainRunEvent } from './brain-run-ledger.js';
+import type { BrainRunEvent, BrainRunUsageEstimate } from './brain-run-ledger.js';
 import type {
   ActorId,
   ArbitrationDecision,
@@ -103,6 +103,7 @@ export class BrainRuntime {
       decisionBudget: input.decision.decisionBudget,
       detail: `planned actors: ${plan.map(step => `${step.actor}:${step.role}`).join(', ') || 'none'}`,
       selectionTrace: input.decision.selectionTrace,
+      usageEstimate: estimateRequestUsage(input.request),
     });
 
     for (const step of plan) {
@@ -264,6 +265,7 @@ export class BrainRuntime {
       mode: input.decision.mode,
       durationMs: Date.now() - startedAt,
       detail: detail ?? run.error ?? run.health?.detail,
+      usageEstimate: usageEstimateForRun(input.request, run),
     });
   }
 
@@ -465,4 +467,72 @@ function summarizeRunResult(run: BrainActorRun): string {
   if (!run.result) return run.error ?? '';
   const text = resultText(run.result).replace(/\s+/g, ' ').trim();
   return text.slice(0, 300);
+}
+
+function estimateRequestUsage(request: BrainRequest): BrainRunUsageEstimate {
+  const promptChars = request.prompt.length;
+  const systemChars = request.systemPrompt.length;
+  return {
+    promptChars,
+    promptTokens: estimateTokens(promptChars),
+    systemChars,
+    systemTokens: estimateTokens(systemChars),
+    totalTokens: estimateTokens(promptChars + systemChars),
+    source: 'estimate',
+    note: 'pre-dispatch prompt estimate; exact provider usage is recorded when available',
+  };
+}
+
+function usageEstimateForRun(request: BrainRequest, run: BrainActorRun): BrainRunUsageEstimate | undefined {
+  if (!run.result || !isBrainResult(run.result)) {
+    const output = run.error ?? run.health?.detail ?? '';
+    return output
+      ? {
+          outputChars: output.length,
+          outputTokens: estimateTokens(output.length),
+          totalTokens: estimateTokens(output.length),
+          source: 'estimate',
+          note: 'non-provider or skipped actor output estimate',
+        }
+      : undefined;
+  }
+
+  const providerUsage = normalizeProviderUsage(run.result.usage);
+  const outputChars = run.result.text.length;
+  const outputTokens = providerUsage.outputTokens ?? estimateTokens(outputChars);
+  const promptTokens = providerUsage.inputTokens ?? estimateTokens(request.prompt.length + request.systemPrompt.length);
+  return {
+    promptChars: request.prompt.length,
+    promptTokens,
+    systemChars: request.systemPrompt.length,
+    systemTokens: estimateTokens(request.systemPrompt.length),
+    outputChars,
+    outputTokens,
+    totalTokens: promptTokens + outputTokens,
+    source: providerUsage.exact ? 'provider' : 'estimate',
+    note: providerUsage.exact
+      ? 'provider usage surfaced by adapter'
+      : 'provider did not expose exact tokens; estimated from chars',
+  };
+}
+
+function normalizeProviderUsage(usage: unknown): { inputTokens?: number; outputTokens?: number; exact: boolean } {
+  if (!usage || typeof usage !== 'object') return { exact: false };
+  const raw = usage as Record<string, unknown>;
+  const inputTokens = numeric(raw.input_tokens ?? raw.inputTokens ?? raw.prompt_tokens ?? raw.promptTokens);
+  const outputTokens = numeric(raw.output_tokens ?? raw.outputTokens ?? raw.completion_tokens ?? raw.completionTokens);
+  return {
+    ...(inputTokens !== undefined ? { inputTokens } : {}),
+    ...(outputTokens !== undefined ? { outputTokens } : {}),
+    exact: inputTokens !== undefined || outputTokens !== undefined,
+  };
+}
+
+function numeric(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return undefined;
+  return value;
+}
+
+function estimateTokens(chars: number): number {
+  return Math.ceil(Math.max(0, chars) / 4);
 }

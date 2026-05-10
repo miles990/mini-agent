@@ -48,6 +48,21 @@ export interface BrainRunEvent {
   contextSources?: string[];
   contextPreview?: string[];
   selectionTrace?: ActorSelectionTrace;
+  usageEstimate?: BrainRunUsageEstimate;
+}
+
+export interface BrainRunUsageEstimate {
+  promptChars?: number;
+  promptTokens?: number;
+  systemChars?: number;
+  systemTokens?: number;
+  contextChars?: number;
+  contextTokens?: number;
+  outputChars?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  source: 'provider' | 'estimate';
+  note?: string;
 }
 
 export interface BrainRunQuery {
@@ -77,6 +92,7 @@ export interface BrainRunState {
   contextSources?: string[];
   contextPreview?: string[];
   selectionTrace?: ActorSelectionTrace;
+  usageEstimate?: BrainRunUsageEstimate;
 }
 
 export function getBrainRunLedgerPath(memoryDir: string): string {
@@ -149,6 +165,7 @@ export function readBrainRunStatesSync(memoryDir: string, query: BrainRunQuery =
       ...(event.contextSources ? { contextSources: event.contextSources } : {}),
       ...(event.contextPreview ? { contextPreview: event.contextPreview } : {}),
       ...(event.selectionTrace ? { selectionTrace: event.selectionTrace } : {}),
+      ...(event.usageEstimate ? { usageEstimate: event.usageEstimate } : {}),
     });
   }
 
@@ -214,6 +231,7 @@ function parseBrainRunEvent(line: string): BrainRunEvent | null {
       ...(Array.isArray(raw.contextSources) ? { contextSources: raw.contextSources.filter((source): source is string => typeof source === 'string') } : {}),
       ...(Array.isArray(raw.contextPreview) ? { contextPreview: raw.contextPreview.filter((line): line is string => typeof line === 'string') } : {}),
       ...(isSelectionTrace(raw.selectionTrace) ? { selectionTrace: raw.selectionTrace } : {}),
+      ...(isBrainRunUsageEstimate(raw.usageEstimate) ? { usageEstimate: raw.usageEstimate } : {}),
     };
   } catch {
     return null;
@@ -235,6 +253,16 @@ function isBrainRunEventKind(value: string): value is BrainRunEventKind {
 
 function isBrainRunStatus(value: string): value is BrainRunStatus {
   return ['queued', 'running', 'success', 'partial', 'failed', 'skipped'].includes(value);
+}
+
+function isBrainRunUsageEstimate(value: unknown): value is BrainRunUsageEstimate {
+  if (!value || typeof value !== 'object') return false;
+  const raw = value as Record<string, unknown>;
+  if (raw.source !== 'provider' && raw.source !== 'estimate') return false;
+  for (const key of ['promptChars', 'promptTokens', 'systemChars', 'systemTokens', 'contextChars', 'contextTokens', 'outputChars', 'outputTokens', 'totalTokens']) {
+    if (raw[key] !== undefined && typeof raw[key] !== 'number') return false;
+  }
+  return raw.note === undefined || typeof raw.note === 'string';
 }
 
 function isActorId(value: unknown): value is ActorId {
