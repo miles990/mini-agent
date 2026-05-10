@@ -127,6 +127,65 @@ describe('workspace janitor', () => {
       }),
     ]));
   });
+
+  it('removes an already-merged worktree when only disposable untracked artifacts remain', () => {
+    const repoDir = path.join(tmpDir, 'repo');
+    const worktreeDir = path.join(tmpDir, 'repo-artifact-only');
+    const binDir = path.join(tmpDir, 'bin');
+    mkdirSync(repoDir);
+    mkdirSync(binDir);
+
+    git(repoDir, ['init', '-b', 'main']);
+    git(repoDir, ['config', 'user.email', 'test@example.com']);
+    git(repoDir, ['config', 'user.name', 'Test']);
+    writeFileSync(path.join(repoDir, 'README.md'), 'base\n');
+    git(repoDir, ['add', 'README.md']);
+    git(repoDir, ['commit', '-m', 'init']);
+    git(repoDir, ['checkout', '-b', 'fix/artifact-only']);
+    writeFileSync(path.join(repoDir, 'README.md'), 'base\nartifact fix\n');
+    git(repoDir, ['add', 'README.md']);
+    git(repoDir, ['commit', '-m', 'artifact fix']);
+    git(repoDir, ['checkout', 'main']);
+    git(repoDir, ['merge', '--no-ff', 'fix/artifact-only', '-m', 'merge artifact fix']);
+    git(repoDir, ['worktree', 'add', worktreeDir, 'fix/artifact-only']);
+    writeFileSync(path.join(worktreeDir, '.runtime-autocorrect.patch'), 'temporary patch payload\n');
+
+    const ghPath = path.join(binDir, 'gh');
+    writeFileSync(ghPath, [
+      '#!/bin/sh',
+      'case "$*" in',
+      '  *"--state merged"*) printf \'[]\\n\' ;;',
+      '  *"--state open"*) printf \'[]\\n\' ;;',
+      '  *) exit 1 ;;',
+      'esac',
+      '',
+    ].join('\n'));
+    chmodSync(ghPath, 0o755);
+
+    const out = execFileSync(path.join(process.cwd(), 'node_modules/.bin/tsx'), [path.join(process.cwd(), 'scripts/workspace-janitor.ts'), '--json'], {
+      cwd: repoDir,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+        MINI_AGENT_RUNTIME_WORKSPACE: path.join(tmpDir, 'runtime'),
+      },
+    });
+    const parsed = JSON.parse(out) as { actions: Array<{ type: string; target: string; reason: string; command?: string[] }> };
+
+    expect(parsed.actions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'remove-worktree',
+        target: expect.stringContaining('repo-artifact-only'),
+        reason: expect.stringContaining('only disposable artifact(s) remain: .runtime-autocorrect.patch'),
+      }),
+      expect.objectContaining({
+        type: 'delete-local-branch',
+        target: 'fix/artifact-only',
+        command: ['git', 'branch', '-d', 'fix/artifact-only'],
+      }),
+    ]));
+  });
 });
 
 function git(cwd: string, args: string[]): void {

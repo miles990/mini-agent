@@ -30,6 +30,10 @@ const protectedRoot = path.resolve(process.env.MINI_AGENT_RUNTIME_WORKSPACE ?? i
 
 const actions: JanitorAction[] = [];
 const removableWorktreeBranches = new Set<string>();
+const disposableDirtyArtifacts = new Set([
+  '.runtime-autocorrect.patch',
+  'package-lock.json',
+]);
 
 if (path.resolve(root) === protectedRoot && !isSafeRuntimeBranch(currentBranch)) {
   actions.push({
@@ -42,7 +46,7 @@ if (path.resolve(root) === protectedRoot && !isSafeRuntimeBranch(currentBranch))
 for (const wt of worktrees) {
   if (!wt.branch) continue;
   if (path.resolve(wt.path) === protectedRoot) continue;
-  if (wt.branch === base && isDisposableBaseWorktree(wt.path) && isWorktreeClean(wt.path)) {
+  if (wt.branch === base && isDisposableBaseWorktree(wt.path) && isWorktreeClean(wt.path).clean) {
     removableWorktreeBranches.add(wt.branch);
     actions.push({
       type: 'remove-worktree',
@@ -53,15 +57,14 @@ for (const wt of worktrees) {
     continue;
   }
   if (openPrBranches.has(wt.branch)) continue;
-  if ((mergedPrBranches.has(wt.branch) || isMergedToBase(wt.branch, base)) && isWorktreeClean(wt.path)) {
+  const cleanliness = isWorktreeClean(wt.path);
+  if ((mergedPrBranches.has(wt.branch) || isMergedToBase(wt.branch, base)) && cleanliness.clean) {
     removableWorktreeBranches.add(wt.branch);
     const githubMerged = mergedPrBranches.has(wt.branch);
     actions.push({
       type: 'remove-worktree',
       target: wt.path,
-      reason: githubMerged
-        ? `branch ${wt.branch} was merged and worktree is clean`
-        : `branch ${wt.branch} is already merged into ${base} and worktree is clean`,
+      reason: worktreeRemovalReason(wt.branch, base, githubMerged, cleanliness.disposableArtifacts),
       command: ['git', 'worktree', 'remove', wt.path],
     });
   }
@@ -208,8 +211,31 @@ function readRemoteBranches(): string[] {
     .map(s => s.replace(/^origin\//, ''));
 }
 
-function isWorktreeClean(worktreePath: string): boolean {
-  return (git(['-C', worktreePath, 'status', '--porcelain']) ?? '').trim().length === 0;
+function isWorktreeClean(worktreePath: string): { clean: boolean; disposableArtifacts: string[] } {
+  const status = (git(['-C', worktreePath, 'status', '--porcelain']) ?? '').trim();
+  if (!status) return { clean: true, disposableArtifacts: [] };
+
+  const dirtyPaths = status
+    .split('\n')
+    .map(line => ({ code: line.slice(0, 2), file: line.slice(3).trim() }))
+    .filter(entry => entry.file);
+  const disposableArtifacts = dirtyPaths
+    .filter(entry => entry.code === '??' && disposableDirtyArtifacts.has(entry.file))
+    .map(entry => entry.file);
+  return {
+    clean: dirtyPaths.length > 0 && dirtyPaths.length === disposableArtifacts.length,
+    disposableArtifacts,
+  };
+}
+
+function worktreeRemovalReason(branch: string, baseBranch: string, githubMerged: boolean, disposableArtifacts: string[]): string {
+  const prefix = githubMerged
+    ? `branch ${branch} was merged`
+    : `branch ${branch} is already merged into ${baseBranch}`;
+  if (disposableArtifacts.length > 0) {
+    return `${prefix} and only disposable artifact(s) remain: ${disposableArtifacts.join(', ')}`;
+  }
+  return `${prefix} and worktree is clean`;
 }
 
 function isDisposableBaseWorktree(worktreePath: string): boolean {
