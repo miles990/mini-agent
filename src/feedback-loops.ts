@@ -243,10 +243,14 @@ export function extractErrorSubtype(errorMsg: string): string {
   if (lower.includes('reached maximum budget')) return 'budget_exceeded';
   if (lower.includes('aborted by user')) return 'user_abort';
   // Issue #491: Chinese-localized upstream 400 errors — split from transient_fast_band.
-  // These fire on attempt 1/3 (no prior call for any window to throttle), dur<20s, with
-  // "exit N/A" in the message (Anthropic server rejected the request, not a CLI hang).
-  // Must be extracted BEFORE the transient_fast_band branch so they get their own subtype
-  // and stop polluting the circuit-breaker metric with structurally-ungatable events.
+  // Discriminator (per issue spec): Chinese localized message + dur<20s + exit N/A.
+  // The `attempt 1/3` example in the issue was the smoking-gun illustration of WHY
+  // the caller-side gate can't help (no prior call to throttle), NOT part of the
+  // discriminator. Even attempt 3/3 fires with `exit N/A` are upstream rejects —
+  // the upstream returned a localized 400 and there's nothing the breaker can do.
+  // Must be extracted BEFORE the transient_fast_band branch so they get their own
+  // subtype and stop polluting the circuit-breaker metric with structurally-
+  // ungatable events.
   if (
     (/處理訊息時發生錯誤|請稍後再試/.test(errorMsg)) &&
     /exit n\/a/i.test(errorMsg)
@@ -285,16 +289,11 @@ export function extractErrorSubtype(errorMsg: string): string {
     // the bucket never silently disappears from the recurring-errors panel.
     if (durMatch) {
       const dur = Number(durMatch[1]);
-      // Issue #491: split off upstream_quickreject_cn from transient_fast_band.
-      // Signature: 處理訊息時發生錯誤 + dur<20s + attempt 1/N — fires on the FIRST
-      // call before any prior call exists for the caller-side fast-band gate
-      // (#443/#446 damper) to throttle against. Different remediation lane
-      // (back-off seconds-to-minutes vs. classic transient retry); keeping it
-      // mixed into transient_fast_band pollutes circuit-breaker telemetry and
-      // spawns false [REGRESSION] tasks for upstream events the breaker can't
-      // influence. Attempt 2-3/N retry-storm fires stay as transient_fast_band
-      // (genuine fast-band the damper applies to).
-      if (dur < 20 && /attempt 1\//.test(lower)) return 'upstream_quickreject_cn';
+      // Issue #491: upstream_quickreject_cn is handled at the EARLIER branch above
+      // (~line 250) gated on `exit N/A`. The previous attempt to gate here on
+      // `attempt 1/` was over-constrained — see issue #491 spec: the discriminator
+      // is the localized message + exit N/A, not the attempt number. Removed
+      // 2026-05-10 to resolve PR #492 / PR #493 disagreement (split-brain merge).
       if (dur < 10) return 'transient_fast_band';
       if (dur < 60) return 'transient_slow_band';
     }
