@@ -231,6 +231,18 @@ describe('commitment-ledger trust-layer branching', () => {
     expect(parsed && parsed.kind === 'log_grep' ? parsed.since_iso : '').toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
+  it('parses single-quoted grep falsifier DSL (issue #78 single-quote tolerance)', () => {
+    const parsed = parseFalsifierToQuery("grep:/tmp/x.log 'foo.*bar' >=2");
+
+    expect(parsed).toEqual(expect.objectContaining({
+      kind: 'log_grep',
+      path: '/tmp/x.log',
+      pattern: 'foo.*bar',
+      op: '>=',
+      threshold: 2,
+    }));
+  });
+
   it('parses grep falsifier DSL with explicit since timestamp', () => {
     const parsed = parseFalsifierToQuery('grep:/tmp/x.log "bar" since:2026-05-01T00:00:00Z ==0');
 
