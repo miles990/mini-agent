@@ -330,17 +330,21 @@ export function parseFalsifierToQuery(falsifier: string): FalsifierQuery | undef
   const pos = falsifier.match(new RegExp(String.raw`\bfile_exists:(\/\S+?)` + stop));
   if (pos) return { kind: 'file_exists', path: pos[1], must: true };
 
+  // Accept either double- or single-quoted pattern. Issue #78: agents commonly
+  // emit single-quoted variants (`grep:/path 'regex' >=N`) which the original
+  // double-quote-only regex silently no-op'd, causing the falsifier to age out
+  // unverified. Capture group [2] = double-quoted body, [3] = single-quoted body.
   const grep = falsifier.match(
-    /\bgrep:(\/\S+?)\s+"((?:[^"\\]|\\.)*)"(?:\s+since:(\S+?))?\s+(>=|<=|==)\s*(\d+)/,
+    /\bgrep:(\/\S+?)\s+(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')(?:\s+since:(\S+?))?\s+(>=|<=|==)\s*(\d+)/,
   );
   if (grep) {
     return {
       kind: 'log_grep',
       path: grep[1],
-      pattern: unescapeQuotedPattern(grep[2]),
-      since_iso: grep[3] ?? new Date().toISOString(),
-      op: grep[4] as '<=' | '>=' | '==',
-      threshold: Number.parseInt(grep[5], 10),
+      pattern: unescapeQuotedPattern(grep[2] ?? grep[3] ?? ''),
+      since_iso: grep[4] ?? new Date().toISOString(),
+      op: grep[5] as '<=' | '>=' | '==',
+      threshold: Number.parseInt(grep[6], 10),
     };
   }
 
