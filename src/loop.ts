@@ -149,6 +149,7 @@ import {
   buildImprovementTelemetry,
   recordImprovementTelemetry,
 } from './improvement-telemetry.js';
+import { decideCloudTokenRoute } from './cloud-token-governor.js';
 
 // =============================================================================
 // Types
@@ -2866,6 +2867,69 @@ export class AgentLoop {
           return null;
         }
       } catch { /* best-effort: if state unreadable, proceed with callClaude normally */ }
+
+      // Cloud token governor: routine idle/open-cycle work should first spend cheap,
+      // deterministic probes. Cloud reasoning stays reserved for direct user input,
+      // bound tasks, high-priority work, and budgeted exploration windows.
+      try {
+        const route = decideCloudTokenRoute({
+          decision: schedulerDecision,
+          events: schedulerEvents,
+          cycleMode,
+          promptChars: effectivePrompt.length,
+          hasPendingTasks,
+          hasHighPriorityTasks,
+          trueNoopStreak: this.trueNoopStreak,
+        });
+        if (route.action === 'deterministic-probe') {
+          slog('CLOUD-GOVERNOR', `deterministic-probe: ${route.reason}`);
+          eventBus.emit('action:loop', {
+            event: 'cloud-token-governor.deterministic-probe',
+            cycleCount: this.cycleCount,
+            reason: route.reason,
+            bucket: route.bucket ?? null,
+            bucketTokens: route.usage?.estInputTokens ?? null,
+            bucketCalls: route.usage?.calls ?? null,
+            promptChars: effectivePrompt.length,
+          });
+          writeActivity({
+            lane: 'ooda',
+            summary: 'Cloud token governor routed routine cycle to deterministic probes',
+            trigger: route.reason,
+            tags: ['CLOUD-GOVERNOR', 'SHELL-FIRST'],
+          });
+          recordImprovementTelemetry(buildImprovementTelemetry({
+            cycle: this.cycleCount,
+            trigger: currentTriggerReason,
+            action: 'cloud-token-governor deterministic probe',
+            tags: ['CLOUD-GOVERNOR', 'SHELL-FIRST'],
+            sideEffects: [],
+            noopStreak: this.noopStreak,
+            trueNoopStreak: this.trueNoopStreak,
+            autonomousTaskRatio: 'pending',
+            repeatRate: 'pending',
+            hasMainVisibleOutput: false,
+            hadForegroundAction: false,
+            outcomeOverride: 'reallocated-hold',
+            note: route.reason,
+          }));
+          const done = trackStart('cloud-governor-probe');
+          try {
+            await Promise.race([
+              this.runConcurrentTasks(),
+              new Promise<number>(resolve => setTimeout(() => resolve(0), 30_000)),
+            ]);
+            done();
+          } catch (err) {
+            done(String(err));
+          }
+          clearCycleCheckpoint();
+          this.adjustInterval(false);
+          return null;
+        }
+      } catch (err) {
+        slog('WARN', `cloud token governor failed: ${err}`);
+      }
 
       // Phase 2: Concurrent Action — run perception refresh + housekeeping during Claude await
       const concurrentPromise = isEnabled('concurrent-action')
