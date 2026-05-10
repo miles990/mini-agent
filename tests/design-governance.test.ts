@@ -98,6 +98,21 @@ describe('design governance', () => {
     expect(report.missingArtifacts).toHaveLength(0);
   });
 
+  it('exempts middleware-self-healing origin tasks from design governance', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
+    const report = evaluateDesignGovernance(memoryDir, [
+      task({
+        status: 'pending',
+        summary: 'Create fallback for middleware task after provider budget hold',
+        tags: ['middleware', 'self-healing', 'budget-or-quota'],
+        payload: { origin: 'middleware-self-healing', priority: 1 },
+      }),
+    ]);
+
+    expect(report.status).toBe('ok');
+    expect(report.missingArtifacts).toHaveLength(0);
+  });
+
   it('does not treat bounded holds as active implementation unless explicitly required', () => {
     const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
     const report = evaluateDesignGovernance(memoryDir, [

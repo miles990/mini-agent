@@ -189,7 +189,8 @@ function classifyDesignNeed(task: MemoryIndexEntry): DesignGovernanceTaskFinding
   if (explicitDepth === 'trivial' || task.tags?.includes('design-exempt')) return null;
   const explicitRequired = payload.design_governance_required === true || payload.designGovernanceRequired === true;
   if (String(task.status) === 'hold' && !explicitRequired) return null;
-  if (payload.origin === 'autonomy-closure' && !explicitRequired) return null;
+  const OPERATIONAL_ORIGINS = ['autonomy-closure', 'middleware-self-healing'];
+  if (OPERATIONAL_ORIGINS.includes(String(payload.origin)) && !explicitRequired) return null;
 
   const summary = task.summary ?? '';
   if (/autonomy closure:\s*repair design-governance/i.test(summary)) return null;
