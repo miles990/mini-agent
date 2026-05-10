@@ -2428,7 +2428,7 @@ export class AgentLoop {
         const shouldAutocorrectRuntime = correction.reasons.some(reason =>
           reason.type === 'local-commit-not-pushed'
           || reason.type === 'dirty-runtime-workspace',
-        );
+        ) || correction.shipTruth.state === 'behind';
         if (shouldAutocorrectRuntime && process.env.MINI_AGENT_AUTOCORRECT_RUNTIME_WORKSPACE !== '0') {
           try {
             const { autocorrectRuntimeWorkspace } = await import('./runtime-workspace-autocorrect.js');
