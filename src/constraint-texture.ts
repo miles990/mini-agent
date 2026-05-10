@@ -7,7 +7,16 @@
  * arbiter branch logic.
  */
 
-import type { DecisionBudget, WorkIntent, WorkItem, WorkRisk } from './brain-types.js';
+import type {
+  DecisionBudget,
+  EvaluatorTexture,
+  ModelExecutionTier,
+  PromptTexture,
+  QualityCriterionType,
+  WorkIntent,
+  WorkItem,
+  WorkRisk,
+} from './brain-types.js';
 
 const CHEAP_LOCAL_INTENTS = new Set<WorkIntent>(['json', 'summarize']);
 const CODING_INTENTS = new Set<WorkIntent>(['code', 'diagnose']);
@@ -31,6 +40,7 @@ export interface ConstraintTexture {
   taskId: string;
   intent: WorkIntent;
   risk: WorkRisk;
+  profile: ConstraintTextureProfile;
   decisionBudget: DecisionBudget;
   humanApprovalRequired: boolean;
   writeLeaseRequired: boolean;
@@ -38,6 +48,15 @@ export interface ConstraintTexture {
   peerCritiqueRequired: boolean;
   deterministicExecution: boolean;
   constraints: WorkConstraint[];
+}
+
+export interface ConstraintTextureProfile {
+  criterionType: QualityCriterionType;
+  promptTexture: PromptTexture;
+  evaluatorTexture: EvaluatorTexture;
+  modelTier: ModelExecutionTier;
+  useReflect: boolean;
+  rationale: string[];
 }
 
 export interface ConstraintTextureOptions {
@@ -48,7 +67,9 @@ export function deriveConstraintTexture(
   item: WorkItem,
   opts: ConstraintTextureOptions = {},
 ): ConstraintTexture {
-  const deterministicExecution = item.intent === 'verify';
+  const profile = deriveTextureProfile(item);
+  const deterministicExecution = item.intent === 'verify'
+    || (profile.criterionType === 'mechanical' && item.risk === 'read_only' && !isCodingIntent(item.intent));
   const humanApprovalRequired = item.risk === 'deploy' || item.risk === 'external_write';
   const peerCritiqueRequired = needsPeerCritic(item, opts);
   const writeLeaseRequired = humanApprovalRequired
@@ -64,13 +85,15 @@ export function deriveConstraintTexture(
     humanApprovalRequired,
     peerCritiqueRequired,
     kgClaimsRequired,
+    profile,
   });
 
   return {
-    taskId: item.id,
-    intent: item.intent,
-    risk: item.risk,
-    decisionBudget,
+      taskId: item.id,
+      intent: item.intent,
+      risk: item.risk,
+      profile,
+      decisionBudget,
     humanApprovalRequired,
     writeLeaseRequired,
     kgClaimsRequired,
@@ -114,6 +137,53 @@ export function deriveConstraintTexture(
   };
 }
 
+export function deriveTextureProfile(item: WorkItem): ConstraintTextureProfile {
+  const criterionType = item.qualityCriterion ?? inferQualityCriterion(item);
+  const rationale: string[] = [];
+
+  let promptTexture: PromptTexture = 'hybrid';
+  let evaluatorTexture: EvaluatorTexture = 'ct-aware';
+  let modelTier: ModelExecutionTier = 'strong-llm';
+  let useReflect = false;
+
+  if (criterionType === 'mechanical') {
+    promptTexture = 'prescription';
+    evaluatorTexture = 'mechanical-check';
+    modelTier = item.intent === 'verify' ? 'shell' : 'local';
+    rationale.push('Paper 1/2 boundary: prescriptions fit deterministic, enumerative, schema, and mechanically-verifiable quality criteria.');
+  } else if (criterionType === 'restraint') {
+    promptTexture = 'ct';
+    evaluatorTexture = 'source-faithfulness';
+    modelTier = 'cheap-llm';
+    useReflect = false;
+    rationale.push('Paper 2 Experiment 4: boundary/restraint tasks reward aligned CT and cheap models, but reflect can over-modify very short outputs.');
+  } else if (criterionType === 'boundary_sensitive') {
+    promptTexture = 'ct-reflect';
+    evaluatorTexture = 'source-faithfulness';
+    modelTier = 'cheap-llm';
+    useReflect = true;
+    rationale.push('Paper 2 Experiment 4: source-faithfulness and over-inference avoidance depend on boundary-preserving convergence conditions.');
+  } else if (criterionType === 'stakeholder_tension') {
+    promptTexture = 'ct';
+    evaluatorTexture = 'pairwise';
+    modelTier = 'panel';
+    rationale.push('Paper 1 stakeholder experiment: convergence conditions win when requirements are in tension and need perspective integration.');
+  } else if (criterionType === 'judgment') {
+    promptTexture = 'ct-reflect';
+    evaluatorTexture = 'ct-aware';
+    modelTier = 'strong-llm';
+    useReflect = true;
+    rationale.push('Paper 2 Experiments 2-3: CT improves judgment tasks; a second pass helps synthesis/revision more than extra raw thinking.');
+  } else {
+    promptTexture = 'hybrid';
+    evaluatorTexture = 'ct-aware';
+    modelTier = 'strong-llm';
+    rationale.push('Paper 2 Experiment 2: hybrid is the safer default for mixed workloads because it avoids PS failure modes while preserving structure.');
+  }
+
+  return { criterionType, promptTexture, evaluatorTexture, modelTier, useReflect, rationale };
+}
+
 export function isCheapLocalIntent(intent: WorkIntent): boolean {
   return CHEAP_LOCAL_INTENTS.has(intent);
 }
@@ -143,6 +213,7 @@ function deriveDecisionBudget(
     humanApprovalRequired: boolean;
     peerCritiqueRequired: boolean;
     kgClaimsRequired: boolean;
+    profile: ConstraintTextureProfile;
   },
 ): DecisionBudget {
   if (state.humanApprovalRequired) {
@@ -164,6 +235,17 @@ function deriveDecisionBudget(
       maxCost: 'low',
       stopWhen: 'verified',
       reason: 'deterministic verification should use the cheapest executable path',
+    };
+  }
+
+  if (state.profile.modelTier === 'cheap-llm' && item.risk === 'read_only') {
+    return {
+      maxActors: 1,
+      requireReviewer: false,
+      allowPanel: false,
+      maxCost: 'low',
+      stopWhen: 'primary_confident',
+      reason: `paper-backed ${state.profile.criterionType} task should use aligned CT on the cheapest sufficient reasoning lane`,
     };
   }
 
@@ -222,10 +304,40 @@ function deriveDecisionBudget(
 }
 
 function needsPeerCritic(item: WorkItem, opts: ConstraintTextureOptions): boolean {
+  const profile = deriveTextureProfile(item);
   return item.hasProviderConflict === true
+    || profile.criterionType === 'stakeholder_tension'
     || PEER_REVIEW_INTENTS.has(item.intent)
     || (opts.forceAkariForP0 === true && item.priority === 'P0')
     || item.tags?.some(t => ['architecture', 'soul', 'memory', 'policy', 'kg'].includes(t.toLowerCase())) === true;
+}
+
+function inferQualityCriterion(item: WorkItem): QualityCriterionType {
+  const text = `${item.title}\n${item.prompt ?? ''}\n${(item.tags ?? []).join(' ')}`.toLowerCase();
+  const mechanical = isMechanicalCriterion(item, text);
+  const tension = /(stakeholder|tradeoff|tension|conflict|competing requirement|取捨|張力|衝突|利害關係|多方)/i.test(text);
+  const boundary = /(source[- ]?faith|faithful|source[- ]?ground|grounded|evidence boundary|unsupported claim|over[- ]?inference|claim audit|risk memo|confirmed vs|not confirmed|引用來源|證據邊界|不得推論|不要腦補|忠於來源)/i.test(text);
+  const restraint = /(restraint|concise|brief|short|\b\d+[- ]?word|\b\d+[- ]?sentence|under \d+ words|no more than|不超過|簡短|短文|兩句|2 sentences?|50 words?|100 words?)/i.test(text);
+  const judgment = isJudgmentCriterion(item, text);
+
+  const semanticCount = [tension, boundary, restraint, judgment].filter(Boolean).length;
+  if (mechanical && semanticCount > 0) return 'mixed';
+  if (tension) return 'stakeholder_tension';
+  if (restraint) return 'restraint';
+  if (boundary) return 'boundary_sensitive';
+  if (mechanical) return 'mechanical';
+  if (judgment) return 'judgment';
+  return 'mixed';
+}
+
+function isMechanicalCriterion(item: WorkItem, text: string): boolean {
+  if (item.intent === 'verify' || item.intent === 'json') return true;
+  return /(json schema|schema|format only|return json|fields?\b|typecheck|vitest|test command|build command|lint|api contract|type signature|enumerat|checklist|exact match|regex|fixed format|deterministic|機械|固定格式|列舉|檢查清單|可驗證格式)/i.test(text);
+}
+
+function isJudgmentCriterion(item: WorkItem, text: string): boolean {
+  if (['chat', 'plan', 'research', 'review', 'architecture', 'memory', 'policy'].includes(item.intent)) return true;
+  return /(design|architecture|strategy|recommend|decision|synthesis|diagnose|root cause|\bpm\b|product|需求|設計|架構|策略|建議|決策|分析|整理脈絡|根因)/i.test(text);
 }
 
 function requiresProviderClaims(

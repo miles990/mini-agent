@@ -9,6 +9,7 @@
 import type { ActorId, WorkIntent, WorkItem, WorkRisk } from './brain-types.js';
 import { getActorProfile, getDefaultDispatchableActors, type ActorProfile, type ActorRoleTendency } from './actor-registry.js';
 import type { ActorOutcomeStats } from './actor-outcome-stats.js';
+import { deriveTextureProfile } from './constraint-texture.js';
 
 export type SelectionRole = 'primary' | 'reviewer' | 'advisor' | 'executor';
 
@@ -89,6 +90,7 @@ function scoreActor(
 
   let score = 0;
   const reasons: string[] = [];
+  const textureProfile = deriveTextureProfile(item);
 
   if (profile.bestFor?.includes(item.intent)) add(35, `best-for:${item.intent}`);
   for (const capability of INTENT_CAPABILITY_HINTS[item.intent] ?? []) {
@@ -107,6 +109,15 @@ function scoreActor(
   if (item.intent === 'review' && actor === 'claude') add(8, 'semantic-review-bias');
   if ((item.intent === 'code' || item.intent === 'diagnose') && actor === 'codex') add(12, 'engineering-primary-bias');
   if (item.intent === 'verify' && actor === 'shell') add(20, 'deterministic-fast-path');
+  if (role === 'primary' && textureProfile.modelTier === 'cheap-llm' && actor === 'local') {
+    add(34, `paper-backed-cheap-ct:${textureProfile.criterionType}`);
+  }
+  if (role === 'primary' && textureProfile.modelTier === 'shell' && actor === 'shell') {
+    add(34, 'paper-backed-mechanical-fast-path');
+  }
+  if (role === 'advisor' && textureProfile.criterionType === 'stakeholder_tension' && actor === 'akari') {
+    add(18, 'paper-backed-tension-navigation');
+  }
 
   if (profile.cost === 'low') add(role === 'primary' && item.priority !== 'P0' ? 8 : 3, 'low-cost');
   if (profile.cost === 'high' && item.priority === 'P2') add(-8, 'high-cost-for-low-priority');

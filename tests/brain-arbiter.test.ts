@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decideArbitration } from '../src/brain-arbiter.js';
-import { deriveConstraintTexture } from '../src/constraint-texture.js';
+import { deriveConstraintTexture, deriveTextureProfile } from '../src/constraint-texture.js';
 import type { WorkItem } from '../src/brain-types.js';
 
 function work(overrides: Partial<WorkItem> = {}): WorkItem {
@@ -136,5 +136,72 @@ describe('BrainArbiter', () => {
       allowPanel: false,
       maxCost: 'medium',
     }));
+  });
+
+  it('uses prescription texture and shell/local routing for mechanical criteria', () => {
+    const item = work({
+      intent: 'verify',
+      title: 'Run typecheck and return exact failing files',
+      prompt: 'mechanical verification: pnpm typecheck',
+    });
+    const texture = deriveConstraintTexture(item);
+    const decision = decideArbitration(item);
+
+    expect(texture.profile).toEqual(expect.objectContaining({
+      criterionType: 'mechanical',
+      promptTexture: 'prescription',
+      evaluatorTexture: 'mechanical-check',
+      modelTier: 'shell',
+      useReflect: false,
+    }));
+    expect(decision.primary).toBe('shell');
+    expect(decision.decisionBudget).toEqual(expect.objectContaining({
+      maxCost: 'low',
+      stopWhen: 'verified',
+    }));
+  });
+
+  it('routes boundary-sensitive restraint work to cheap aligned CT without reflect', () => {
+    const item = work({
+      intent: 'summarize',
+      title: 'Write a 50-word source-faithful investor update',
+      prompt: 'Use only confirmed source facts; avoid unsupported claims and keep it brief.',
+    });
+    const texture = deriveConstraintTexture(item);
+    const decision = decideArbitration(item);
+
+    expect(texture.profile).toEqual(expect.objectContaining({
+      criterionType: 'restraint',
+      promptTexture: 'ct',
+      evaluatorTexture: 'source-faithfulness',
+      modelTier: 'cheap-llm',
+      useReflect: false,
+    }));
+    expect(decision.primary).toBe('local');
+    expect(decision.reviewers).toEqual([]);
+    expect(decision.decisionBudget).toEqual(expect.objectContaining({
+      maxCost: 'low',
+      requireReviewer: false,
+    }));
+  });
+
+  it('treats stakeholder tension as panel-worthy CT work', () => {
+    const item = work({
+      intent: 'plan',
+      title: 'Resolve stakeholder conflict between speed and reliability',
+      prompt: 'Find the tradeoff across product, engineering, and user support.',
+    });
+    const texture = deriveConstraintTexture(item);
+    const decision = decideArbitration(item);
+
+    expect(deriveTextureProfile(item)).toEqual(expect.objectContaining({
+      criterionType: 'stakeholder_tension',
+      promptTexture: 'ct',
+      evaluatorTexture: 'pairwise',
+      modelTier: 'panel',
+    }));
+    expect(texture.peerCritiqueRequired).toBe(true);
+    expect(decision.mode).toBe('panel');
+    expect(decision.reviewers).toContain('akari');
   });
 });
