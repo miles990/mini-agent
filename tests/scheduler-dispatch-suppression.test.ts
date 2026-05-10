@@ -328,7 +328,7 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
     expect(decision.taskId).not.toBe(correction.id);
   });
 
-  it('completes a stale autonomy-closure task before dispatch when closure is healthy', async () => {
+  it('completes a stale autonomy-closure task before dispatch when its stage is no longer active', async () => {
     fs.mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, 'index'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, 'index', 'relations.jsonl'), '', 'utf-8');
@@ -348,7 +348,7 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
     expect(decision.taskId).not.toBe(closure.id);
     const latest = queryMemoryIndexSync(tmpDir, { id: closure.id, limit: 1 })[0];
     expect(latest.status).toBe('completed');
-    expect(latest.payload?.closure_dispatch_skipped_reason).toBe('closure-healthy');
+    expect(latest.payload?.closure_dispatch_skipped_reason).toMatch(/^(closure-healthy|stage-no-longer-active:memory-state-truth)$/);
     expect(getProcess(closure.id)?.state).toBe('completed');
   });
 

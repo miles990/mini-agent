@@ -33,6 +33,18 @@ export type DecisionStopCondition =
   | 'no_dissent'
   | 'human_approved';
 
+export type QualityCriterionType =
+  | 'mechanical'
+  | 'judgment'
+  | 'stakeholder_tension'
+  | 'boundary_sensitive'
+  | 'restraint'
+  | 'mixed';
+
+export type PromptTexture = 'prescription' | 'ct' | 'hybrid' | 'ct-reflect';
+export type EvaluatorTexture = 'mechanical-check' | 'ct-aware' | 'source-faithfulness' | 'pairwise' | 'audience-action';
+export type ModelExecutionTier = 'shell' | 'local' | 'cheap-llm' | 'strong-llm' | 'panel';
+
 export interface DecisionBudget {
   maxActors: 1 | 2 | 4;
   requireReviewer: boolean;
@@ -52,6 +64,7 @@ export interface WorkItem {
   writeScope?: string[];
   tags?: string[];
   hasProviderConflict?: boolean;
+  qualityCriterion?: QualityCriterionType;
 }
 
 export type ArbitrationMode = 'solo' | 'race' | 'panel' | 'split' | 'consensus' | 'human';

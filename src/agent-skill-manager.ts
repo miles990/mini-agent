@@ -208,6 +208,8 @@ export function buildAgentSkillOrchestrationPrompt(env: NodeJS.ProcessEnv = proc
   return [
     '## AI-Native Skill Orchestration',
     'Skills/workflows are managed capabilities, not static instructions. Select the smallest useful set, combine declared partners when their triggers align, and avoid running isolated skills when a workflow can close the loop.',
+    'Constraint Texture rule from the local papers: prescriptions belong to mechanical criteria; CT belongs to judgment, stakeholder tension, boundary-sensitive, and source-faithfulness criteria; hybrid is the default when both are present.',
+    'Evaluation has texture too: do not judge CT/source-faithful/restraint outputs with a generic checklist rubric if the true quality criterion is boundary preservation or audience decision quality.',
     'KG and file context are the context fabric for skills: use KG/file signals to select skills, write outcomes back to memory/KG ledgers, and let repeated cross-skill patterns become new or revised capabilities.',
     'After using a managed skill, leave observable evidence and record/enable iteration when the verifier fails, repeated use does not improve outcomes, or multiple skills reveal a reusable emergent pattern.',
     'Promotion rule: repeated high-success patterns should become the most efficient capability form: skill for judgment, workflow for multi-step coordination, script/CLI for deterministic operations, code for always-on runtime behavior, or a hybrid when both judgment and execution are needed.',
@@ -230,6 +232,16 @@ export function inferSkillSelectionInput(input: SkillRuntimeSelectionInput): Ski
   addSignalIf(signals, /(tension|tradeoff|stakeholder|conflict|competing requirement|張力|取捨|衝突)/i, text, 'requirement_tension');
   addSignalIf(signals, /(skill promotion|promotion candidate|capability promotion|能力升級|自我更新|自我迭代|湧現能力)/i, text, 'capability_promotion_candidate');
   addSignalIf(signals, /(complete|done|merge|deploy|ship|完成|部署)/i, text, 'before_done');
+  addSignalIf(signals, /(json schema|schema|format only|return json|typecheck|vitest|lint|api contract|type signature|enumerat|checklist|deterministic|固定格式|列舉|檢查清單)/i, text, 'mechanical_criterion');
+  addSignalIf(signals, /(judgment|decision|synthesis|architecture|strategy|recommend|root cause|需求|設計|架構|策略|決策|分析|根因)/i, text, 'judgment_criterion');
+  addSignalIf(signals, /(source[- ]?faith|grounded|unsupported claim|over[- ]?inference|claim audit|evidence boundary|忠於來源|不得推論|不要腦補|證據邊界)/i, text, 'boundary_sensitive');
+  addSignalIf(signals, /(restraint|concise|brief|short|\b\d+[- ]?word|\b\d+[- ]?sentence|不超過|簡短|兩句)/i, text, 'restraint');
+  addSignalIf(signals, /(rubric|judge|evaluation|score|pairwise|absolute score|評分|評估|裁判)/i, text, 'evaluation_texture_mismatch');
+
+  if (signals.has('mechanical_criterion')
+    && (signals.has('judgment_criterion') || signals.has('boundary_sensitive') || signals.has('requirement_tension'))) {
+    signals.add('mixed_criterion');
+  }
 
   addSignalIf(contextSignals, /(same root cause|same_root_cause|root cause family)/i, text, 'same_root_cause_family');
   addSignalIf(contextSignals, /(context conflict|conflicting context|脈絡衝突)/i, text, 'context_conflict');
@@ -488,6 +500,11 @@ function isKnownProcedureSlot(text: string): boolean {
 
 function hasConstraintTexturePositiveSignal(inputSignals: Set<string>, contextSignals: Set<string>, hint: string): boolean {
   return inputSignals.has('requirement_tension')
+    || inputSignals.has('judgment_criterion')
+    || inputSignals.has('boundary_sensitive')
+    || inputSignals.has('restraint')
+    || inputSignals.has('mixed_criterion')
+    || inputSignals.has('evaluation_texture_mismatch')
     || inputSignals.has('token_waste')
     || inputSignals.has('phantom_task')
     || contextSignals.has('understanding_bottleneck')

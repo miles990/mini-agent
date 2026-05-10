@@ -38,7 +38,7 @@ function registryFile(): string {
         trigger: {
           modes: ['reflect', 'task'],
           keywords: ['Constraint Texture', 'token', 'phantom', '空轉', 'tension', 'stakeholder', '取捨'],
-          signals: ['token_waste', 'phantom_task', 'requirement_tension', 'stakeholder_conflict', 'understanding_bottleneck'],
+          signals: ['token_waste', 'phantom_task', 'requirement_tension', 'stakeholder_conflict', 'understanding_bottleneck', 'judgment_criterion', 'boundary_sensitive', 'restraint', 'mixed_criterion', 'evaluation_texture_mismatch'],
           taskTypes: ['ops', 'design'],
         },
         requires: ['kg'],
@@ -46,8 +46,8 @@ function registryFile(): string {
         verifier: 'names thick/thin texture and records a promotion candidate',
         contextFabric: {
           sources: ['KG', 'skill-usage', 'task-events'],
-          writes: ['constraint-texture-report', 'capability-promotion-candidate'],
-          emergenceSignals: ['token_waste', 'thin_texture_cycle', 'requirement_tension', 'stakeholder_conflict', 'understanding_bottleneck', 'cross_skill_pattern'],
+          writes: ['constraint-texture-report', 'texture-profile', 'evaluation-texture-audit', 'capability-promotion-candidate'],
+          emergenceSignals: ['token_waste', 'thin_texture_cycle', 'requirement_tension', 'stakeholder_conflict', 'understanding_bottleneck', 'boundary_sensitive', 'evaluation_texture_mismatch', 'cross_skill_pattern'],
         },
         iteration: {
           ledger: 'memory/state/skill-usage.jsonl',
@@ -173,7 +173,7 @@ describe('agent skill manager', () => {
     expect(result.selected[0]).toEqual(expect.objectContaining({
       service: 'constraint-texture-analysis',
       contextFabric: expect.objectContaining({
-        writes: ['constraint-texture-report', 'capability-promotion-candidate'],
+        writes: expect.arrayContaining(['constraint-texture-report', 'capability-promotion-candidate']),
       }),
     }));
   });
@@ -224,6 +224,30 @@ describe('agent skill manager', () => {
     expect(result.selected.map(skill => skill.service)).not.toContain('constraint-texture-analysis');
   });
 
+  it('infers paper-backed boundary and evaluation texture signals', () => {
+    const env = { KURO_AGENT_CAPABILITIES_PATH: registryFile() } as NodeJS.ProcessEnv;
+    const input = inferSkillSelectionInput({
+      hint: 'Evaluate this source-faithful 50-word risk memo; avoid unsupported claims and rubric mismatch',
+      mode: 'task',
+      priority: 1,
+    });
+    const result = selectAgentSkills(input, env);
+
+    expect(input.signals).toEqual(expect.arrayContaining([
+      'boundary_sensitive',
+      'restraint',
+      'evaluation_texture_mismatch',
+    ]));
+    expect(result.selected[0]).toEqual(expect.objectContaining({
+      service: 'constraint-texture-analysis',
+      reasons: expect.arrayContaining([
+        'signal:boundary_sensitive',
+        'signal:restraint',
+        'signal:evaluation_texture_mismatch',
+      ]),
+    }));
+  });
+
   it('renders selected skills as a cycle-local prompt section', () => {
     const env = { KURO_AGENT_CAPABILITIES_PATH: registryFile() } as NodeJS.ProcessEnv;
     const result = selectAgentSkills(inferSkillSelectionInput({
@@ -270,6 +294,8 @@ describe('agent skill manager', () => {
     const prompt = buildAgentSkillOrchestrationPrompt(env);
 
     expect(prompt).toContain('AI-Native Skill Orchestration');
+    expect(prompt).toContain('prescriptions belong to mechanical criteria');
+    expect(prompt).toContain('Evaluation has texture too');
     expect(prompt).toContain('KG and file context are the context fabric');
     expect(prompt).toContain('debug-loop');
     expect(prompt).toContain('constraint-texture-analysis');

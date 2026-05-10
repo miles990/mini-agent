@@ -86,6 +86,22 @@ export class BrainArbiter {
       });
     }
 
+    if (texture.profile.modelTier === 'cheap-llm' && item.risk === 'read_only') {
+      const primary = this.pickByRole(item, 'primary', 'local', 'claude');
+      return this.decision({
+        mode: 'solo',
+        primary,
+        candidates: [primary],
+        reviewers: [],
+        reason: `${texture.profile.criterionType} work uses paper-backed cheap aligned CT route`,
+        decisionBudget: texture.decisionBudget,
+        writeLeaseRequired: texture.writeLeaseRequired,
+        kgClaimsRequired: texture.kgClaimsRequired,
+        humanApprovalRequired: texture.humanApprovalRequired,
+        selectionTrace: this.traceForRoles(item, ['primary']),
+      });
+    }
+
     if (texture.peerCritiqueRequired) {
       const availablePeerActors = this.filterAvailable(getPeerCritiqueActors());
       const candidates = pickActorsForRole(item, 'advisor', {
