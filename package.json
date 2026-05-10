@@ -35,6 +35,7 @@
     "setup": "pnpm install && pnpm build && npm link",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "check:pr-lifecycle": "tsx scripts/check-pr-lifecycle.ts",
+    "llm:token-usage": "tsx scripts/llm-token-usage.ts",
     "rotate:logs": "node scripts/rotate-decision-logs.mjs",
     "rotate:logs:dry": "node scripts/rotate-decision-logs.mjs --dry-run"
   },

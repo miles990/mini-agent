@@ -46,6 +46,13 @@ export interface GateStats {
   totalSaved: number; // estimated chars saved
 }
 
+export interface HeartbeatCronActionability {
+  uncheckedLines: string[];
+  actionableLines: string[];
+  blockedLines: string[];
+  lowPriorityLines: string[];
+}
+
 // =============================================================================
 // State
 // =============================================================================
@@ -156,22 +163,52 @@ export function cronGate(taskDescription: string): CronGateResult {
     return 'skip';
   }
 
-  // Has unchecked tasks — check if any have actionable verbs
-  const lines = content.split('\n').filter(l => /^- \[ ?\]/.test(l.trim()));
-  const ACTION_VERBS = /\b(fix|implement|add|create|build|deploy|write|send|check|review|update|research|investigate|refactor|merge|push|test|publish|run)\b|測試|發佈|部署|修復|建立|檢查|研究|撰寫|送出|執行|更新/i;
-  const hasActionable = lines.some(l => ACTION_VERBS.test(l));
+  const actionability = classifyHeartbeatCronActionability(content);
+  const hasActionable = actionability.actionableLines.length > 0;
 
   if (!hasActionable) {
     stats.cronSkipped++;
     stats.totalSaved += 13000;
     eventBus.emit('log:info', {
-      tag: 'omlx-gate', msg: `R3: HEARTBEAT has ${lines.length} unchecked tasks but none actionable (no action verbs), skipping`,
+      tag: 'omlx-gate',
+      msg: `R3: HEARTBEAT has ${actionability.uncheckedLines.length} unchecked tasks but none cron-actionable (blocked=${actionability.blockedLines.length}, low=${actionability.lowPriorityLines.length}), skipping`,
     });
     return 'skip';
   }
 
   stats.cronPassed++;
   return 'claude';
+}
+
+export function classifyHeartbeatCronActionability(content: string): HeartbeatCronActionability {
+  const uncheckedLines = content
+    .split('\n')
+    .filter(l => /^- \[ ?\]/.test(l.trim()));
+
+  const ACTION_VERBS = /\b(fix|implement|add|create|build|deploy|write|send|check|review|update|research|investigate|refactor|merge|push|test|publish|run)\b|測試|發佈|部署|修復|建立|檢查|研究|撰寫|送出|執行|更新/i;
+  const BLOCKED_OR_WAITING = /\b(HOLD|blocked|waiting|refuted|depends on|needs human|human required)\b|等\s*(Alex|B\d|B1|B2|B3|B4|confirm)|需\s*Alex|Alex\s+confirm|待解封|不存在於 codebase|平台 live 投票|人工|登入|login|npm login|Gmail session|Mastodon/i;
+  const HIGH_PRIORITY = /\bP[01]\b|🔴|CRITICAL/i;
+  const LOW_PRIORITY = /\bP[2-9]\b/i;
+
+  const blockedLines: string[] = [];
+  const lowPriorityLines: string[] = [];
+  const actionableLines: string[] = [];
+
+  for (const line of uncheckedLines) {
+    if (BLOCKED_OR_WAITING.test(line)) {
+      blockedLines.push(line);
+      continue;
+    }
+    if (!HIGH_PRIORITY.test(line) || LOW_PRIORITY.test(line)) {
+      lowPriorityLines.push(line);
+      continue;
+    }
+    if (ACTION_VERBS.test(line)) {
+      actionableLines.push(line);
+    }
+  }
+
+  return { uncheckedLines, actionableLines, blockedLines, lowPriorityLines };
 }
 
 // =============================================================================
@@ -602,6 +639,8 @@ export function resetGateStats(): void {
     perceptionSectionsPruned: 0, skillsReduced: 0,
     totalSaved: 0,
   });
+  lastHeartbeatContentHash = '';
+  lastContextHash = '';
 }
 
 /**
