@@ -343,6 +343,16 @@ export function parseFalsifierToQuery(falsifier: string): FalsifierQuery | undef
       threshold: Number.parseInt(grep[5], 10),
     };
   }
+
+  // abs_path /path >=N — legacy format, treat as file_exists check
+  const absPath = falsifier.match(/\babs_path\s+(\/\S+?)\s+(>=|<=|==)\s*(\d+)/);
+  if (absPath) {
+    const threshold = Number.parseInt(absPath[3], 10);
+    const op = absPath[2];
+    const must = op === '>=' ? threshold >= 1 : op === '==' ? threshold >= 1 : false;
+    return { kind: 'file_exists', path: absPath[1], must };
+  }
+
   return undefined;
 }
 
