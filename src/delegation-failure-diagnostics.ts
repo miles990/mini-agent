@@ -133,6 +133,18 @@ function buildDiagnosis(memoryDir: string, record: DelegationFailureRecord): Del
     };
   }
 
+  if ((record.taskType === 'graphify' || /kg-extract-|kg incremental rebuild/.test(lower)) && /did not complete within 600000ms|wall-clock timeout|timed out after/.test(lower)) {
+    return {
+      signature: record.signature,
+      code,
+      status: 'resolved',
+      category: 'middleware_failed',
+      summary: 'The repeated failure is a stale KG graphify timeout from an oversized delegated shell run.',
+      recommendedAction: 'Keep KG rebuilds decomposed into bounded local steps and let future runs fail per-step instead of retrying the same large graphify prompt.',
+      reportPath,
+    };
+  }
+
   if (/forge worktree allocation failed|workspace isolation policy/.test(lower)) {
     return {
       signature: record.signature,
