@@ -43,6 +43,7 @@ import {
   getDelegationFailureCode,
   markDelegationFailureDiagnosticCreated,
   recordDelegationFailure,
+  shouldSuppressUnchangedDelegationRetry,
 } from './delegation-failure-guard.js';
 import { diagnoseDelegationFailure } from './delegation-failure-diagnostics.js';
 
@@ -273,6 +274,56 @@ export function spawnDelegation(task: DelegationTask): string {
       output: `phantom_prompt: prompt lacks "## Task:" envelope and is shorter than 80 chars (got ${(task.prompt ?? '').length}). Rejected pre-dispatch to avoid fail-ejkd7t-shaped retries (#141).`,
     };
     completedTasks.set(taskId, failed);
+    return taskId;
+  }
+
+  const retrySuppression = shouldSuppressUnchangedDelegationRetry(getMemoryRootDir(), {
+    taskType,
+    prompt: task.prompt,
+  });
+  if (retrySuppression.suppress) {
+    const now = new Date().toISOString();
+    const output = [
+      `token_economy_suppressed: ${retrySuppression.reason}`,
+      retrySuppression.record ? `failure_signature: ${retrySuppression.record.signature}` : undefined,
+      'mechanical_action: create a smaller diagnostic/probe task; do not spend provider turns on the same broad prompt.',
+    ].filter(Boolean).join('\n');
+    const failed: TaskResult = {
+      id: taskId,
+      type: taskType,
+      status: 'failed',
+      startedAt: now,
+      completedAt: now,
+      duration: 0,
+      output,
+    };
+    completedTasks.set(taskId, failed);
+    writeActivity({
+      lane: 'background',
+      summary: `suppressed ${taskType}: ${retrySuppression.reason ?? task.prompt.slice(0, 100)}`,
+      tags: ['skipped', 'token-economy', 'max-turns'],
+      duration: 0,
+    });
+    if (task.originTask) {
+      void updateTask(getMemoryRootDir(), task.originTask, {
+        status: 'hold',
+        verify: [{
+          name: 'token-economy',
+          status: 'unknown',
+          detail: retrySuppression.reason ?? 'unchanged retry suppressed',
+          updatedAt: now,
+        }],
+        staleWarning: retrySuppression.reason,
+      }).catch(() => {});
+    }
+    eventBus.emit('action:delegation-complete', {
+      taskId,
+      status: 'failed',
+      type: taskType,
+      outputPreview: output.slice(0, 500),
+      durationMs: 0,
+      tokenEconomySuppressed: true,
+    });
     return taskId;
   }
   const worker = CAPABILITY_TO_WORKER[taskType];
@@ -539,6 +590,7 @@ async function dispatchAndPoll(
   const priorAttempts: Array<{ error?: string; tried?: string }> = [];
 
   for (let round = 0; round <= MAX_REPLAN_ROUNDS; round++) {
+    await assertMiddlewareWorkerReady(worker);
     // ── Dispatch ──────────────────────────────────────────────────────
     // BAR Phase 2: when acceptance present, route through /accomplish (brain plans).
     // Without acceptance, fall back to manual 1-step /plan (wave nodes, legacy).
@@ -684,6 +736,31 @@ async function dispatchAndPoll(
     // ── Replan: accumulate failure context, loop ─────────────────────
     priorAttempts.push(...failedErrors);
     slog('DELEGATION', `Replan ${taskId} round ${round + 1}/${MAX_REPLAN_ROUNDS} — ${failedErrors.length} failed step(s), brain gets prior_attempts`);
+  }
+}
+
+async function assertMiddlewareWorkerReady(worker: string): Promise<void> {
+  const HEALTH_TIMEOUT_MS = 5_000;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutGuard = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`middleware health preflight timed out after ${HEALTH_TIMEOUT_MS}ms`)),
+      HEALTH_TIMEOUT_MS,
+    );
+  });
+  try {
+    const health = await Promise.race([middleware().health(), timeoutGuard]);
+    if (health.status !== 'ok') {
+      throw new Error(`middleware health preflight failed: status=${health.status}`);
+    }
+    if (!health.workers.includes(worker)) {
+      throw new Error(`middleware health preflight failed: worker ${worker} unavailable`);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`preflight blocked delegation before provider spend: ${message}`);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

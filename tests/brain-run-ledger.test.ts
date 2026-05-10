@@ -48,11 +48,49 @@ describe('brain run ledger', () => {
           reasons: ['+35 best-for:review'],
         }],
       },
+      usageEstimate: {
+        promptChars: 100,
+        promptTokens: 25,
+        outputChars: 40,
+        outputTokens: 10,
+        totalTokens: 35,
+        source: 'estimate',
+        note: 'test estimate',
+      },
       createdAt: '2026-05-05T00:00:00.000Z',
     });
 
     expect(getBrainRunLedgerPath(tmpDir)).toBe(path.join(tmpDir, 'index', 'brain-runs.jsonl'));
     expect(readBrainRunEventsSync(tmpDir)).toEqual([event]);
+  });
+
+  it('persists usage estimates for token-economy analysis', () => {
+    appendBrainRunEvent(tmpDir, {
+      id: 'evt-usage',
+      taskId: 'del-usage',
+      event: 'runtime_finished',
+      status: 'failed',
+      durationMs: 1000,
+      usageEstimate: {
+        promptChars: 1200,
+        promptTokens: 300,
+        outputChars: 200,
+        outputTokens: 50,
+        totalTokens: 350,
+        source: 'estimate',
+      },
+      createdAt: '2026-05-05T00:00:00.000Z',
+    });
+
+    expect(readBrainRunStatesSync(tmpDir)).toEqual([
+      expect.objectContaining({
+        key: 'del-usage:runtime',
+        usageEstimate: expect.objectContaining({
+          totalTokens: 350,
+          source: 'estimate',
+        }),
+      }),
+    ]);
   });
 
   it('queries by task, actor, event, and status', () => {
