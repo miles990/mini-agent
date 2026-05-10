@@ -270,6 +270,16 @@ export function extractErrorSubtype(errorMsg: string): string {
     // the bucket never silently disappears from the recurring-errors panel.
     if (durMatch) {
       const dur = Number(durMatch[1]);
+      // Issue #491: split off upstream_quickreject_cn from transient_fast_band.
+      // Signature: 處理訊息時發生錯誤 + dur<20s + attempt 1/N — fires on the FIRST
+      // call before any prior call exists for the caller-side fast-band gate
+      // (#443/#446 damper) to throttle against. Different remediation lane
+      // (back-off seconds-to-minutes vs. classic transient retry); keeping it
+      // mixed into transient_fast_band pollutes circuit-breaker telemetry and
+      // spawns false [REGRESSION] tasks for upstream events the breaker can't
+      // influence. Attempt 2-3/N retry-storm fires stay as transient_fast_band
+      // (genuine fast-band the damper applies to).
+      if (dur < 20 && /attempt 1\//.test(lower)) return 'upstream_quickreject_cn';
       if (dur < 10) return 'transient_fast_band';
       if (dur < 60) return 'transient_slow_band';
     }
@@ -374,7 +384,11 @@ export function shouldFastFailFastBand(args: {
     args.thresholdMs ?? (Number(process.env.KURO_FAST_FAIL_THRESHOLD_MS) || 10_000);
   if (args.attempt !== 0) return false;
   if (args.attemptDurationMs >= threshold) return false;
-  return extractErrorSubtype(args.errorMsg) === 'transient_fast_band';
+  // Issue #491: upstream_quickreject_cn is a refinement of transient_fast_band
+  // (attempt 1/N + dur<20s + 處理訊息時發生錯誤). Same fail-fast remediation lane —
+  // the bucket split is for telemetry / spawn-loop control, not action change.
+  const subtype = extractErrorSubtype(args.errorMsg);
+  return subtype === 'transient_fast_band' || subtype === 'upstream_quickreject_cn';
 }
 
 /**

@@ -37,6 +37,41 @@ describe('extractErrorSubtype — transient band split (#318)', () => {
   });
 });
 
+describe('extractErrorSubtype — upstream_quickreject_cn split (#491)', () => {
+  // Real fire format observed in error-patterns.json (UNKNOWN:transient_fast_band::callClaude):
+  //   "claude CLI UNKNOWN (exit N/A, 8100ms this attempt, 8100ms total, attempt 1/3,
+  //    prompt 36402 chars, loop lane): 處理訊息時發生錯誤 [dur=8s]。請稍後再試..."
+  // Discriminator: attempt 1/N + dur<20s + 處理訊息時發生錯誤 → upstream rejects
+  // before the caller-side fast-band gate has any prior call to throttle against.
+  const mkUpstreamMsg = (durSec: number, attempt: number, totalAttempts = 3) =>
+    `claude CLI UNKNOWN (exit N/A, ${durSec * 1000}ms this attempt, ${durSec * 1000}ms total, ` +
+    `attempt ${attempt}/${totalAttempts}, prompt 36402 chars, loop lane): 處理訊息時發生錯誤 [dur=${durSec}s]。請稍後再試。`;
+
+  it('classifies attempt 1/N + dur<20s as upstream_quickreject_cn', () => {
+    expect(extractErrorSubtype(mkUpstreamMsg(8, 1))).toBe('upstream_quickreject_cn');
+    expect(extractErrorSubtype(mkUpstreamMsg(1, 1))).toBe('upstream_quickreject_cn');
+    expect(extractErrorSubtype(mkUpstreamMsg(19, 1))).toBe('upstream_quickreject_cn');
+  });
+
+  it('keeps attempt 2-3/N retry-storm fires as transient_fast_band (existing #318 path)', () => {
+    // Genuine retry-storm: caller has prior call to gate against; #443/#446 damper applies.
+    expect(extractErrorSubtype(mkUpstreamMsg(8, 2))).toBe('transient_fast_band');
+    expect(extractErrorSubtype(mkUpstreamMsg(8, 3))).toBe('transient_fast_band');
+  });
+
+  it('does not over-match attempt 1 with dur>=20s (slow-band stays transient_slow_band)', () => {
+    // dur=20s should fall through to transient_slow_band, not upstream_quickreject_cn.
+    expect(extractErrorSubtype(mkUpstreamMsg(20, 1))).toBe('transient_slow_band');
+    expect(extractErrorSubtype(mkUpstreamMsg(59, 1))).toBe('transient_slow_band');
+  });
+
+  it('preserves no_diag fallback when 處理訊息時發生錯誤 has no dur= suffix', () => {
+    // Sanity: existing fallback path untouched even with attempt 1/N present.
+    const msg = 'attempt 1/3 處理訊息時發生錯誤 some text without duration';
+    expect(extractErrorSubtype(msg)).toBe('no_diag');
+  });
+});
+
 describe('extractErrorSubtype — silent_exit_void 4-class typed-failure schema (#370 + arxiv 2605.05724)', () => {
   // Format from agent.ts:249 + extractErrorSubtype regex:
   //   "CLI 靜默中斷（exit N/A，{durSec}s 無 stderr）. stdout=empty"
