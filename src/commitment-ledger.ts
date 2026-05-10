@@ -98,11 +98,28 @@ function deduplicateLines(lines: string[]): Map<string, CommitmentEntry> {
   for (const line of lines) {
     try {
       const entry = JSON.parse(line) as CommitmentEntry;
-      if (entry.id) map.set(entry.id, entry);
+      if (!entry.id) continue;
+      // #78: skip entries missing required fields — prevents corrupt drain
+      // records from overwriting valid prior state for the same id.
+      if (!entry.cycle_id || !entry.status) {
+        if (!map.has(entry.id)) map.set(entry.id, entry);
+        continue;
+      }
+      map.set(entry.id, entry);
     } catch { /* skip malformed lines */ }
   }
   return map;
 }
+
+
+
+
+
+
+
+
+
+
 
 function appendLine(entry: CommitmentEntry): void {
   const p = getLedgerPath();
