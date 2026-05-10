@@ -19,7 +19,7 @@ import { buildLedgerSection } from './commitment-ledger.js';
 import { detectResearchLoop } from './cycle-state.js';
 import { isEnabled } from './features.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
-import { readState } from './feedback-loops.js';
+import { readState, PROTECTIVE_SUBTYPES } from './feedback-loops.js';
 import { slog } from './utils.js';
 import { getActiveDelegationSummaries } from './delegation.js';
 import { buildAgentOwnedIdentityPrompt, buildAgentRelationshipPrompt } from './agent-owned-identity.js';
@@ -444,6 +444,11 @@ export function buildErrorPatternsHint(): string {
     const actionable = Object.entries(patterns)
       .map(([key, v]) => {
         if (v.count < 3 || v.resolved) return false;
+        // Issue #512: protective subtypes (sigterm_*, budget_exceeded, etc.) are guard
+        // mechanisms working as intended. They live in error-patterns.json for telemetry
+        // (see pulse.ts:732) but must not surface as actionable recurring bugs.
+        const subtype = key.split(":")[1] ?? "";
+        if (PROTECTIVE_SUBTYPES.has(subtype)) return false;
         const ts = Date.parse(v.lastSeen);
         if (!Number.isFinite(ts) || ts < cutoff) return false;
         if (!v.resolvedAt) return [key, v, false] as const;

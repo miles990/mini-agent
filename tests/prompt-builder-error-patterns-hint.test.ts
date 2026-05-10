@@ -16,15 +16,19 @@ type Pattern = {
 
 const state: { patterns: Record<string, Pattern> } = { patterns: {} };
 
-vi.mock('../src/feedback-loops.js', () => ({
-  readState: <T>(filename: string, fallback: T): T => {
-    if (filename === 'error-patterns.json') {
-      return state.patterns as unknown as T;
-    }
-    return fallback;
-  },
-  writeState: () => {},
-}));
+vi.mock('../src/feedback-loops.js', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    readState: <T>(filename: string, fallback: T): T => {
+      if (filename === 'error-patterns.json') {
+        return state.patterns as unknown as T;
+      }
+      return fallback;
+    },
+    writeState: () => {},
+  };
+});
 
 vi.mock('../src/utils.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -161,5 +165,44 @@ describe('buildErrorPatternsHint — issue #315 staleness filter', () => {
     expect(out).not.toContain('[REGRESSION]');
     // The pattern itself should not surface (mitigated recurrence after grace returns false)
     expect(out).toBe('');
+  });
+
+  it('omits PROTECTIVE_SUBTYPES even when fresh and high-count — issue #512', () => {
+    state.patterns = {
+      'TIMEOUT:sigterm_shutdown::callClaude': {
+        count: 9,
+        taskCreated: true,
+        lastSeen: isoDaysAgo(0),
+      },
+      'TIMEOUT:sigterm_hard::callClaude': {
+        count: 5,
+        taskCreated: true,
+        lastSeen: isoDaysAgo(1),
+      },
+      'TIMEOUT:budget_exceeded::callClaude': {
+        count: 4,
+        taskCreated: true,
+        lastSeen: isoDaysAgo(0),
+      },
+    };
+    expect(buildErrorPatternsHint()).toBe('');
+  });
+
+  it('keeps actionable bug subtypes alongside protective ones — issue #512', () => {
+    state.patterns = {
+      'TIMEOUT:sigterm_shutdown::callClaude': {
+        count: 9,
+        taskCreated: true,
+        lastSeen: isoDaysAgo(0),
+      },
+      'TIMEOUT:dns_lookup_failed::callClaude': {
+        count: 4,
+        taskCreated: true,
+        lastSeen: isoDaysAgo(1),
+      },
+    };
+    const out = buildErrorPatternsHint();
+    expect(out).toContain('dns_lookup_failed');
+    expect(out).not.toContain('sigterm_shutdown');
   });
 });
