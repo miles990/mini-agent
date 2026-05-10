@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decideArbitration } from '../src/brain-arbiter.js';
-import { deriveConstraintTexture, deriveTextureProfile } from '../src/constraint-texture.js';
+import { buildConstraintTexturePromptSection, deriveConstraintTexture, deriveTextureProfile } from '../src/constraint-texture.js';
 import type { WorkItem } from '../src/brain-types.js';
 
 function work(overrides: Partial<WorkItem> = {}): WorkItem {
@@ -203,5 +203,32 @@ describe('BrainArbiter', () => {
     expect(texture.peerCritiqueRequired).toBe(true);
     expect(decision.mode).toBe('panel');
     expect(decision.reviewers).toContain('akari');
+  });
+
+  it('builds a prescription prompt section for mechanical tasks', () => {
+    const section = buildConstraintTexturePromptSection(work({
+      intent: 'verify',
+      title: 'Run pnpm typecheck and report exact failures',
+    }));
+
+    expect(section).toContain('<constraint-texture-profile>');
+    expect(section).toContain('criterion: mechanical');
+    expect(section).toContain('prompt_texture: prescription');
+    expect(section).toContain('evaluator_texture: mechanical-check');
+    expect(section).toContain('run or cite the concrete check');
+  });
+
+  it('builds a source-faithful CT prompt section for restraint tasks without reflect expansion', () => {
+    const section = buildConstraintTexturePromptSection(work({
+      intent: 'summarize',
+      title: 'Write a 50-word source-faithful update',
+      prompt: 'Keep it brief and do not add unsupported claims.',
+    }));
+
+    expect(section).toContain('criterion: restraint');
+    expect(section).toContain('prompt_texture: ct');
+    expect(section).toContain('evaluator_texture: source-faithfulness');
+    expect(section).toContain('reflect_pass: no');
+    expect(section).toContain('do not use a reflective rewrite that expands a short answer');
   });
 });

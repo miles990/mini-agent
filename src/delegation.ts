@@ -46,6 +46,7 @@ import {
   shouldSuppressUnchangedDelegationRetry,
 } from './delegation-failure-guard.js';
 import { diagnoseDelegationFailure } from './delegation-failure-diagnostics.js';
+import { buildConstraintTexturePromptSection } from './constraint-texture.js';
 
 // =============================================================================
 // Phantom-prompt classifier (issue #141 Layer 1)
@@ -498,7 +499,7 @@ function buildBrainRequestForDelegation(entry: ActiveEntry, cwd: string, timeout
   const taskType = entry.result.type ?? entry.task.type ?? 'code';
   const workItem = buildWorkItemForDelegation(entry.result.id, entry.task, taskType);
   const context = [
-    formatArbitrationContext(entry.arbitration),
+    formatArbitrationContext(entry.arbitration, workItem),
     entry.task.context,
     entry.task.acceptance ? `Acceptance: ${entry.task.acceptance}` : undefined,
   ].filter(Boolean).join('\n\n');
@@ -586,6 +587,7 @@ async function dispatchAndPoll(
 ): Promise<void> {
   const { result, task, arbitration } = entry;
   const taskId = result.id;
+  const taskType = result.type ?? task.type ?? 'code';
   const MAX_REPLAN_ROUNDS = 3;
   const priorAttempts: Array<{ error?: string; tried?: string }> = [];
 
@@ -596,7 +598,8 @@ async function dispatchAndPoll(
     // Without acceptance, fall back to manual 1-step /plan (wave nodes, legacy).
     let planId: string;
     if (task.acceptance) {
-      const arbitrationExtra = formatArbitrationContext(arbitration);
+      const workItem = buildWorkItemForDelegation(taskId, task, taskType);
+      const arbitrationExtra = formatArbitrationContext(arbitration, workItem);
       const resp = await middleware().accomplish({
         goal: task.prompt,
         acceptance: task.acceptance,
@@ -619,7 +622,8 @@ async function dispatchAndPoll(
       // 2026-04-18 incident: shell task failed exit 2 — skip annotation for shell.
       let prompt = task.prompt;
       if (worker !== 'shell') {
-        prompt = `${formatArbitrationContext(arbitration)}\n\n${prompt}`;
+        const workItem = buildWorkItemForDelegation(taskId, task, taskType);
+        prompt = `${formatArbitrationContext(arbitration, workItem)}\n\n${prompt}`;
         const siblingContext = buildRecentDelegationSummary(3_600_000, 400);
         if (siblingContext) {
           prompt = `${prompt}\n\n[active sibling tasks — avoid duplicate work]\n${siblingContext}`;
@@ -823,9 +827,10 @@ function inferWriteScope(type: DelegationTaskType, task: DelegationTask): string
   return scopes.length > 0 ? scopes : [task.workdir];
 }
 
-function formatArbitrationContext(decision: ArbitrationDecision): string {
+function formatArbitrationContext(decision: ArbitrationDecision, workItem?: WorkItem): string {
   const reviewers = decision.reviewers.length > 0 ? decision.reviewers.join(', ') : 'none';
   const selection = formatSelectionTrace(decision);
+  const texture = workItem ? buildConstraintTexturePromptSection(workItem) : '';
   return [
     '<arbitration>',
     `mode: ${decision.mode}`,
@@ -836,6 +841,7 @@ function formatArbitrationContext(decision: ArbitrationDecision): string {
     `reason: ${decision.reason}`,
     ...(selection ? [`selection_trace:\n${selection}`] : []),
     '</arbitration>',
+    texture,
   ].join('\n');
 }
 
