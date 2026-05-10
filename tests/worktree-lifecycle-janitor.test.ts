@@ -87,7 +87,7 @@ describe('worktree lifecycle janitor', () => {
     const tasks = queryMemoryIndexSync(tmpDir, { type: ['task'], status: ['pending'] });
     expect(tasks).toHaveLength(2);
     expect(tasks[0]).toEqual(expect.objectContaining({
-      summary: expect.stringContaining('Worktree lifecycle:'),
+      summary: expect.stringContaining('WT '),
       tags: expect.arrayContaining(['workspace', 'worktree-lifecycle']),
       payload: expect.objectContaining({
         origin: 'worktree-lifecycle-janitor',
@@ -96,6 +96,24 @@ describe('worktree lifecycle janitor', () => {
       }),
     }));
     expect(readWorktreeLifecycleRecords(tmpDir)).toHaveLength(2);
+  });
+
+  it('does not let similar lifecycle task summaries trip the global duplicate guard', async () => {
+    const cases: WorktreeLifecycleCase[] = [
+      lifecycleCase('same-prefix-a', 'clean-unmerged'),
+      lifecycleCase('same-prefix-b', 'clean-unmerged'),
+      lifecycleCase('same-prefix-c', 'clean-unmerged'),
+    ];
+
+    const result = await queueWorktreeLifecycleTasks(tmpDir, cases, new Date('2026-05-10T00:00:00.000Z'), {
+      maxActiveTasks: 3,
+      maxQueuedPerSweep: 3,
+    });
+
+    expect(result.queued).toBe(3);
+    const tasks = queryMemoryIndexSync(tmpDir, { type: ['task'], status: ['pending'] });
+    expect(tasks).toHaveLength(3);
+    expect(new Set(tasks.map(task => task.summary?.slice(0, 11))).size).toBe(3);
   });
 
   it('is idempotent for known worktree cases and caps active lifecycle tasks', async () => {

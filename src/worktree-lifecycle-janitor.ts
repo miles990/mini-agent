@@ -1,5 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { appendMemoryIndexEntry, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
 import { slog } from './utils.js';
@@ -200,7 +201,7 @@ async function ensureWorktreeFollowUpTask(memoryDir: string, item: WorktreeLifec
   const entry = await appendMemoryIndexEntry(memoryDir, {
     type: 'task',
     status: 'pending',
-    summary: `Worktree lifecycle: ${item.bucket} ${item.branch}`,
+    summary: `WT ${shortCaseHash(item.id)} ${item.bucket}: ${item.branch}`,
     refs: [item.path],
     tags: ['workspace', 'worktree-lifecycle', item.bucket],
     payload: {
@@ -357,6 +358,10 @@ function ensureLedger(memoryDir: string): string {
 
 function stableCaseId(worktreePath: string, branch: string, bucket: string): string {
   return `worktree:${bucket}:${branch}:${worktreePath}`;
+}
+
+function shortCaseHash(input: string): string {
+  return createHash('sha256').update(input).digest('hex').slice(0, 8);
 }
 
 function git(args: string[], cwd: string): string | null {
