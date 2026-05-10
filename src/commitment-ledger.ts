@@ -367,9 +367,12 @@ function runLogGrepQuery(q: Extract<FalsifierQuery, { kind: 'log_grep' }>): Quer
     return {
       conclusive: true,
       verdict: 'refuted',
-      evidence: `log_grep: file ${q.path} does not exist`,
+      evidence: `log_grep: path ${q.path} does not exist`,
     };
   }
+
+  const stat = statSync(q.path);
+  if (stat.isDirectory()) return runDirectoryGrepQuery(q);
 
   let re: RegExp;
   try {
@@ -413,6 +416,37 @@ function runLogGrepQuery(q: Extract<FalsifierQuery, { kind: 'log_grep' }>): Quer
   };
 }
 
+function runDirectoryGrepQuery(q: Extract<FalsifierQuery, { kind: 'log_grep' }>): QueryResult {
+  const shellQuote = (s: string) => "'" + s.replace(/'/g, "'\\''") + "'";
+  try {
+    const out = execSync(
+      `grep -rEc ${shellQuote(q.pattern)} ${shellQuote(q.path)} 2>/dev/null || true`,
+      { encoding: 'utf-8', timeout: 10_000 },
+    );
+    let count = 0;
+    for (const line of out.trim().split('\n')) {
+      const m = line.match(/:(\d+)$/);
+      if (m) count += parseInt(m[1], 10);
+    }
+
+    const kept =
+      q.op === '>=' ? count >= q.threshold :
+      q.op === '<=' ? count <= q.threshold :
+      count === q.threshold;
+
+    return {
+      conclusive: true,
+      verdict: kept ? 'kept' : 'refuted',
+      evidence: `log_grep(dir) ${q.path} /${q.pattern}/ -> count=${count} ${q.op}${q.threshold} -> ${kept ? 'kept' : 'refuted'}`,
+    };
+  } catch (err) {
+    return {
+      conclusive: false,
+      evidence: `log_grep(dir): grep failed on ${q.path}: ${(err as Error).message}`,
+    };
+  }
+}
+
 function unescapeQuotedPattern(pattern: string): string {
   return pattern.replace(/\\(["\\])/g, '$1');
 }
@@ -429,12 +463,19 @@ export function resolveReadyCommitments(
     // delegate-budget queries are deferred-async — skip for now, next-cycle resolution.
     if (entry.check_budget === 'delegate') { skipped++; continue; }
 
-    const result = runQuery(entry.falsifier_query);
+    let result: QueryResult;
+    try {
+      result = runQuery(entry.falsifier_query);
+    } catch (err) {
+      slog('LEDGER', `runQuery threw for ${entry.id}: ${(err as Error).message}`);
+      appendLine({ ...entry, last_checked_cycle: currentCycleId });
+      skipped++;
+      continue;
+    }
     if (result.conclusive && result.verdict) {
       updateCommitmentStatus(entry.id, result.verdict, result.evidence);
       resolved++;
     } else {
-      // Throttle: mark as checked-this-cycle so we don't re-run until next cycle.
       appendLine({ ...entry, last_checked_cycle: currentCycleId });
       skipped++;
     }
