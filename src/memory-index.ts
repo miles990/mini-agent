@@ -9,7 +9,7 @@
  * Design: #207/#208 conversation consensus.
  */
 
-import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
+import { appendFileSync, readFileSync, existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
 import { exec, execSync } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -452,6 +452,37 @@ export async function updateMemoryIndexEntry(
 
   writeThroughEntry(memoryDir, updated);
   await recordWorkflowTransition(memoryDir, current, updated);
+  return updated;
+}
+
+export function updateMemoryIndexEntrySync(
+  memoryDir: string,
+  id: string,
+  patch: Partial<Omit<MemoryIndexEntry, 'id'>>,
+): MemoryIndexEntry | null {
+  const normalId = normalizeId(id);
+  const current = queryMemoryIndexSync(memoryDir, { id: normalId, limit: 1 })[0];
+  if (!current) {
+    slog('WARN', `updateMemoryIndexEntrySync: lookup miss for id=${normalId} — no-op`);
+    return null;
+  }
+
+  const updated: MemoryIndexEntry = {
+    ...current,
+    ...patch,
+    id: normalId,
+    ts: new Date().toISOString(),
+    refs: patch.refs ?? current.refs,
+  };
+
+  const bucket = getBucketForType(updated.type);
+  const filePath = ensureBucketFileSync(memoryDir, bucket);
+  appendFileSync(filePath, JSON.stringify(updated) + '\n', 'utf-8');
+
+  writeThroughEntry(memoryDir, updated);
+  void recordWorkflowTransition(memoryDir, current, updated).catch(error => {
+    slog('WARN', `workflow transition record failed after sync update: ${error instanceof Error ? error.message : String(error)}`);
+  });
   return updated;
 }
 

@@ -6,16 +6,23 @@
  * a task is excluded from the dispatch queue until an external trigger resets it.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
   appendMemoryIndexEntry,
   invalidateIndexCache,
+  queryMemoryIndexSync,
 } from '../src/memory-index.js';
 import {
+  clearProcessTable,
+  getProcess,
+  registerProcess,
+} from '../src/process-table.js';
+import {
   schedulerPick,
+  entryToSnapshot,
   recordTaskTerminalSignal,
   resetTaskSuppression,
   resetAllSuppressions,
@@ -36,6 +43,8 @@ beforeEach(() => {
   resetAllSuppressions();
   resetCurrentTask();
   resetSchedulerStateForTest();
+  clearProcessTable();
+  vi.stubEnv('MINI_AGENT_DISABLE_MIDDLEWARE_QUALITY_CLOSURE', '1');
 });
 
 afterEach(() => {
@@ -44,6 +53,8 @@ afterEach(() => {
   resetAllSuppressions();
   resetCurrentTask();
   resetSchedulerStateForTest();
+  clearProcessTable();
+  vi.unstubAllEnvs();
 });
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -315,6 +326,30 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
 
     expect(decision.taskId).toBe(normal.id);
     expect(decision.taskId).not.toBe(correction.id);
+  });
+
+  it('completes a stale autonomy-closure task before dispatch when closure is healthy', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'index'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'index', 'relations.jsonl'), '', 'utf-8');
+
+    const closure = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P1 autonomy closure: repair memory-state-truth',
+      tags: ['autonomy-closure'],
+      payload: { origin: 'autonomy-closure', priority: 1 },
+    });
+    registerProcess(entryToSnapshot(closure));
+    invalidateIndexCache();
+
+    const decision = schedulerPick(tmpDir, []);
+
+    expect(decision.taskId).not.toBe(closure.id);
+    const latest = queryMemoryIndexSync(tmpDir, { id: closure.id, limit: 1 })[0];
+    expect(latest.status).toBe('completed');
+    expect(latest.payload?.closure_dispatch_skipped_reason).toBe('closure-healthy');
+    expect(getProcess(closure.id)?.state).toBe('completed');
   });
 
   it('does not pick a task whose stack-rank resolved summary is a title variant', async () => {

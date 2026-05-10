@@ -8,11 +8,12 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
-import { queryMemoryIndexSync, updateMemoryIndexEntry, loadResolvedTaskKeysFromEvents, type MemoryIndexEntry } from './memory-index.js';
+import { queryMemoryIndexSync, updateMemoryIndexEntry, updateMemoryIndexEntrySync, loadResolvedTaskKeysFromEvents, type MemoryIndexEntry } from './memory-index.js';
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
-import { getProcess } from './process-table.js';
+import { completeProcess, getProcess } from './process-table.js';
 import { evaluateCorrectionGate, isCorrectionTask, type CorrectionGateSnapshot } from './correction-gate.js';
+import { evaluateAutonomyClosure, isAutonomyClosureTask, type AutonomyClosureSnapshot } from './autonomy-closure-health.js';
 import { reverifyPredicate } from './predicate-freshness.js';
 import { filterHeldCorrectionTasks } from './correction-holds.js';
 
@@ -471,6 +472,11 @@ export function schedulerPick(
 
   const correctionSnapshot = evaluateCorrectionGate(memoryDir);
   const activeCorrectionReasons = new Set(correctionSnapshot.reasons.map(reason => reason.type));
+  const autonomySnapshot = evaluateAutonomyClosure(memoryDir);
+  const activeAutonomyStages = new Set([
+    ...autonomySnapshot.blockingStages,
+    ...autonomySnapshot.warningStages,
+  ]);
   const entries = queryMemoryIndexSync(memoryDir, {
     type: ['task'],
     status: ['pending', 'in_progress'],
@@ -488,6 +494,13 @@ export function schedulerPick(
       if (!entry || !isCorrectionTask(entry)) return true;
       if (correctionTaskMatchesSnapshot(entry, correctionSnapshot, activeCorrectionReasons)) return true;
       slog('SCHED', `dispatch-correction-stale: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)}`);
+      return false;
+    })
+    .filter(t => {
+      const entry = entries.find(item => item.id === t.id);
+      if (!entry || !isAutonomyClosureTask(entry)) return true;
+      if (autonomyClosureTaskMatchesSnapshot(entry, autonomySnapshot, activeAutonomyStages)) return true;
+      completeStaleAutonomyClosureTask(memoryDir, entry, autonomySnapshot);
       return false;
     })
     .filter(t => {
@@ -681,6 +694,54 @@ function correctionTaskMatchesSnapshot(
   const summaryReason = parseCorrectionReasonFromSummary(entry.summary ?? '');
   const reason = payloadReason ?? summaryReason;
   return reason ? activeReasonTypes.has(reason) : true;
+}
+
+function autonomyClosureTaskMatchesSnapshot(
+  entry: MemoryIndexEntry,
+  snapshot: AutonomyClosureSnapshot,
+  activeStages: Set<string>,
+): boolean {
+  if (snapshot.status === 'healthy') return false;
+  const stage = parseAutonomyClosureStage(entry.summary ?? '');
+  if (!stage) return true;
+  return activeStages.has(stage);
+}
+
+function parseAutonomyClosureStage(summary: string): string | null {
+  const match = summary.match(/autonomy closure:\s*repair\s+([a-z0-9-]+)/i);
+  return match?.[1] ?? null;
+}
+
+function completeStaleAutonomyClosureTask(
+  memoryDir: string,
+  entry: MemoryIndexEntry,
+  snapshot: AutonomyClosureSnapshot,
+): void {
+  const stage = parseAutonomyClosureStage(entry.summary ?? '');
+  const reason = snapshot.status === 'healthy'
+    ? 'closure-healthy'
+    : `stage-no-longer-active:${stage ?? 'unknown'}`;
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  updateMemoryIndexEntrySync(memoryDir, entry.id, {
+    status: 'completed',
+    payload: {
+      ...payload,
+      closure_resolved_at: new Date().toISOString(),
+      closure_final_score: snapshot.score,
+      closure_dispatch_skipped_reason: reason,
+    },
+  });
+  completeProcess(entry.id);
+  slog('SCHED', `dispatch-autonomy-closure-stale: completed task=${entry.id.slice(0, 12)} reason=${reason}`);
+  eventBus.emit('action:scheduler', {
+    event: 'autonomy-closure-stale-skip',
+    taskId: entry.id,
+    stage,
+    reason,
+    closureStatus: snapshot.status,
+    closureScore: snapshot.score,
+    ts: new Date().toISOString(),
+  });
 }
 
 function parseCorrectionReasonFromSummary(summary: string): string | null {
