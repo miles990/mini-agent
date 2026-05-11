@@ -23,6 +23,18 @@ describe('provider resource guard', () => {
     }));
   });
 
+  it('classifies Claude Code "hit your limit" as provider quota exhaustion', () => {
+    const result = classifyProviderResourceHold(
+      "Claude Code returned an error result: You've hit your limit · resets May 14, 8am (Asia/Taipei)",
+      new Date('2026-05-11T04:08:40.000Z'),
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      type: 'provider-quota',
+      provider: 'claude',
+    }));
+  });
+
   it('uses a conservative one-hour hold when no reset time is present', () => {
     const result = classifyProviderResourceHold(
       'provider failed: maximum budget exceeded',

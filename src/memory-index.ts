@@ -1101,7 +1101,10 @@ export async function incrementTaskStaleness(
     // and eventually auto-abandoned, but they are backlog/recovery work and must
     // not be promoted to P0 by age alone.
     const isPipelineBacklog = payload.origin === 'pipeline';
-    if (payload.goal_id || (task.type === 'goal' && isPipelineBacklog)) continue;
+    const isMiddlewareResourceBacklog = payload.origin === 'middleware-self-healing'
+      && payload.middleware_failure_bucket === 'budget-or-quota';
+    const isMaintenanceBacklog = isPipelineBacklog || isMiddlewareResourceBacklog;
+    if (payload.goal_id || (task.type === 'goal' && isMaintenanceBacklog)) continue;
     const currentTicks = (payload.ticksSinceLastProgress as number) ?? 0;
     const newTicks = currentTicks + 1;
 
@@ -1120,7 +1123,7 @@ export async function incrementTaskStaleness(
     // by external syncs (issue-autopilot, github-issue) writing the original
     // priority back between cycles, only to be clobbered to 0 again here.
     const alreadyEscalated = !!payload.escalated_at;
-    const shouldEscalateNow = newTicks > 5 && !alreadyEscalated && !isPipelineBacklog;
+    const shouldEscalateNow = newTicks > 5 && !alreadyEscalated && !isMaintenanceBacklog;
 
     const updatedPayload: Record<string, unknown> = {
       ...payload,

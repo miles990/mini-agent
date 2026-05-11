@@ -23,6 +23,7 @@ import {
   type TaskStatusValue,
   type WorkerName,
 } from './middleware-client.js';
+import { CodexCliProvider } from './codex-cli-provider.js';
 
 export interface MiddlewareProviderOptions {
   id: ProviderId;
@@ -146,9 +147,12 @@ export class MiddlewareProvider implements BrainProvider {
 }
 
 export function createDefaultMiddlewareProviders(client?: MiddlewareClient): BrainProvider[] {
+  const codexProvider = process.env.MINI_AGENT_CODEX_PROVIDER === 'middleware'
+    ? new MiddlewareProvider({ id: 'codex', worker: 'coder', client })
+    : new CodexCliProvider();
   return [
     new MiddlewareProvider({ id: 'claude', worker: 'agent-brain', client }),
-    new MiddlewareProvider({ id: 'codex', worker: 'coder', client }),
+    codexProvider,
     new MiddlewareProvider({ id: 'local', worker: 'agent-brain', client, capabilities: { canWrite: false } }),
     new MiddlewareProvider({ id: 'shell', worker: 'shell', client, capabilities: { canUseShell: true } }),
   ];

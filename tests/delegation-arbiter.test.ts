@@ -85,6 +85,7 @@ beforeEach(() => {
   testMemoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-delegation-arbiter-'));
   process.env.MINI_AGENT_MEMORY_DIR = testMemoryDir;
   delete process.env.MINI_AGENT_DELEGATION_RUNTIME;
+  delete process.env.MINI_AGENT_CODEX_PROVIDER;
   vi.mocked(prepareForgeWorkspace).mockReset();
   vi.mocked(prepareForgeWorkspace).mockImplementation((opts: { workdir: string; requiresIsolation: boolean }) => ({
     cwd: opts.requiresIsolation ? '/repo-forge/default' : opts.workdir,
@@ -105,6 +106,7 @@ afterEach(() => {
     process.env.MINI_AGENT_MEMORY_DIR = ORIGINAL_MEMORY_DIR;
   }
   delete process.env.MINI_AGENT_DELEGATION_RUNTIME;
+  delete process.env.MINI_AGENT_CODEX_PROVIDER;
 });
 
 describe('delegation arbitration mapping', () => {
@@ -239,6 +241,7 @@ describe('delegation arbitration mapping', () => {
 
   it('can execute delegations through BrainRuntime when enabled', async () => {
     process.env.MINI_AGENT_DELEGATION_RUNTIME = 'true';
+    process.env.MINI_AGENT_CODEX_PROVIDER = 'middleware';
     const id = spawnDelegation({
       prompt: validPrompt('Review the runtime adapter and return verification evidence for the delegated run'),
       workdir: '/repo',

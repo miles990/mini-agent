@@ -113,5 +113,17 @@ describe('MiddlewareProvider', () => {
   it('creates the default middleware provider set for runtime registration', () => {
     const providers = createDefaultMiddlewareProviders(client());
     expect(providers.map(provider => provider.id)).toEqual(['claude', 'codex', 'local', 'shell']);
+    expect(providers[1]?.constructor.name).toBe('CodexCliProvider');
+  });
+
+  it('only maps codex to middleware coder when explicitly requested', () => {
+    vi.stubEnv('MINI_AGENT_CODEX_PROVIDER', 'middleware');
+    try {
+      const providers = createDefaultMiddlewareProviders(client());
+      expect(providers.map(provider => provider.id)).toEqual(['claude', 'codex', 'local', 'shell']);
+      expect(providers[1]).toBeInstanceOf(MiddlewareProvider);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
