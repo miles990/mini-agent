@@ -207,6 +207,25 @@ interface ForegroundDelegationRecord {
   delegatedAt: string;
 }
 
+/**
+ * Truncate `text` to at most `max` chars without splitting an embedded
+ * task-id-like token (`task-`, `idx-`, `del-`, `cmt-`, etc).
+ * If the cut would land inside a word/identifier, back up to the last
+ * whitespace boundary that kept > max/2 of the prefix. See
+ * memory/notes/2026-05-15-scheduler-id-clobber.md for the rendering bug
+ * this protects against.
+ */
+export function truncatePreservingTaskId(text: string, max: number): string {
+  if (typeof text !== 'string' || text.length <= max) return text;
+  const nextChar = text[max];
+  if (nextChar && /[\w-]/.test(nextChar)) {
+    const cut = text.slice(0, max);
+    const lastSpace = cut.lastIndexOf(' ');
+    if (lastSpace > Math.floor(max / 2)) return cut.slice(0, lastSpace);
+  }
+  return text.slice(0, max);
+}
+
 function getForegroundDelegationsPath(): string {
   return path.join(getInstanceDir(getCurrentInstanceId()), 'foreground-delegations.json');
 }
@@ -3406,9 +3425,9 @@ export class AgentLoop {
             type: 'task',
             status: 'in_progress',
             source: 'ooda-delegate',
-            summary: `[delegate:${taskType}] ${del.prompt.slice(0, 80)}`,
+            summary: `[delegate:${taskType}] ${truncatePreservingTaskId(del.prompt, 80)}`,
           });
-          registerProcess({ id: taskId, summary: `[delegate:${taskType}] ${del.prompt.slice(0, 60)}`, priority: 2, source: 'kuro' as const, status: 'in_progress', createdAt: new Date().toISOString(), ticksSpent: 0, deadline: null, dependsOn: [] });
+          registerProcess({ id: taskId, summary: `[delegate:${taskType}] ${truncatePreservingTaskId(del.prompt, 60)}`, priority: 2, source: 'kuro' as const, status: 'in_progress', createdAt: new Date().toISOString(), ticksSpent: 0, deadline: null, dependsOn: [] });
         } catch { /* fire-and-forget */ }
       }
 
