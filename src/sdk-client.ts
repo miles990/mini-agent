@@ -95,6 +95,14 @@ export async function execClaudeViaSdk(
     let signatureChars = 0;
     let stopReason: string | null = null;
     let resultUsage: Record<string, unknown> | null = null;
+    // Token usage summed across all assistant turns. The SDK call ends via the
+    // 'done' message — the 'result' message (which carries usage) is not
+    // emitted by the current SDK — so usage is accumulated per assistant
+    // message and persisted to the token ledger in finish().
+    let usageInput = 0;
+    let usageOutput = 0;
+    let usageCacheRead = 0;
+    let usageCacheCreation = 0;
     let model: string | null = null;
     let turnsUsed = 0;
     let lastProgressTs = Date.now();
@@ -180,6 +188,20 @@ export async function execClaudeViaSdk(
           entry.stderr_full = err.message.slice(0, 2000);
         } else {
           entry.exit_code = 0;
+          // Persist token usage to the daily ledger. Logged here in finish()
+          // — the single success chokepoint — because the SDK call resolves
+          // via the 'done' message, not the 'result' message.
+          try {
+            getLogger().logTokenUsage({
+              source,
+              model: model ?? undefined,
+              input: usageInput,
+              output: usageOutput,
+              cacheRead: usageCacheRead,
+              cacheCreation: usageCacheCreation,
+              durationMs: now - startTs,
+            });
+          } catch { /* never break the SDK path on a logging failure */ }
         }
         entry.stdout_head_200 = finalText.slice(0, 200);
         entry.stdout_tail_500 = finalText.slice(-500);
@@ -260,6 +282,13 @@ export async function execClaudeViaSdk(
           }
           if (m.message.stop_reason) stopReason = m.message.stop_reason;
           if (m.message.model) model = m.message.model;
+          const turnUsage = m.message.usage as Record<string, number> | undefined;
+          if (turnUsage) {
+            usageInput += turnUsage.input_tokens ?? 0;
+            usageOutput += turnUsage.output_tokens ?? 0;
+            usageCacheRead += turnUsage.cache_read_input_tokens ?? 0;
+            usageCacheCreation += turnUsage.cache_creation_input_tokens ?? 0;
+          }
         } else if (m.type === 'result') {
           const durationMs = Date.now() - startTs;
           resultUsage = (m as { usage?: Record<string, unknown> }).usage ?? null;
@@ -280,19 +309,6 @@ export async function execClaudeViaSdk(
               `tok={in:${inputTok},out:${outputTok},cacheR:${cacheRead},cacheW:${cacheCreate}} ` +
               `duration=${durationMs}ms`,
           );
-          // Persist actual token usage to the daily ledger — previously this
-          // usage was only slog'd and discarded (no token accounting existed).
-          try {
-            getLogger().logTokenUsage({
-              source,
-              model: model ?? undefined,
-              input: inputTok,
-              output: outputTok,
-              cacheRead,
-              cacheCreation: cacheCreate,
-              durationMs,
-            });
-          } catch { /* never break the SDK path on a logging failure */ }
           slog(
             'PROFILE',
             `sdk-child handler: count=${msgHandlerCount + 1} totalMs=${Math.round(msgHandlerTotalMs)} onPartialOutput maxMs=${Math.round(partialOutputMaxMs)}`,
