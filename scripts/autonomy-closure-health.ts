@@ -1,12 +1,14 @@
 #!/usr/bin/env tsx
 import { getMemoryRootDir } from '../src/memory-paths.js';
 import { ensureAutonomyClosureTask, evaluateAutonomyClosure } from '../src/autonomy-closure-health.js';
+import { sweepMiddlewareFailures } from '../src/middleware-failure-self-healing.js';
 
 const args = new Set(process.argv.slice(2));
 const json = args.has('--json');
 const ensure = args.has('--ensure');
 const memoryDir = getMemoryRootDir();
 
+await sweepMiddlewareFailures(memoryDir, { workdir: process.cwd() });
 const snapshot = evaluateAutonomyClosure(memoryDir);
 const task = ensure ? await ensureAutonomyClosureTask(memoryDir, snapshot) : null;
 const payload = { ...snapshot, task };
