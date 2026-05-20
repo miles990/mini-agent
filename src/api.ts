@@ -1090,6 +1090,7 @@ export function createApi(port = 3001): express.Express {
       },
       loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
       cron: { active: getRecurringTaskCount(getMemoryRootDir()), queued: 0 },
+      tokens: getLogger().getTokenUsageSummary(),
       telegram: {
         connected: !!getTelegramPoller(),
         notifications: getNotificationStats(),

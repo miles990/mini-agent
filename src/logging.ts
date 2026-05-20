@@ -24,7 +24,7 @@ import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 /**
  * 日誌類型
  */
-export type LogType = 'claude-call' | 'api-request' | 'cron' | 'error' | 'diag' | 'behavior';
+export type LogType = 'claude-call' | 'api-request' | 'cron' | 'error' | 'diag' | 'behavior' | 'tokens';
 
 /**
  * Claude 輸入
@@ -71,6 +71,32 @@ export interface LogMetadata {
   success: boolean;
   error?: string;
   mode?: string;  // 'task' | 'autonomous' | 'heartbeat'
+}
+
+/**
+ * Per-call token usage — one Claude call's actual token spend.
+ */
+export interface TokenUsage {
+  source: string;       // loop / cron / foreground / delegate ...
+  model?: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreation: number;
+  durationMs?: number;
+}
+
+/**
+ * Aggregated daily token ledger.
+ */
+export interface TokenUsageSummary {
+  date: string;
+  calls: number;
+  totalInput: number;
+  totalOutput: number;
+  totalCacheRead: number;
+  totalCacheCreation: number;
+  bySource: Record<string, { calls: number; input: number; output: number }>;
 }
 
 /**
@@ -187,7 +213,7 @@ export class Logger {
    * 確保日誌目錄存在
    */
   private ensureLogDirs(): void {
-    const dirs = ['claude', 'api', 'cron', 'error', 'diag', 'behavior'];
+    const dirs = ['claude', 'api', 'cron', 'error', 'diag', 'behavior', 'tokens'];
     for (const dir of dirs) {
       const dirPath = path.join(this.logsDir, dir);
       if (!existsSync(dirPath)) {
@@ -207,6 +233,7 @@ export class Logger {
       'error': 'error',
       'diag': 'diag',
       'behavior': 'behavior',
+      'tokens': 'tokens',
     };
     return mapping[type];
   }
@@ -283,6 +310,66 @@ export class Logger {
     };
     this.writeLog(entry);
     return id;
+  }
+
+  /**
+   * 記錄一次 Claude call 的實際 token 用量 — 寫入每日 token 帳本。
+   */
+  logTokenUsage(usage: TokenUsage): string {
+    const id = this.generateRequestId();
+    const entry: LogEntry = {
+      timestamp: new Date().toISOString(),
+      type: 'tokens',
+      instanceId: this.instanceId,
+      requestId: id,
+      data: {
+        source: usage.source,
+        model: usage.model ?? null,
+        input: usage.input,
+        output: usage.output,
+        cacheRead: usage.cacheRead,
+        cacheCreation: usage.cacheCreation,
+      },
+      metadata: { success: true, duration: usage.durationMs },
+    };
+    this.writeLog(entry);
+    return id;
+  }
+
+  /**
+   * 聚合當日 token 帳本 — 總花費 + 依 source 分組。
+   */
+  getTokenUsageSummary(date?: string): TokenUsageSummary {
+    const dateStr = date ?? this.getToday();
+    const summary: TokenUsageSummary = {
+      date: dateStr,
+      calls: 0,
+      totalInput: 0,
+      totalOutput: 0,
+      totalCacheRead: 0,
+      totalCacheCreation: 0,
+      bySource: {},
+    };
+    for (const e of this.readLogFile('tokens', dateStr)) {
+      const d = e.data as {
+        source?: string; input?: number; output?: number;
+        cacheRead?: number; cacheCreation?: number;
+      };
+      const input = d.input ?? 0;
+      const output = d.output ?? 0;
+      summary.calls++;
+      summary.totalInput += input;
+      summary.totalOutput += output;
+      summary.totalCacheRead += d.cacheRead ?? 0;
+      summary.totalCacheCreation += d.cacheCreation ?? 0;
+      const src = d.source ?? 'unknown';
+      const bucket = summary.bySource[src] ?? { calls: 0, input: 0, output: 0 };
+      bucket.calls++;
+      bucket.input += input;
+      bucket.output += output;
+      summary.bySource[src] = bucket;
+    }
+    return summary;
   }
 
   /**

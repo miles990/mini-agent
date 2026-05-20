@@ -1063,6 +1063,27 @@ export async function dequeueNextGoal(memoryDir: string): Promise<string | null>
 const STALENESS_THRESHOLD = 3;
 
 /**
+ * True when a task is marked resolved in task-events.jsonl (by id, exact
+ * summary, or a length>=24 substring variant). Mirrors the resolved cross-check
+ * in getP0TaskPreviews so staleness and P0-preview agree on what is resolved.
+ */
+function taskMatchesResolvedKeys(
+  task: { id: string; summary?: string },
+  resolved: { ids: Set<string>; summaries: Set<string> },
+): boolean {
+  if (resolved.ids.has(task.id)) return true;
+  const summary = (task.summary ?? '').trim();
+  if (summary && resolved.summaries.has(summary)) return true;
+  if (summary.length >= 24) {
+    for (const resolvedSummary of resolved.summaries) {
+      if (resolvedSummary.length < 24) continue;
+      if (summary.includes(resolvedSummary) || resolvedSummary.includes(summary)) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Increment ticksSinceLastProgress for all pending/in_progress tasks.
  * Called at the end of each OODA cycle (fire-and-forget).
  * Returns tasks that exceed the staleness threshold for surfacing.
@@ -1086,6 +1107,12 @@ export async function incrementTaskStaleness(
   const taskEventsBucket = getCachedBucket(memoryDir, 'task-events');
   const taskEventIds = new Set(taskEventsBucket.keys());
 
+  // Issue #525: a task already marked resolved in task-events.jsonl can linger
+  // as `pending` in the index snapshot (event/index desync). Without this guard
+  // it would be ticked and re-escalated to P0 every cycle — the phantom-P0
+  // recurrence loop. Complete such tasks instead of escalating them.
+  const resolvedKeys = loadResolvedTaskKeysFromEvents(memoryDir);
+
   const stale: Array<{ id: string; summary: string; ticks: number; firstEscalation: boolean }> = [];
 
   for (const task of tasks) {
@@ -1093,6 +1120,19 @@ export async function incrementTaskStaleness(
     // Goals live in relations.jsonl and are exempt from this check.
     if (task.type === 'task' && !taskEventIds.has(task.id)) {
       slog('SCHED', `[scheduler] phantom-id-skipped ${task.id} summary="${(task.summary ?? '').slice(0, 60)}" — absent from task-events.jsonl`);
+      continue;
+    }
+
+    // Issue #525: resolved-but-still-pending → complete, never re-escalate.
+    if (taskMatchesResolvedKeys(task, resolvedKeys)) {
+      slog('SCHED', `[scheduler] staleness-resolved-skip ${task.id} — resolved per task-events; completing instead of escalating`);
+      await updateMemoryIndexEntry(memoryDir, task.id, {
+        status: 'completed',
+        payload: {
+          ...((task.payload as Record<string, unknown> | undefined) ?? {}),
+          terminal_resolution: 'resolved per task-events; completed by staleness sweep',
+        },
+      });
       continue;
     }
 

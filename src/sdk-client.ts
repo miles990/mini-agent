@@ -24,6 +24,7 @@ import { performance } from 'node:perf_hooks';
 import path from 'node:path';
 import type { ExecOptions } from './agent.js';
 import { slog } from './utils.js';
+import { getLogger } from './logging.js';
 import { buildForensicEntryShell, writeForensicEntry, type ToolCallRecord } from './forensic-log.js';
 
 /** Tools the subprocess MUST be able to call in order for edits to land. */
@@ -279,6 +280,19 @@ export async function execClaudeViaSdk(
               `tok={in:${inputTok},out:${outputTok},cacheR:${cacheRead},cacheW:${cacheCreate}} ` +
               `duration=${durationMs}ms`,
           );
+          // Persist actual token usage to the daily ledger — previously this
+          // usage was only slog'd and discarded (no token accounting existed).
+          try {
+            getLogger().logTokenUsage({
+              source,
+              model: model ?? undefined,
+              input: inputTok,
+              output: outputTok,
+              cacheRead,
+              cacheCreation: cacheCreate,
+              durationMs,
+            });
+          } catch { /* never break the SDK path on a logging failure */ }
           slog(
             'PROFILE',
             `sdk-child handler: count=${msgHandlerCount + 1} totalMs=${Math.round(msgHandlerTotalMs)} onPartialOutput maxMs=${Math.round(partialOutputMaxMs)}`,
