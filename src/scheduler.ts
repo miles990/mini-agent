@@ -85,6 +85,7 @@ const AGING_BOOST_TICKS = 30;
 
 /** Consecutive terminal-signal cycles before a task is suppressed from dispatch. */
 export const DISPATCH_SUPPRESSION_THRESHOLD = 3;
+const STALE_MIDDLEWARE_TRIAGE_TICKS = 100;
 
 // =============================================================================
 // Default Scheduler
@@ -486,6 +487,7 @@ export function schedulerPick(
     type: ['task'],
     status: ['pending', 'in_progress'],
   });
+  const entriesById = new Map(entries.map(entry => [entry.id, entry]));
 
   resetSuppressionsForExternalEvents(events);
 
@@ -495,14 +497,20 @@ export function schedulerPick(
 
   const tasks: TaskSnapshot[] = entries.map(entryToSnapshot)
     .filter(t => {
-      const entry = entries.find(item => item.id === t.id);
+      const entry = entriesById.get(t.id);
+      if (!entry || !isStaleMiddlewareTriageTask(entry)) return true;
+      completeStaleMiddlewareTriageTask(memoryDir, entry);
+      return false;
+    })
+    .filter(t => {
+      const entry = entriesById.get(t.id);
       if (!entry || !isCorrectionTask(entry)) return true;
       if (correctionTaskMatchesSnapshot(entry, correctionSnapshot, activeCorrectionReasons)) return true;
       slog('SCHED', `dispatch-correction-stale: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)}`);
       return false;
     })
     .filter(t => {
-      const entry = entries.find(item => item.id === t.id);
+      const entry = entriesById.get(t.id);
       if (!entry || !isAutonomyClosureTask(entry)) return true;
       if (autonomyClosureTaskMatchesSnapshot(entry, autonomySnapshot, activeAutonomyStages)) return true;
       completeStaleAutonomyClosureTask(memoryDir, entry, autonomySnapshot);
@@ -680,6 +688,31 @@ export async function schedulerPickAsync(
 
   // stillStale === true or null → proceed with the original decision.
   return decision;
+}
+
+function isStaleMiddlewareTriageTask(entry: MemoryIndexEntry): boolean {
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  const ticks = Number(payload.ticksSinceLastProgress ?? 0);
+  return payload.origin === 'middleware-self-healing'
+    && payload.middleware_failure_bucket === 'other'
+    && String(entry.summary ?? '').startsWith('Triage middleware failed task ')
+    && Number.isFinite(ticks)
+    && ticks > STALE_MIDDLEWARE_TRIAGE_TICKS;
+}
+
+function completeStaleMiddlewareTriageTask(memoryDir: string, entry: MemoryIndexEntry): void {
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  updateMemoryIndexEntrySync(memoryDir, entry.id, {
+    status: 'completed',
+    payload: {
+      ...payload,
+      terminal_resolution: 'middleware triage follow-up exceeded 100 stale ticks without progress',
+      terminal_resolved_at: new Date().toISOString(),
+    },
+    tags: [...new Set([...(entry.tags ?? []), 'stale-triage-closed'])],
+  });
+  try { completeProcess(entry.id); } catch { /* process may not be registered */ }
+  slog('SCHED', `dispatch-stale-middleware-triage: completed task=${entry.id.slice(0, 12)} ${String(entry.summary ?? '').slice(0, 50)}`);
 }
 
 function parseCorrectionReasonFromSummaryExported(summary: string): string | null {

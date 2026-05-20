@@ -1909,6 +1909,7 @@ export function getP0TaskPreviews(memoryDir: string): string[] {
   })
     .filter(t => t.type !== 'task' || taskEventIds.has(t.id))
     .filter(t => getTaskPriority(t) === 0)
+    .filter(t => !isStaleMiddlewareTriagePreview(t))
     .filter(t => {
       // Issue #365: cross-check resolved task-events for any P0 shape.
       if (resolved.ids.has(t.id)) return false;
@@ -1943,6 +1944,16 @@ export function getP0TaskPreviews(memoryDir: string): string[] {
       return !hold;
     })
     .map(t => `P0: ${t.summary ?? t.id}`);
+}
+
+function isStaleMiddlewareTriagePreview(entry: MemoryIndexEntry): boolean {
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  const ticks = Number(payload.ticksSinceLastProgress ?? 0);
+  return payload.origin === 'middleware-self-healing'
+    && payload.middleware_failure_bucket === 'other'
+    && String(entry.summary ?? '').startsWith('Triage middleware failed task ')
+    && Number.isFinite(ticks)
+    && ticks > 100;
 }
 
 /**
