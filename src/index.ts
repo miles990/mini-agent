@@ -69,16 +69,18 @@ export {
   buildContext,
 } from './memory.js';
 
-// Cron
+// Recurrence — recurring work as first-class scheduler tasks (replaces cron)
 export {
-  startCronTasks,
-  stopCronTasks,
-  getActiveCronTasks,
-  getCronTaskCount,
-  addCronTask,
-  removeCronTask,
-  reloadCronTasks,
-} from './cron.js';
+  nextFireTime,
+  isValidRecurrence,
+  syncRecurringTasks,
+  rearmRecurringTasks,
+  listRecurringTasks,
+  getRecurringTaskCount,
+  addRecurringTask,
+  removeRecurringTask,
+} from './recurrence.js';
+export type { RecurringSeed, RecurringSyncResult } from './recurrence.js';
 
 // Watcher
 export {

@@ -1,14 +1,14 @@
 /**
  * File Watcher - 監聽 agent-compose.yaml 變化
  *
- * 支援熱重載 cron 任務
+ * 支援熱重載 recurring 任務
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { findComposeFile, readComposeFile } from './compose.js';
-import { reloadCronTasks } from './cron.js';
-import type { CronTask } from './types.js';
+import { getMemoryRootDir } from './memory-paths.js';
+import { syncRecurringTasks, type RecurringSeed } from './recurrence.js';
 
 let watcher: fs.FSWatcher | null = null;
 let debounceTimer: NodeJS.Timeout | null = null;
@@ -85,23 +85,29 @@ function handleComposeChange(filePath: string): void {
     lastContent = newContent;
     console.log('[Watcher] Detected change in compose file');
 
-    // 解析並重新載入 cron 任務
+    // 解析並重新同步 recurring 任務
     const compose = readComposeFile(filePath);
 
-    // 收集所有 agent 的 cron 任務
-    const allCronTasks: CronTask[] = [];
+    // 收集所有 agent 的 recurring 任務 seed
+    const allSeeds: RecurringSeed[] = [];
     for (const agent of Object.values(compose.agents)) {
       if (agent.cron && agent.cron.length > 0) {
-        allCronTasks.push(...agent.cron);
+        allSeeds.push(...agent.cron);
       }
     }
 
-    // 熱重載
-    const result = reloadCronTasks(allCronTasks);
-
-    if (result.added > 0 || result.removed > 0) {
-      console.log(`[Watcher] Cron tasks updated: +${result.added} -${result.removed}`);
-    }
+    // 熱重載 — reconcile recurring tasks against memory-index
+    syncRecurringTasks(getMemoryRootDir(), allSeeds)
+      .then(result => {
+        if (result.created > 0 || result.updated > 0 || result.removed > 0) {
+          console.log(
+            `[Watcher] Recurring tasks updated: +${result.created} ~${result.updated} -${result.removed}`,
+          );
+        }
+      })
+      .catch(err => {
+        console.error('[Watcher] Error syncing recurring tasks:', err instanceof Error ? err.message : err);
+      });
   } catch (error) {
     console.error('[Watcher] Error reloading compose:', error instanceof Error ? error.message : error);
   }

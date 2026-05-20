@@ -55,7 +55,7 @@ import {
   DEFAULT_COMPOSE_FILE,
   type ComposeOptions,
 } from './compose.js';
-import { startCronTasks, stopCronTasks, getCronTaskCount, getActiveCronTasks } from './cron.js';
+import { syncRecurringTasks, getRecurringTaskCount, listRecurringTasks } from './recurrence.js';
 import { startComposeWatcher, stopComposeWatcher } from './watcher.js';
 import { AgentLoop } from './loop.js';
 import { parseInterval } from './cycle-tasks.js';
@@ -1370,8 +1370,8 @@ async function runChat(port: number): Promise<void> {
   const agents = Object.values(compose.agents);
   const currentAgent = agents.find(a => a.name === instanceId) || agents[0];
   if (currentAgent?.cron && currentAgent.cron.length > 0) {
-    startCronTasks(currentAgent.cron);
-    cronCount = getCronTaskCount();
+    await syncRecurringTasks(memoryPlacement.memoryRoot, currentAgent.cron);
+    cronCount = getRecurringTaskCount(memoryPlacement.memoryRoot);
   }
 
   // 啟動熱重載 watcher
@@ -1397,7 +1397,7 @@ async function runChat(port: number): Promise<void> {
 
   setSelfStatusProvider(() => {
     const loopStatus = agentLoop?.getStatus() ?? null;
-    const cronTasks = getActiveCronTasks();
+    const cronTasks = listRecurringTasks(memoryPlacement.memoryRoot);
 
     return {
       name: agentName,
@@ -1412,7 +1412,10 @@ async function runChat(port: number): Promise<void> {
         lastAction: loopStatus.lastAction,
         nextCycleAt: loopStatus.nextCycleAt,
       } : null,
-      cronTasks: cronTasks.map(t => ({ schedule: t.schedule, task: t.task })),
+      cronTasks: cronTasks.map(t => ({
+        schedule: String((t.payload as Record<string, unknown>)?.recurrence ?? ''),
+        task: t.summary ?? '',
+      })),
     };
   });
 

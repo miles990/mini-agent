@@ -16,6 +16,7 @@ import { evaluateCorrectionGate, isCorrectionTask, type CorrectionGateSnapshot }
 import { evaluateAutonomyClosure, isAutonomyClosureTask, type AutonomyClosureSnapshot } from './autonomy-closure-health.js';
 import { reverifyPredicate } from './predicate-freshness.js';
 import { filterHeldCorrectionTasks } from './correction-holds.js';
+import { rearmRecurringTasks } from './recurrence.js';
 
 // =============================================================================
 // Types
@@ -462,12 +463,16 @@ export function schedulerPick(
   memoryDir: string,
   events: IncomingEvent[] = [],
 ): SchedulingDecision {
-  // Check hold tasks every 10 ticks
-  if (schedulerState.totalTicks > 0 && schedulerState.totalTicks % 10 === 0) {
-    const result = checkHoldTasks(memoryDir);
-    if (result.unblocked.length > 0) {
-      slog('SCHED', `unblocked ${result.unblocked.length} hold tasks`);
-    }
+  // Recurring-task lifecycle, reconciled every tick (granularity = OODA cycle):
+  //  - re-arm completed recurring tasks → hold with their next fire time
+  //  - unblock hold tasks whose condition is met → pending
+  // Re-arm writes are fire-and-forget (matches checkHoldTasks' own async writes).
+  void rearmRecurringTasks(memoryDir).catch(err =>
+    slog('SCHED', `rearmRecurringTasks failed: ${err instanceof Error ? err.message : String(err)}`),
+  );
+  const holdResult = checkHoldTasks(memoryDir);
+  if (holdResult.unblocked.length > 0) {
+    slog('SCHED', `unblocked ${holdResult.unblocked.length} hold tasks`);
   }
 
   const correctionSnapshot = evaluateCorrectionGate(memoryDir);

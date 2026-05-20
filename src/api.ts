@@ -123,7 +123,7 @@ import {
   getInstanceDir,
 } from './instance.js';
 import { getLogger, type LogType, type BehaviorLogEntry } from './logging.js';
-import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount, getCronQueueSize, stopCronTasks } from './cron.js';
+import { syncRecurringTasks, addRecurringTask, removeRecurringTask, listRecurringTasks, getRecurringTaskCount } from './recurrence.js';
 import { AgentLoop } from './loop.js';
 import { parseInterval } from './cycle-tasks.js';
 import { findComposeFile, readComposeFile } from './compose.js';
@@ -1081,7 +1081,7 @@ export function createApi(port = 3001): express.Express {
         foreground: laneStatus.foreground,
       },
       loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
-      cron: { active: getCronTaskCount(), queued: getCronQueueSize() },
+      cron: { active: getRecurringTaskCount(getMemoryRootDir()), queued: 0 },
       telegram: {
         connected: !!getTelegramPoller(),
         notifications: getNotificationStats(),
@@ -2205,14 +2205,18 @@ export function createApi(port = 3001): express.Express {
   // Cron
   // =============================================================================
 
-  // 列出所有 cron 任務
+  // 列出所有 recurring 任務（路徑保留 /cron 以維持相容）
   app.get('/cron', (_req: Request, res: Response) => {
-    const tasks = getActiveCronTasks();
+    const entries = listRecurringTasks(getMemoryRootDir());
+    const tasks = entries.map(e => ({
+      schedule: String((e.payload as Record<string, unknown>)?.recurrence ?? ''),
+      task: e.summary ?? '',
+    }));
     res.json({ tasks, count: tasks.length });
   });
 
-  // 新增 cron 任務
-  app.post('/cron', (req: Request, res: Response) => {
+  // 新增 recurring 任務
+  app.post('/cron', async (req: Request, res: Response) => {
     const { schedule, task, enabled } = req.body as CronTask;
 
     if (!schedule || !task) {
@@ -2220,7 +2224,7 @@ export function createApi(port = 3001): express.Express {
       return;
     }
 
-    const result = addCronTask({ schedule, task, enabled });
+    const result = await addRecurringTask(getMemoryRootDir(), { schedule, task, enabled });
     if (result.success) {
       res.json({ success: true, task: { schedule, task, enabled } });
     } else {
@@ -2228,8 +2232,8 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
-  // 移除 cron 任務
-  app.delete('/cron/:index', (req: Request, res: Response) => {
+  // 移除 recurring 任務（by index into the current recurring-task list）
+  app.delete('/cron/:index', async (req: Request, res: Response) => {
     const index = parseInt(req.params.index, 10);
 
     if (isNaN(index)) {
@@ -2237,7 +2241,14 @@ export function createApi(port = 3001): express.Express {
       return;
     }
 
-    const result = removeCronTask(index);
+    const entries = listRecurringTasks(getMemoryRootDir());
+    const target = entries[index];
+    if (!target) {
+      res.status(404).json({ error: 'Recurring task not found' });
+      return;
+    }
+    const key = String((target.payload as Record<string, unknown>)?.recurrenceKey ?? '');
+    const result = await removeRecurringTask(getMemoryRootDir(), key);
     if (result.success) {
       res.json({ success: true });
     } else {
@@ -2245,8 +2256,8 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
-  // 重新載入 cron 任務
-  app.post('/cron/reload', (req: Request, res: Response) => {
+  // 重新同步 recurring 任務
+  app.post('/cron/reload', async (req: Request, res: Response) => {
     const { tasks } = req.body as { tasks: CronTask[] };
 
     if (!tasks || !Array.isArray(tasks)) {
@@ -2254,7 +2265,7 @@ export function createApi(port = 3001): express.Express {
       return;
     }
 
-    const result = reloadCronTasks(tasks);
+    const result = await syncRecurringTasks(getMemoryRootDir(), tasks);
     res.json({ success: true, ...result });
   });
 
@@ -3877,7 +3888,7 @@ if (isMain) {
     slog('ENV', `Loaded from ${envFile}`);
   }
 
-  // ── Cron: 從 compose 讀取並啟動 ──
+  // ── Recurring tasks: 從 compose 讀取並 seed 進 scheduler ──
   let currentAgent: import('./types.js').ComposeAgent | undefined;
 
   if (composeFile) {
@@ -3886,7 +3897,9 @@ if (isMain) {
     currentAgent = agents.find(a => a.name === instanceConfig?.name) || agents[0];
 
     if (currentAgent?.cron && currentAgent.cron.length > 0) {
-      startCronTasks(currentAgent.cron);
+      void syncRecurringTasks(getMemoryRootDir(), currentAgent.cron).catch(err =>
+        slog('RECUR', `seed failed: ${err instanceof Error ? err.message : String(err)}`),
+      );
     }
   }
 
@@ -3936,7 +3949,10 @@ if (isMain) {
       lastAction: loopRef.getStatus().lastAction,
       nextCycleAt: loopRef.getStatus().nextCycleAt,
     } : null,
-    cronTasks: getActiveCronTasks().map(t => ({ schedule: t.schedule, task: t.task })),
+    cronTasks: listRecurringTasks(getMemoryRootDir()).map(t => ({
+      schedule: String((t.payload as Record<string, unknown>)?.recurrence ?? ''),
+      task: t.summary ?? '',
+    })),
   }));
 
   // ── Background Collectors (mechanism-level fix: HTTP handlers never do sync I/O) ──
@@ -4068,8 +4084,8 @@ if (isMain) {
   const server = app.listen(port, '0.0.0.0', () => {
     slog('SERVER', `Started on :${port} (instance: ${instanceId})`);
     slog('MEMORY', `${memoryPlacement.memoryRoot} (${memoryPlacement.reason})`);
-    const cronCount = getCronTaskCount();
-    if (cronCount > 0) slog('CRON', `${cronCount} task(s) active`);
+    const cronCount = getRecurringTaskCount(getMemoryRootDir());
+    if (cronCount > 0) slog('RECUR', `${cronCount} recurring task(s) active`);
     if (loopRef) {
       loopRef.start();
 
@@ -4173,9 +4189,8 @@ if (isMain) {
     const mem = process.memoryUsage();
     slog('SERVER', `Shutting down... (heap=${Math.round(mem.heapUsed / 1048576)}/${Math.round(mem.heapTotal / 1048576)}MB, rss=${Math.round(mem.rss / 1048576)}MB)`);
 
-    // Stop accepting new work (loop, cron, telegram)
+    // Stop accepting new work (loop, telegram)
     if (loopRef) loopRef.stop();
-    stopCronTasks();
     if (telegramPoller) telegramPoller.stop();
     stopHeartbeat();
     stopMemoryCache();
