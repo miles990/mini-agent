@@ -18,6 +18,7 @@ import {
   classifyMiddlewareFailures,
   getMiddlewareFailureClassificationPath,
   closeTerminalBrainMaxTurnFollowUps,
+  closeStaleMiddlewareTriageFollowUps,
   readMiddlewareFailureClassificationsSync,
   sweepMiddlewareFailures,
 } from '../src/middleware-failure-self-healing.js';
@@ -340,6 +341,95 @@ describe('middleware failure self-healing', () => {
     }));
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })[0].payload?.retry_envelope)
       .toEqual(expect.objectContaining({ strategy: 'compressed-provider-resume' }));
+  });
+
+  it('creates unknown middleware triage as P1, not scheduler-blocking P0', async () => {
+    const result = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-unknown',
+      worker: 'shell',
+      status: 'failed',
+      task: 'unexpected tool failure',
+      error: 'unrecognized failure shape',
+    }], new Date('2026-05-15T08:32:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ failed: 1, classified: 1 }));
+    const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
+    expect(followUps).toEqual([
+      expect.objectContaining({
+        summary: 'Triage middleware failed task task-unknown (other)',
+        payload: expect.objectContaining({
+          origin: 'middleware-self-healing',
+          middleware_failure_task_id: 'task-unknown',
+          middleware_failure_bucket: 'other',
+          priority: 1,
+        }),
+      }),
+    ]);
+  });
+
+  it('closes stale middleware triage follow-ups after 100 ticks even if the failed task is still visible', async () => {
+    await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Triage middleware failed task task-1778478787508-3 (other)',
+      refs: [],
+      tags: ['middleware', 'self-healing', 'other'],
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_task_id: 'task-1778478787508-3',
+        middleware_failure_bucket: 'other',
+        ticksSinceLastProgress: 101,
+        priority: 0,
+      },
+    });
+
+    const closed = await closeStaleMiddlewareTriageFollowUps(memoryDir, [{
+      id: 'task-1778478787508-3',
+      worker: 'shell',
+      status: 'failed',
+      task: 'still failing but triage made no progress',
+    }], new Date('2026-05-15T08:32:00.000Z'));
+
+    expect(closed).toBe(1);
+    const completed = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['completed'] });
+    expect(completed).toEqual([
+      expect.objectContaining({
+        summary: 'Triage middleware failed task task-1778478787508-3 (other)',
+        payload: expect.objectContaining({
+          terminal_resolution: 'middleware triage follow-up exceeded 100 stale ticks without progress',
+          terminal_resolved_at: '2026-05-15T08:32:00.000Z',
+        }),
+        tags: expect.arrayContaining(['stale-triage-closed']),
+      }),
+    ]);
+  });
+
+  it('closes middleware triage follow-ups whose failed task disappeared from the live middleware task list', async () => {
+    await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Triage middleware failed task task-1778459005838-l (other)',
+      refs: [],
+      tags: ['middleware', 'self-healing', 'other'],
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_task_id: 'task-1778459005838-l',
+        middleware_failure_bucket: 'other',
+        ticksSinceLastProgress: 12,
+        priority: 0,
+      },
+    });
+
+    const result = await classifyMiddlewareFailures(memoryDir, [], new Date('2026-05-15T08:32:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ scanned: 0, failed: 0 }));
+    const completed = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['completed'] });
+    expect(completed[0]).toEqual(expect.objectContaining({
+      summary: 'Triage middleware failed task task-1778459005838-l (other)',
+      payload: expect.objectContaining({
+        terminal_resolution: 'middleware triage follow-up closed because the failed task is no longer live',
+      }),
+    }));
   });
 
   it('reclassifies a known task when better error-only signal changes the bucket', async () => {
