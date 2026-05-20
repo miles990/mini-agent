@@ -11,7 +11,7 @@ try {
   (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile?.();
 } catch { /* no .env present, or unsupported Node — proceed with existing process.env */ }
 
-import { spawn as spawnChild } from 'node:child_process';
+import { execFileSync, spawn as spawnChild } from 'node:child_process';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import https from 'node:https';
@@ -36,6 +36,14 @@ interface LoopLagSnapshot {
   mean: number;
   stddev: number;
   samples: number;
+}
+
+function codexCliAvailable(): boolean {
+  try {
+    return Boolean(execFileSync('sh', ['-lc', 'command -v codex'], { timeout: 1000 }).toString().trim());
+  } catch {
+    return false;
+  }
 }
 
 function getLoopLagSnapshot(): LoopLagSnapshot {
@@ -1092,6 +1100,8 @@ export function createApi(port = 3001): express.Express {
       provider: {
         primary: getProvider(),
         fallback: getFallback(),
+        codexBackend: process.env.MINI_AGENT_CODEX_PROVIDER === 'middleware' ? 'middleware-coder' : 'codex-cli',
+        codexAvailable: process.env.MINI_AGENT_CODEX_PROVIDER === 'middleware' ? null : codexCliAvailable(),
         codexModel: process.env.CODEX_MODEL || null,
         perSource: {
           loop: getProviderForSource('loop'),

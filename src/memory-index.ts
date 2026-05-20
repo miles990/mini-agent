@@ -1101,7 +1101,10 @@ export async function incrementTaskStaleness(
     // and eventually auto-abandoned, but they are backlog/recovery work and must
     // not be promoted to P0 by age alone.
     const isPipelineBacklog = payload.origin === 'pipeline';
-    if (payload.goal_id || (task.type === 'goal' && isPipelineBacklog)) continue;
+    const isMiddlewareResourceBacklog = payload.origin === 'middleware-self-healing'
+      && payload.middleware_failure_bucket === 'budget-or-quota';
+    const isMaintenanceBacklog = isPipelineBacklog || isMiddlewareResourceBacklog;
+    if (payload.goal_id || (task.type === 'goal' && isMaintenanceBacklog)) continue;
     const currentTicks = (payload.ticksSinceLastProgress as number) ?? 0;
     const newTicks = currentTicks + 1;
 
@@ -1120,7 +1123,7 @@ export async function incrementTaskStaleness(
     // by external syncs (issue-autopilot, github-issue) writing the original
     // priority back between cycles, only to be clobbered to 0 again here.
     const alreadyEscalated = !!payload.escalated_at;
-    const shouldEscalateNow = newTicks > 5 && !alreadyEscalated && !isPipelineBacklog;
+    const shouldEscalateNow = newTicks > 5 && !alreadyEscalated && !isMaintenanceBacklog;
 
     const updatedPayload: Record<string, unknown> = {
       ...payload,
@@ -1850,8 +1853,25 @@ export function loadResolvedTaskKeysFromEvents(memoryDir: string): {
       kind?: string; event?: string;
       task?: string; task_id?: string;
       to?: string; rank?: string;
+      type?: string; status?: string; id?: string; summary?: string;
     };
     try { evt = JSON.parse(line); } catch { continue; }
+    // Widened resolution channel (issue: scheduler ID-clobber phantom re-injection):
+    // Live runtime emits ~470 type:"task" resolution events per 3000 events
+    // vs only 2 stack_rank events. Loader was blind to status:"completed"/"resolved"/"done"
+    // signals, causing phantom re-injection of already-resolved tasks.
+    if (evt.type === 'task' && typeof evt.status === 'string'
+        && (evt.status === 'completed' || evt.status === 'resolved' || evt.status === 'done')) {
+      const taskKey = (typeof evt.id === 'string' && evt.id)
+        ? evt.id
+        : (typeof evt.summary === 'string' ? evt.summary.trim() : '');
+      if (taskKey && !seen.has(taskKey)) {
+        seen.add(taskKey);
+        if (typeof evt.id === 'string') ids.add(evt.id);
+        if (typeof evt.summary === 'string') summaries.add(evt.summary.trim());
+      }
+      continue;
+    }
     const kind = evt.kind ?? evt.event ?? '';
     if (kind !== 'stack_rank') continue;
     const key = evt.task_id ?? evt.task ?? '';

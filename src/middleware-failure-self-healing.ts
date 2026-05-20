@@ -127,6 +127,9 @@ export async function classifyMiddlewareFailures(
     const status: MiddlewareFailureClassification['status'] = providerHold ? 'held' : 'classified';
     const existing = known.get(taskId);
     if (existing && existing.bucket === bucket && existing.status === status) {
+      if (providerHold) {
+        await closeSupersededTriageFollowUps(memoryDir, taskId, providerHold, now);
+      }
       if (await upgradeMissingFailurePlaybook(memoryDir, existing, task, now)) {
         result.playbookUpgraded++;
       }
@@ -148,6 +151,7 @@ export async function classifyMiddlewareFailures(
     let lifecycleAction: MiddlewareFailureLifecycleAction = 'triage';
 
     if (providerHold) {
+      await closeSupersededTriageFollowUps(memoryDir, taskId, providerHold, now);
       providerHoldTaskId = await ensureProviderHoldTask(memoryDir, providerHold, task, now);
       followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
       result.held++;
@@ -232,6 +236,31 @@ function upgradedLifecycleAction(
   if (bucket === 'offline' || bucket === 'stall-or-timeout') return 'recover-lane';
   if (bucket === 'workspace-isolation') return 'repair-workspace';
   return current ?? 'triage';
+}
+
+async function closeSupersededTriageFollowUps(
+  memoryDir: string,
+  taskId: string,
+  hold: ProviderResourceHold,
+  now: Date,
+): Promise<number> {
+  const stale = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress'] })
+    .filter(entry => entry.summary === `Triage middleware failed task ${taskId} (other)`);
+  let closed = 0;
+  for (const entry of stale) {
+    const updated = await updateMemoryIndexEntry(memoryDir, entry.id, {
+      status: 'hold',
+      tags: Array.from(new Set([...(entry.tags ?? []), 'middleware', 'provider-hold', 'superseded-triage'])),
+      payload: {
+        ...(entry.payload ?? {}),
+        supersededBy: 'provider-resource-hold',
+        provider_resource_hold: hold,
+        updatedAt: now.toISOString(),
+      },
+    });
+    if (updated) closed++;
+  }
+  return closed;
 }
 
 export function reconcileRecoveredOfflineDelegationFailures(memoryDir: string, now = new Date()): number {
@@ -356,7 +385,7 @@ export function readClassifiedMiddlewareTaskIds(memoryDir: string): Set<string> 
 
 export function classifyMiddlewareFailureBucket(text: string): MiddlewareFailureBucket {
   const lower = text.toLowerCase();
-  if (/maximum budget|out of extra usage|usage limit|quota|rate.?limit/.test(lower)) return 'budget-or-quota';
+  if (/maximum budget|out of extra usage|usage limit|hit your limit|quota|rate.?limit/.test(lower)) return 'budget-or-quota';
   if (/maximum number of turns|max turns/.test(lower)) return 'max-turns';
   if (/stall|no activity|timeout|did not complete/.test(lower)) return 'stall-or-timeout';
   if (/offline|econnrefused|fetch failed/.test(lower)) return 'offline';

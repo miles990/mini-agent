@@ -77,6 +77,67 @@ describe('middleware failure self-healing', () => {
     }));
   });
 
+  it('classifies Claude Code "hit your limit" failures as quota holds, not P0 triage', async () => {
+    await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Triage middleware failed task task-hit-limit (other)',
+      refs: [],
+      tags: ['middleware'],
+      payload: { priority: 0 },
+    });
+
+    const result = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-hit-limit',
+      worker: 'agent-brain',
+      status: 'failed',
+      task: 'Think through the current autonomous cycle',
+      error: "Claude Code returned an error result: You've hit your limit · resets May 14, 8am (Asia/Taipei)",
+      completedAt: '2026-05-11T04:08:38.102Z',
+    }], new Date('2026-05-11T04:08:40.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ failed: 1, classified: 1, held: 1 }));
+    expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-hit-limit',
+      bucket: 'budget-or-quota',
+      status: 'held',
+      lifecycleAction: 'provider-hold-fallback',
+    }));
+
+    const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
+    expect(followUps).toHaveLength(1);
+    expect(followUps[0].summary).not.toContain('Triage middleware failed task');
+    expect(followUps[0].payload?.priority).toBe(1);
+
+    const held = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] });
+    expect(held).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        summary: 'Triage middleware failed task task-hit-limit (other)',
+        tags: expect.arrayContaining(['superseded-triage']),
+      }),
+    ]));
+
+    await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Triage middleware failed task task-hit-limit (other)',
+      refs: [],
+      tags: ['middleware'],
+      payload: { priority: 0 },
+    });
+    const skippedKnown = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-hit-limit',
+      worker: 'agent-brain',
+      status: 'failed',
+      task: 'Think through the current autonomous cycle',
+      error: "Claude Code returned an error result: You've hit your limit · resets May 14, 8am (Asia/Taipei)",
+    }], new Date('2026-05-11T04:09:40.000Z'));
+
+    expect(skippedKnown).toEqual(expect.objectContaining({ skippedKnown: 1 }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })
+      .some(entry => entry.summary === 'Triage middleware failed task task-hit-limit (other)')).toBe(false);
+  });
+
   it('is idempotent for already classified middleware task ids', async () => {
     const task = {
       id: 'task-budget',

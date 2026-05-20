@@ -141,4 +141,31 @@ describe('issue #156 — staleness escalation idempotency', () => {
     }));
     expect((getTask(e.id).payload as Record<string, unknown>).escalated_at).toBeUndefined();
   });
+
+  it('does not promote middleware quota fallback tasks to P0 by staleness alone', async () => {
+    const e = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Create fallback for middleware task task-123 after provider budget hold',
+      tags: ['middleware', 'self-healing', 'budget-or-quota'],
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_bucket: 'budget-or-quota',
+        priority: 1,
+      },
+    });
+
+    const stale = await bumpTicks(tmpDir, 6);
+
+    const found = stale.find(s => s.id === e.id);
+    expect(found).toEqual(expect.objectContaining({
+      id: e.id,
+      firstEscalation: false,
+    }));
+    expect(getTask(e.id).payload).toEqual(expect.objectContaining({
+      priority: 1,
+      ticksSinceLastProgress: 6,
+    }));
+    expect((getTask(e.id).payload as Record<string, unknown>).escalated_at).toBeUndefined();
+  });
 });
