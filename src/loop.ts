@@ -20,7 +20,7 @@ import { diagLog, slog } from './utils.js';
 import { parseTags, postProcess, extractDecisionBlock, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
 import { generateWorkingMemory } from './cascade.js';
 import type { ParsedTags } from './types.js';
-import { notifyTelegram, clearLastReaction, getLastAlexMessageId } from './telegram.js';
+import { notifyTelegram, clearLastReaction, getLastAlexMessageId, flushSummary } from './telegram.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stream.js';
@@ -33,7 +33,6 @@ import { mushiTriage, mushiContinuationCheck } from './mushi-client.js';
 import type { TriageContext, ContinuationContext } from './mushi-client.js';
 import { extractCommitments, updateCommitments, hasOverdueCommitments } from './commitments.js';
 import { writeCommitment, expireOverdueCommitments, ackCommitment } from './commitment-ledger.js';
-import { drainCronQueue } from './cron.js';
 import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
@@ -473,6 +472,8 @@ export class AgentLoop {
   private nextCycleAt: string | null = null;
   private cycling = false;
   private hasPendingDelegationResults = false;
+  // 6h notification-summary flush — replaces the former cron flushJob.
+  private lastSummaryFlushAt = Date.now();
 
   // ── Continuation State ──
   private consecutiveNowCount = 0;
@@ -4079,10 +4080,12 @@ export class AgentLoop {
         cleanupStaleLaneOutput(instanceId);
       } catch { /* fire-and-forget */ }
 
-      // Drain one queued cron task（loopBusy now free）
-      if (isEnabled('cron-drain')) {
-        const done = trackStart('cron-drain');
-        drainCronQueue().then(() => done(), e => done(String(e)));
+      // Flush accumulated notification summary every 6h
+      // (replaces the former cron flushJob; recurring work is now scheduler tasks).
+      if (Date.now() - this.lastSummaryFlushAt >= 6 * 60 * 60 * 1000) {
+        this.lastSummaryFlushAt = Date.now();
+        const digest = flushSummary();
+        if (digest) notifyTelegram(digest).catch(() => {});
       }
 
       // ── Constraint Texture: task staleness pressure ──
@@ -4140,8 +4143,8 @@ export class AgentLoop {
         const waited = Math.round((Date.now() - pp.arrivedAt) / 1000);
         slog('LOOP', `Draining priority: ${pp.reason} (${pp.messageCount} msg, waited ${waited}s)`);
         eventBus.emit('action:loop', { event: 'priority.drain', reason: pp.reason, waitedMs: Date.now() - pp.arrivedAt });
-        // Wait for concurrent callClaude (e.g. drainCronQueue) to finish before
-        // starting priority cycle — otherwise busy guard blocks it (0.0s cycle)
+        // Wait for any concurrent callClaude to finish before starting the
+        // priority cycle — otherwise busy guard blocks it (0.0s cycle)
         const drainStartWait = Date.now();
         const maxBusyWait = 120_000;
         const tryDrainPriority = () => {
