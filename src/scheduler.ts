@@ -489,7 +489,7 @@ export function schedulerPick(
   });
   const entriesById = new Map(entries.map(entry => [entry.id, entry]));
 
-  resetSuppressionsForExternalEvents(events);
+  persistSuppressedTasksToHold(memoryDir, entriesById);
 
   const phantomTitles = loadPhantomTaskTitles(memoryDir);
   const phantomClosureKeys = loadPhantomClosureKeys(memoryDir);
@@ -862,15 +862,47 @@ export function resetAllSuppressions(): void {
   }
 }
 
-function resetSuppressionsForExternalEvents(events: IncomingEvent[]): void {
-  if (suppressedTaskIds.size === 0 && terminalSignalCount.size === 0) return;
-  const hasHumanDirectedEvent = events.some(event =>
-    event.isAlexDirectMessage
-    || event.priority === 0
-    || ['telegram', 'telegram-user', 'room', 'chat'].includes(event.source),
-  );
-  if (!hasHumanDirectedEvent) return;
-  resetAllSuppressions();
+/**
+ * Cooldown a suppressed task is held for before it is re-evaluated.
+ * After this window checkHoldTasks unblocks it; if it is still non-converging
+ * it gets re-suppressed and re-held, capping wasted cycles to the threshold
+ * (3) per cooldown window instead of an unbounded re-spin loop.
+ */
+const SUPPRESSION_HOLD_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Persist dispatch suppression durably. A task suppressed in-memory (3+ terminal
+ * signals) is downgraded to a held memory-index task with a date-after cooldown,
+ * so it leaves the pending/in_progress dispatch pool, survives process restart,
+ * and is no longer re-picked every cycle. This is the CT downgrade: non-converging
+ * work loses its "active judgment" texture instead of being re-spun at full cost.
+ *
+ * Replaces the former resetSuppressionsForExternalEvents, which globally cleared
+ * all suppression on any room/telegram message — defeating suppression entirely.
+ */
+function persistSuppressedTasksToHold(
+  memoryDir: string,
+  entriesById: Map<string, MemoryIndexEntry>,
+): void {
+  if (suppressedTaskIds.size === 0) return;
+  const until = new Date(Date.now() + SUPPRESSION_HOLD_COOLDOWN_MS).toISOString();
+  for (const taskId of [...suppressedTaskIds]) {
+    const entry = entriesById.get(taskId);
+    if (!entry) continue; // not in the dispatch pool — already held or resolved
+    const payload = { ...((entry.payload as Record<string, unknown> | undefined) ?? {}) };
+    payload.holdCondition = { type: 'date-after', value: until };
+    payload.suppressionHold = true;
+    void updateMemoryIndexEntry(memoryDir, taskId, { status: 'hold', payload })
+      .then(() => {
+        // The durable hold now owns the suppression; clear the in-memory bridge
+        // so the task gets one fair re-evaluation when the cooldown expires.
+        suppressedTaskIds.delete(taskId);
+        terminalSignalCount.delete(taskId);
+      })
+      .catch(err =>
+        slog('SCHED', `suppression-hold failed task=${taskId.slice(0, 12)}: ${err instanceof Error ? err.message : String(err)}`),
+      );
+  }
 }
 
 export function isTaskSuppressed(taskId: string): boolean {

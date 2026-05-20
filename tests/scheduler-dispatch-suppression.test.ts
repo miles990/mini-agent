@@ -438,11 +438,14 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
     expect(completed.payload?.terminal_resolution).toBe('middleware triage follow-up exceeded 100 stale ticks without progress');
   });
 
-  it('resets suppression on a human-directed scheduler event', async () => {
+  it('keeps suppression even after a human-directed scheduler event', async () => {
+    // A room/Alex message about anything must NOT un-suppress an unrelated
+    // non-converging task. Reviving a specific task is an explicit action
+    // (resetTaskSuppression), not an implicit side effect of any message.
     const task = await appendMemoryIndexEntry(tmpDir, {
       type: 'task',
       status: 'pending',
-      summary: 'P0 task revived by Alex message',
+      summary: 'P0 task that keeps signalling terminal',
       payload: { priority: 0 },
     });
     invalidateIndexCache();
@@ -454,8 +457,36 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
 
     const decision = schedulerPick(tmpDir, [{ source: 'room', priority: 0, isAlexDirectMessage: true }]);
 
-    expect(isTaskSuppressed(task.id)).toBe(false);
-    expect(getTerminalSignalCount(task.id)).toBe(0);
-    expect(decision.taskId).toBe(task.id);
+    expect(isTaskSuppressed(task.id)).toBe(true);
+    expect(decision.taskId).not.toBe(task.id);
+  });
+
+  it('downgrades a suppressed task to a held task with a future cooldown', async () => {
+    // CT: a task terminal-signalled past the threshold has its texture
+    // downgraded — persisted as a held task so it leaves the dispatch pool
+    // and survives restart, instead of being re-spun every cycle.
+    const task = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 phantom task that never converges',
+      payload: { priority: 0 },
+    });
+    invalidateIndexCache();
+
+    for (let i = 0; i < DISPATCH_SUPPRESSION_THRESHOLD; i++) {
+      recordTaskTerminalSignal(task.id);
+    }
+
+    schedulerPick(tmpDir, []);
+    await new Promise(r => setTimeout(r, 80));
+    invalidateIndexCache();
+
+    const held = queryMemoryIndexSync(tmpDir, { id: task.id, limit: 1 })[0];
+    expect(held.status).toBe('hold');
+    const payload = held.payload as Record<string, unknown>;
+    const hold = payload.holdCondition as { type: string; value: string };
+    expect(hold.type).toBe('date-after');
+    expect(new Date(hold.value).getTime()).toBeGreaterThan(Date.now());
+    expect(payload.suppressionHold).toBe(true);
   });
 });
