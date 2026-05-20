@@ -106,6 +106,7 @@ export async function classifyMiddlewareFailures(
   now = new Date(),
 ): Promise<MiddlewareFailureSweepResult> {
   await closeTerminalBrainMaxTurnFollowUps(memoryDir, now);
+  await closeStaleMiddlewareTriageFollowUps(memoryDir, tasks, now);
   const known = new Map(readMiddlewareFailureClassificationsSync(memoryDir).map(record => [record.taskId, record]));
   const failedTasks = tasks.filter(task => task.status === 'failed' && task.id);
   const result: MiddlewareFailureSweepResult = {
@@ -363,6 +364,48 @@ export async function closeStaleProviderBudgetFollowUps(memoryDir: string, now =
   return closed;
 }
 
+export async function closeStaleMiddlewareTriageFollowUps(
+  memoryDir: string,
+  tasks: MiddlewareTaskRecord[],
+  now = new Date(),
+): Promise<number> {
+  const liveFailedIds = new Set(tasks
+    .filter(task => task.status === 'failed' && task.id)
+    .map(task => task.id as string));
+  const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress'] })
+    .filter(entry => {
+      const payload = (entry.payload ?? {}) as Record<string, unknown>;
+      return payload.origin === 'middleware-self-healing'
+        && payload.middleware_failure_bucket === 'other'
+        && String(entry.summary ?? '').startsWith('Triage middleware failed task ');
+    });
+
+  let closed = 0;
+  for (const entry of followUps) {
+    const payload = (entry.payload ?? {}) as Record<string, unknown>;
+    const middlewareTaskId = String(payload.middleware_failure_task_id ?? '');
+    const ticks = Number(payload.ticksSinceLastProgress ?? 0);
+    if (liveFailedIds.has(middlewareTaskId) && ticks <= 100) continue;
+
+    const updated = await updateMemoryIndexEntry(memoryDir, entry.id, {
+      status: 'completed',
+      payload: {
+        ...payload,
+        terminal_resolution: liveFailedIds.has(middlewareTaskId)
+          ? 'middleware triage follow-up exceeded 100 stale ticks without progress'
+          : 'middleware triage follow-up closed because the failed task is no longer live',
+        terminal_resolved_at: now.toISOString(),
+      },
+      tags: [...new Set([...(entry.tags ?? []), 'stale-triage-closed'])],
+    });
+    if (updated) closed++;
+  }
+  if (closed > 0) {
+    slog('MIDDLEWARE-SELF-HEAL', `closed ${closed} stale middleware triage follow-up task(s)`);
+  }
+  return closed;
+}
+
 export function getMiddlewareFailureClassificationPath(memoryDir: string): string {
   return path.join(memoryDir, 'index', LEDGER_FILE);
 }
@@ -472,7 +515,7 @@ async function ensureMiddlewareFailureFollowUpTask(
         failed_task_excerpt: String(task.task ?? '').slice(0, 500),
         acceptance_criteria: plan.acceptance,
         retry_envelope: plan.retryEnvelope,
-        priority: bucket === 'budget-or-quota' ? 1 : 0,
+        priority: middlewareFailurePriority(bucket),
         createdAt: now.toISOString(),
       },
     });
@@ -484,6 +527,11 @@ async function ensureMiddlewareFailureFollowUpTask(
     }
     throw error;
   }
+}
+
+function middlewareFailurePriority(bucket: MiddlewareFailureBucket): number {
+  if (bucket === 'budget-or-quota' || bucket === 'other') return 1;
+  return 0;
 }
 
 function findMiddlewareFailureFollowUp(
