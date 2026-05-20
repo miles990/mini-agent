@@ -122,12 +122,14 @@ describe('buildErrorPatternsHint — issue #315 staleness filter', () => {
   });
 
   it('omits ship-resolved entries inside the 1 day grace window', () => {
+    // lastSeen ~12h after resolvedAt (same day) → inside the 24h grace window.
+    // Relative dates keep the fixture fresh so the staleness filter never eats it.
     state.patterns = {
       'UNKNOWN:transient_fast_band::callClaude': {
         count: 9,
         taskCreated: false,
-        lastSeen: '2026-05-08',
-        resolvedAt: '2026-05-08T02:47:00.000Z',
+        lastSeen: isoDaysAgo(2),
+        resolvedAt: `${isoDaysAgo(2)}T12:00:00.000Z`,
         resolvedBy: 'fdfc60b6',
       },
     };
@@ -135,12 +137,14 @@ describe('buildErrorPatternsHint — issue #315 staleness filter', () => {
   });
 
   it('surfaces ship-resolved entries as regressions after the grace window', () => {
+    // lastSeen ~3 days after resolvedAt → past the 24h grace window, and still
+    // fresh (1 day ago) so it is not dropped by the 7-day staleness filter.
     state.patterns = {
       'UNKNOWN:transient_fast_band::callClaude': {
         count: 9,
         taskCreated: false,
-        lastSeen: '2026-05-10',
-        resolvedAt: '2026-05-08T02:47:00.000Z',
+        lastSeen: isoDaysAgo(1),
+        resolvedAt: `${isoDaysAgo(4)}T12:00:00.000Z`,
         resolvedBy: 'fdfc60b6',
       },
     };

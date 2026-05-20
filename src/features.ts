@@ -71,7 +71,6 @@ const FEATURES: FeatureInfo[] = [
   { name: 'feedback-loops',    group: 'housekeeping', description: 'Error patterns, perception citations, decision quality' },
   { name: 'stale-threads',     group: 'housekeeping', description: 'Resolve stale conversation threads (replied 1h, pending 24h TTL)' },
   { name: 'auto-escalate',     group: 'housekeeping', description: 'Promote overdue HEARTBEAT tasks to P0' },
-  { name: 'cron-drain',        group: 'housekeeping', description: 'Drain one queued cron task per cycle' },
   { name: 'housekeeping',      group: 'housekeeping', description: 'Push, search index, inbox expiration, handoff sync' },
   { name: 'approved-proposals',group: 'housekeeping', description: 'Auto-create handoffs from approved proposals' },
   { name: 'pulse',             group: 'housekeeping', description: 'Unified Pulse System — behavioral signals via heuristics + local 9B (every cycle)' },

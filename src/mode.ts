@@ -38,7 +38,6 @@ const MODES: Record<ModeName, ModeDefinition> = {
     description: 'Minimal activity — only responds to direct messages',
     features: {
       'ooda-loop': false,
-      'cron-drain': false,
       'feedback-loops': false,
       'github-automation': false,
       'auto-escalate': false,
@@ -56,7 +55,6 @@ const MODES: Record<ModeName, ModeDefinition> = {
     description: 'Silent operation — OODA runs but no proactive outreach',
     features: {
       'ooda-loop': true,
-      'cron-drain': true,
       'feedback-loops': true,
       'github-automation': false,
       'auto-escalate': false,
@@ -75,7 +73,6 @@ const MODES: Record<ModeName, ModeDefinition> = {
     description: 'Fully autonomous — default mode',
     features: {
       'ooda-loop': true,
-      'cron-drain': true,
       'feedback-loops': true,
       'github-automation': true,
       'auto-escalate': true,
