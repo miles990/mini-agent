@@ -236,4 +236,33 @@ describe('issue #257 — phantom task guard in getP0TaskPreviews', () => {
     const previews = getP0TaskPreviews(tmpDir);
     expect(previews.some(p => p.includes('low-responsiveness'))).toBe(false);
   });
+
+  it('stale middleware triage P0 task is excluded from preview list', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Triage middleware failed task task-1778478787508-3 (other)',
+      tags: ['middleware', 'self-healing', 'other'],
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_task_id: 'task-1778478787508-3',
+        middleware_failure_bucket: 'other',
+        ticksSinceLastProgress: 101,
+        priority: 0,
+      },
+    });
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Real P0 incident response',
+      payload: { priority: 0 },
+    });
+    invalidateIndexCache();
+
+    const previews = getP0TaskPreviews(tmpDir);
+
+    expect(previews.some(p => p.includes('Real P0 incident response'))).toBe(true);
+    expect(previews.some(p => p.includes('task-1778478787508-3'))).toBe(false);
+    expect(previews.some(p => p.includes('Triage middleware failed task'))).toBe(false);
+  });
 });

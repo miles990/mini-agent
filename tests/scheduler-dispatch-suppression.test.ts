@@ -407,6 +407,37 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
     expect(decision.taskId).not.toBe(phantom.id);
   });
 
+  it('completes stale middleware triage tasks instead of dispatching them as P0', async () => {
+    const stale = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Triage middleware failed task task-1778478787508-3 (other)',
+      tags: ['middleware', 'self-healing', 'other'],
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_task_id: 'task-1778478787508-3',
+        middleware_failure_bucket: 'other',
+        ticksSinceLastProgress: 101,
+        priority: 0,
+      },
+    });
+    const active = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 active incident that still needs work',
+      payload: { priority: 0 },
+    });
+    invalidateIndexCache();
+
+    const decision = schedulerPick(tmpDir, []);
+
+    expect(decision.taskId).toBe(active.id);
+    expect(decision.taskId).not.toBe(stale.id);
+    const completed = queryMemoryIndexSync(tmpDir, { id: stale.id, limit: 1 })[0];
+    expect(completed.status).toBe('completed');
+    expect(completed.payload?.terminal_resolution).toBe('middleware triage follow-up exceeded 100 stale ticks without progress');
+  });
+
   it('resets suppression on a human-directed scheduler event', async () => {
     const task = await appendMemoryIndexEntry(tmpDir, {
       type: 'task',
