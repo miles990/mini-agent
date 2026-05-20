@@ -97,6 +97,7 @@ export async function sweepMiddlewareFailures(
   if (options.workdir) {
     result.recoveredWorkspaceIsolation += reconcileRecoveredWorkspaceIsolationDelegationFailures(memoryDir, options.workdir, now);
   }
+  reconcileResolvedDelegationFailureRecords(memoryDir, now);
   return result;
 }
 
@@ -107,6 +108,7 @@ export async function classifyMiddlewareFailures(
 ): Promise<MiddlewareFailureSweepResult> {
   await closeTerminalBrainMaxTurnFollowUps(memoryDir, now);
   await closeStaleMiddlewareTriageFollowUps(memoryDir, tasks, now);
+  reconcileResolvedDelegationFailureRecords(memoryDir, now);
   const known = new Map(readMiddlewareFailureClassificationsSync(memoryDir).map(record => [record.taskId, record]));
   const failedTasks = tasks.filter(task => task.status === 'failed' && task.id);
   const result: MiddlewareFailureSweepResult = {
@@ -372,7 +374,7 @@ export async function closeStaleMiddlewareTriageFollowUps(
   const liveFailedIds = new Set(tasks
     .filter(task => task.status === 'failed' && task.id)
     .map(task => task.id as string));
-  const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress'] })
+  const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress', 'hold'] })
     .filter(entry => {
       const payload = (entry.payload ?? {}) as Record<string, unknown>;
       return payload.origin === 'middleware-self-healing'
@@ -404,6 +406,81 @@ export async function closeStaleMiddlewareTriageFollowUps(
     slog('MIDDLEWARE-SELF-HEAL', `closed ${closed} stale middleware triage follow-up task(s)`);
   }
   return closed;
+}
+
+function reconcileResolvedDelegationFailureRecords(memoryDir: string, now = new Date()): number {
+  const records = readDelegationFailureRecordsSync(memoryDir)
+    .filter(record => record.status === 'open' || record.status === 'diagnosing');
+  let resolved = 0;
+
+  for (const record of records) {
+    if (record.diagnosticTaskId) {
+      const diagnostic = queryMemoryIndexSync(memoryDir, { id: record.diagnosticTaskId, limit: 1 })[0];
+      if (diagnostic?.status === 'completed') {
+        const verify = Array.isArray(diagnostic.payload?.verify) ? diagnostic.payload.verify as Array<Record<string, unknown>> : [];
+        const detail = verify.map(item => String(item.detail ?? '')).find(Boolean);
+        const updated = transitionDelegationFailureStatus(
+          memoryDir,
+          record.signature,
+          'resolved',
+          `diagnostic task completed${detail ? `: ${detail}` : ''}`,
+          now,
+        );
+        if (updated) resolved++;
+        continue;
+      }
+    }
+
+    if (isExpiredProviderQuotaDelegationFailure(record, now)) {
+      const updated = transitionDelegationFailureStatus(
+        memoryDir,
+        record.signature,
+        'resolved',
+        'provider quota delegation failure expired past retry window; no current task-execution action remains',
+        now,
+      );
+      if (updated) resolved++;
+      continue;
+    }
+
+    const followUpTaskId = extractFollowUpTaskId(record.prompt);
+    if (!followUpTaskId || !isMiddlewareTriageRetryFailure(record)) continue;
+    const followUp = queryMemoryIndexSync(memoryDir, { id: followUpTaskId, limit: 1 })[0];
+    const terminalResolution = followUp?.payload?.terminal_resolution;
+    if (followUp?.status !== 'completed' || typeof terminalResolution !== 'string') continue;
+
+    const updated = transitionDelegationFailureStatus(
+      memoryDir,
+      record.signature,
+      'resolved',
+      `middleware triage retry terminal: ${terminalResolution}`,
+      now,
+    );
+    if (updated) resolved++;
+  }
+
+  if (resolved > 0) {
+    slog('MIDDLEWARE-SELF-HEAL', `resolved ${resolved} stale delegation failure record(s)`);
+  }
+  return resolved;
+}
+
+function extractFollowUpTaskId(prompt: string): string | null {
+  const match = prompt.match(/\bTask ID:\s*(idx-[a-z0-9-]+)/i);
+  return match?.[1] ?? null;
+}
+
+function isMiddlewareTriageRetryFailure(record: { prompt: string; error: string; taskType?: string }): boolean {
+  return (record.taskType ?? '') === 'code'
+    && /^## Retry Task:\s*Triage middleware failed task /i.test(record.prompt)
+    && /hit your limit|maximum budget|quota|budget|resource exhausted/i.test(record.error);
+}
+
+function isExpiredProviderQuotaDelegationFailure(record: { error: string; lastSeen: string }, now: Date): boolean {
+  if (!/hit your limit|maximum budget|quota|budget|resource exhausted/i.test(record.error)) return false;
+  const lastSeen = Date.parse(record.lastSeen);
+  if (!Number.isFinite(lastSeen)) return false;
+  return now.getTime() - lastSeen > STALE_BUDGET_HOLD_MS;
 }
 
 export function getMiddlewareFailureClassificationPath(memoryDir: string): string {

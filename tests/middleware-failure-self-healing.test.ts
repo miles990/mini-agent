@@ -432,6 +432,45 @@ describe('middleware failure self-healing', () => {
     }));
   });
 
+  it('closes exhausted held middleware triage follow-ups when the failed task disappeared', async () => {
+    const followUp = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'hold',
+      summary: 'Triage middleware failed task task-1778477484830-5 (other)',
+      refs: [],
+      tags: ['middleware', 'self-healing', 'other'],
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_task_id: 'task-1778477484830-5',
+        middleware_failure_bucket: 'other',
+        auto_executor_failures: 3,
+        ticksSinceLastProgress: 12,
+        priority: 0,
+      },
+    });
+    const prompt = `## Retry Task: Triage middleware failed task task-1778477484830-5 (other)\n\nTask ID: ${followUp.id}`;
+    const output = '[brain-runtime] status=failed primary=none claims=0 [codex:primary:failed] task task-1 failed: Claude Code returned an error result: You have hit your limit';
+    recordDelegationFailure(memoryDir, { taskId: `retry-${followUp.id}-1`, taskType: 'code', prompt, output }, new Date('2026-05-20T14:39:00.000Z'));
+    recordDelegationFailure(memoryDir, { taskId: `retry-${followUp.id}-2`, taskType: 'code', prompt, output }, new Date('2026-05-20T14:39:30.000Z'));
+
+    const result = await classifyMiddlewareFailures(memoryDir, [], new Date('2026-05-20T14:40:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ scanned: 0, failed: 0 }));
+    const completed = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['completed'] });
+    expect(completed[0]).toEqual(expect.objectContaining({
+      summary: 'Triage middleware failed task task-1778477484830-5 (other)',
+      payload: expect.objectContaining({
+        terminal_resolution: 'middleware triage follow-up closed because the failed task is no longer live',
+      }),
+      tags: expect.arrayContaining(['stale-triage-closed']),
+    }));
+    const delegation = readDelegationFailureRecordsSync(memoryDir)[0];
+    expect(delegation).toEqual(expect.objectContaining({
+      status: 'resolved',
+      resolution: expect.stringContaining('middleware triage retry terminal'),
+    }));
+  });
+
   it('reclassifies a known task when better error-only signal changes the bucket', async () => {
     await classifyMiddlewareFailures(memoryDir, [{
       id: 'task-reclassify',
