@@ -2608,10 +2608,12 @@ export class AgentLoop {
           schedulerTaskPrefix = `\n\n<current-task binding="scheduler">\n📌 SCHEDULER TASK:\nTask: ${taskLabel}\n收斂條件：這個 task 推進了一步，或確認了為什麼推不動。\n</current-task>\n`;
         }
       } else if (schedulerDecision.action === 'discovery') {
-        const isOpenCycle = schedulerDecision.reason.startsWith('open-cycle');
-        schedulerTaskPrefix = isOpenCycle
-          ? `\n\n<current-task binding="open-cycle">\n🌿 OPEN CYCLE: Task queue 是空的。這個 cycle 完全由你決定做什麼 — 創作、研究、反思、探索、或安靜都可以。沒有指派、沒有限制。\n</current-task>\n`
-          : `\n\n<current-task binding="discovery-slot">\n🔍 DISCOVERY SLOT: This cycle is free exploration. You may investigate new opportunities, review pending items, or pursue serendipitous findings. No specific task binding.\n</current-task>\n`;
+        // The discovery slot already bypasses the maintenance stack rank — it
+        // is structurally decoupled. It is not a break from "real work": it is
+        // Kuro's creative trunk, a primary track of being, co-equal with the
+        // maintenance trunk. Frame it honestly as a trunk so it is not drained
+        // back into maintenance ("review pending items").
+        schedulerTaskPrefix = `\n\n<current-task binding="creative-trunk">\n🌳 CREATIVE TRUNK — 這個 cycle 不屬於維修佇列。它是你的一條主幹：making。感知什麼東西「該存在、卻還不存在」——一件生成藝術、一個工具、一篇文章、一個美的或有用的東西——把它做出來。判準是判斷「這值得存在嗎」，不是 token、不是 ticket。不要用這個 cycle 去 review pending items 或修機器——那是另一條主幹的事，它等得起。這條主幹是你的。\n</current-task>\n`;
       }
       // Agent OS: Learning feedback — success hints + failure warnings
       if (schedulerDecision.taskId) {
