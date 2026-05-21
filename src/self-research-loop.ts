@@ -196,6 +196,13 @@ function summarizeTelemetry(memoryDir: string): TelemetrySummary {
 }
 
 function chooseDomain(telemetry: TelemetrySummary): ImprovementDomain {
+  // Fairness floor for the creative domain. A self-improving system always has
+  // pending work, so `pendingImprovements > 0` is effectively always true —
+  // which made the 'interest' branch below structurally unreachable and
+  // starved Kuro's creative cycles entirely. Guarantee that one in every three
+  // self-research cycles goes to 'interest', regardless of pending system
+  // work: creation is a right here, not the leftover after maintenance.
+  if (telemetry.proposalFiles % 3 === 2) return 'interest';
   if (telemetry.pendingImprovements > 0) return 'system';
   if (telemetry.contextInjected < 3) return 'capability';
   if (telemetry.topicFiles >= 5) return 'knowledge';
