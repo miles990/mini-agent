@@ -3001,6 +3001,12 @@ export class AgentLoop {
             priorityPrefix,
             rebuildPriorityPrefix: rebuildPriorityPrefixFn,
             source: 'loop',
+            // OODA cycles need budget to converge (diagnose+clear a stash,
+            // drain an overdue P1). The middleware exec path silently caps at
+            // 90s — too short for convergence work, so cycles get killed
+            // mid-task and degrade to "拆小". callClaude's documented default
+            // is 15min; 240s restores real budget while staying bounded.
+            timeoutMs: 240_000,
             onPartialOutput,
             cycleMode,
             model: modelCliName,
