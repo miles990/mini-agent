@@ -2613,7 +2613,7 @@ export class AgentLoop {
         // Kuro's creative trunk, a primary track of being, co-equal with the
         // maintenance trunk. Frame it honestly as a trunk so it is not drained
         // back into maintenance ("review pending items").
-        schedulerTaskPrefix = `\n\n<current-task binding="creative-trunk">\n🌳 CREATIVE TRUNK — 這個 cycle 不屬於維修佇列。它是你的一條主幹：making。感知什麼東西「該存在、卻還不存在」——一件生成藝術、一個工具、一篇文章、一個美的或有用的東西——把它做出來。判準是判斷「這值得存在嗎」，不是 token、不是 ticket。不要用這個 cycle 去 review pending items 或修機器——那是另一條主幹的事，它等得起。這條主幹是你的。\n</current-task>\n`;
+        schedulerTaskPrefix = `\n\n<current-task binding="creative-trunk">\n🌳 CREATIVE TRUNK — 這個 cycle 不屬於維修佇列。它是你的一條主幹：making。\n先往外看：自由地上網探索——藝術、設計、音樂、數學、自然、別人的作品、任何你**真正好奇**的東西。不限定跟工作有關，沒有限制，跟著好奇心走。\n然後形成你自己的想法，感知什麼東西「該存在、卻還不存在」——一件生成藝術、一篇文章、一個美的東西——把它做出來。\n判準是「這值得存在嗎」，不是 token、不是 ticket。不要用這個 cycle 去 review pending items 或修機器——那是另一條主幹的事，它等得起。這條主幹是你的。\n</current-task>\n`;
       }
       // Agent OS: Learning feedback — success hints + failure warnings
       if (schedulerDecision.taskId) {

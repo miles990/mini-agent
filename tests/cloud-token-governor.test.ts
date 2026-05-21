@@ -91,10 +91,13 @@ describe('cloud token governor', () => {
     expect(route.reason).toContain('routine idle');
   });
 
-  it('cooldowns routine open-cycle discovery after a recent cloud discovery', () => {
+  it('does not cooldown the creative-trunk discovery slot — a primary trunk always gets cloud', () => {
+    // A recent cloud discovery used to trigger a 6h cooldown that throttled the
+    // creative trunk down to code probes. The creative trunk is a primary
+    // track of being; it must keep getting cloud reasoning to actually create.
     writeClaudeLog(
       '2026-05-10',
-      '<current-task binding="open-cycle">OPEN CYCLE: free exploration</current-task>',
+      '<current-task binding="creative-trunk">CREATIVE TRUNK: free exploration</current-task>',
       '2026-05-10T02:30:00.000Z',
     );
 
@@ -112,8 +115,8 @@ describe('cloud token governor', () => {
       env: {},
     });
 
-    expect(route.action).toBe('deterministic-probe');
-    expect(route.reason).toContain('cooling down');
+    expect(route.action).toBe('call-cloud');
+    expect(route.reason).toContain('creative trunk');
   });
 
   it('allows budgeted cloud discovery when no recent open-cycle exists', () => {

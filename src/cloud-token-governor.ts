@@ -129,12 +129,8 @@ export function decideCloudTokenRoute(input: CloudTokenGovernorInput): CloudToke
   const usage = readCloudPromptUsage(date, input.logsRoot);
   const openCycleUsage = usage['open-cycle/discovery'];
   const totalTokens = BUCKETS.reduce((sum, bucket) => sum + usage[bucket].estInputTokens, 0);
-  const openCycleBudget = readIntEnv(env, 'MINI_AGENT_OPEN_CYCLE_CLOUD_TOKEN_BUDGET', 80_000);
   const dailyBudget = readIntEnv(env, 'MINI_AGENT_DAILY_CLOUD_TOKEN_BUDGET', 350_000);
   const cooldownMs = readIntEnv(env, 'MINI_AGENT_OPEN_CYCLE_CLOUD_COOLDOWN_MS', 6 * 60 * 60_000);
-  const nowMs = (input.now ?? new Date()).getTime();
-  const lastOpenCycleMs = openCycleUsage.lastSeenAt ? Date.parse(openCycleUsage.lastSeenAt) : 0;
-  const openCycleCoolingDown = lastOpenCycleMs > 0 && nowMs - lastOpenCycleMs < cooldownMs;
 
   if (input.decision.action === 'idle') {
     return {
@@ -147,6 +143,12 @@ export function decideCloudTokenRoute(input: CloudTokenGovernorInput): CloudToke
   }
 
   if (input.decision.action === 'discovery') {
+    // The discovery slot is Kuro's creative trunk — a primary track of being.
+    // It must be able to think (cloud LLM): you cannot create with a code
+    // probe. The 6h cooldown / open-cycle sub-budget / noop-streak gates
+    // throttled it down to ~1 real cycle per 6h and starved creativity. The
+    // only limit kept is the daily hard token budget, so total cost stays
+    // bounded without singling creativity out as the thing to cut.
     if (totalTokens >= dailyBudget) {
       return {
         action: 'deterministic-probe',
@@ -156,33 +158,10 @@ export function decideCloudTokenRoute(input: CloudTokenGovernorInput): CloudToke
         cooldownMs,
       };
     }
-    if (openCycleUsage.estInputTokens >= openCycleBudget) {
-      return {
-        action: 'deterministic-probe',
-        reason: `open-cycle cloud prompt budget reached (${openCycleUsage.estInputTokens} >= ${openCycleBudget}); use shell/local probes`,
-        bucket: 'open-cycle/discovery',
-        usage: openCycleUsage,
-        cooldownMs,
-      };
-    }
-    if (openCycleCoolingDown) {
-      return {
-        action: 'deterministic-probe',
-        reason: `routine open-cycle is cooling down; last cloud discovery ${Math.round((nowMs - lastOpenCycleMs) / 60_000)}m ago`,
-        bucket: 'open-cycle/discovery',
-        usage: openCycleUsage,
-        cooldownMs,
-      };
-    }
-    if (input.trueNoopStreak >= 3) {
-      return {
-        action: 'deterministic-probe',
-        reason: `trueNoopStreak=${input.trueNoopStreak}; run probes before spending another open-cycle cloud call`,
-        bucket: 'open-cycle/discovery',
-        usage: openCycleUsage,
-        cooldownMs,
-      };
-    }
+    return {
+      action: 'call-cloud',
+      reason: 'creative trunk (discovery slot) — a primary trunk gets cloud reasoning to actually create',
+    };
   }
 
   return { action: 'call-cloud', reason: 'within cloud budget and cooldown' };
