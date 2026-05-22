@@ -159,6 +159,7 @@ import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stream.js';
 import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
+import { getWorkMode, setWorkMode, isValidWorkMode, getWorkModeNames } from './work-mode.js';
 import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
 import { formatImprovementLearning, readImprovementTelemetry } from './improvement-telemetry.js';
@@ -1089,6 +1090,7 @@ export function createApi(port = 3001): express.Express {
         foreground: laneStatus.foreground,
       },
       loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
+      workMode: getWorkMode(),
       cron: { active: getRecurringTaskCount(getMemoryRootDir()), queued: 0 },
       tokens: getLogger().getTokenUsageSummary(),
       telegram: {
@@ -1704,6 +1706,26 @@ export function createApi(port = 3001): express.Express {
     // 持久化模式到磁碟（fire-and-forget）
     saveModeState(mode);
 
+    res.json(report);
+  });
+
+  // =============================================================================
+  // Work Mode — mutually exclusive maintenance / creative work trunk
+  // =============================================================================
+
+  app.get('/api/work-mode', (_req: Request, res: Response) => {
+    res.json(getWorkMode());
+  });
+
+  app.post('/api/work-mode', (req: Request, res: Response) => {
+    const { mode } = req.body ?? {};
+    if (!isValidWorkMode(mode)) {
+      res.status(400).json({ error: `Invalid work mode. Valid: ${getWorkModeNames().join(', ')}` });
+      return;
+    }
+
+    const report = setWorkMode(mode);
+    eventBus.emit('action:loop', { event: 'work-mode', mode });
     res.json(report);
   });
 

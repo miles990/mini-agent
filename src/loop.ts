@@ -67,6 +67,7 @@ import { truncateAtSectionBoundary } from './context-pipeline.js';
 import { timed } from './diagnostics.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
+import { getWorkModePrompt, resolveWorkMode } from './work-mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
 import { writeActivity, formatActivityJournal } from './activity-journal.js';
 import { startSentinel } from './sentinel.js';
@@ -197,6 +198,7 @@ export interface LoopStatus {
   nextCycleAt: string | null;
   currentInterval: number;
   mode: 'task' | 'autonomous' | 'idle';
+  workMode: ReturnType<typeof resolveWorkMode>;
   pendingPriority?: { reason: string; waitingMs: number };
   omlxGate?: string;
 }
@@ -1465,6 +1467,7 @@ export class AgentLoop {
       nextCycleAt: this.nextCycleAt,
       currentInterval: this.currentInterval,
       mode: this.currentMode,
+      workMode: resolveWorkMode(),
       ...(this.pendingPriority ? {
         pendingPriority: { reason: this.pendingPriority.reason, waitingMs: Date.now() - this.pendingPriority.arrivedAt },
       } : {}),
@@ -2574,7 +2577,12 @@ export class AgentLoop {
       } catch (e) { slog('WARN', `self-research autopilot failed: ${e}`); }
 
       advanceTick();
-      let schedulerDecision = schedulerPick(memDir, schedulerEvents);
+      const workMode = resolveWorkMode({
+        hasP0Event: schedulerEvents.some(e => e.priority === 0 || e.isAlexDirectMessage),
+        hasP0Tasks: hasP0Tasks(memDir),
+      });
+      const schedulerOptions = { workMode: workMode.mode };
+      let schedulerDecision = schedulerPick(memDir, schedulerEvents, schedulerOptions);
       const selectedTask = schedulerDecision.taskId
         ? queryMemoryIndexSync(memDir, {
           type: ['task'],
@@ -2619,7 +2627,7 @@ export class AgentLoop {
         }));
         // This is not "do less"; it parks confirmed waits with a code recheck and spends
         // the same LLM budget on the next schedulable task.
-        schedulerDecision = schedulerPick(memDir, schedulerEvents);
+        schedulerDecision = schedulerPick(memDir, schedulerEvents, schedulerOptions);
       }
 
       // Handle suspend if scheduler preempted a task
@@ -2637,7 +2645,7 @@ export class AgentLoop {
       }
 
       // Handle resume — load checkpoint for context
-      let schedulerTaskPrefix = '';
+      let schedulerTaskPrefix = `\n\n${getWorkModePrompt(workMode)}\n`;
       if (schedulerDecision.taskId) {
         const resumeCheckpoint = loadSuspendCheckpoint(schedulerDecision.taskId);
         if (resumeCheckpoint && schedulerDecision.action === 'switch') {

@@ -39,10 +39,10 @@ describe('scheduler creative-trunk fairness floor', () => {
   it('fires the discovery slot every DISCOVERY_INTERVAL ticks even while a P0 task is bound', () => {
     const scheduler = new DefaultScheduler();
     // tick 10 is a discovery slot; a P0 task is bound as currentTaskId.
-    const decision = scheduler.decideNext([p0Task('task-p0')], state({ totalTicks: 10 }), noEvents);
+    const decision = scheduler.decideNext([p0Task('task-p0')], state({ totalTicks: 10 }), noEvents, { workMode: 'creative' });
 
     expect(decision.action).toBe('discovery');
-    expect(decision.reason.toLowerCase()).toContain('creative trunk');
+    expect(decision.reason.toLowerCase()).toContain('creative');
     // The bound task is not dropped — taskId is null so currentTaskId persists
     // and the task resumes on the next tick.
     expect(decision.taskId).toBeNull();
@@ -51,14 +51,22 @@ describe('scheduler creative-trunk fairness floor', () => {
   it('a live P0 event still owns its cycle — the floor does not steal it', () => {
     const scheduler = new DefaultScheduler();
     const p0Event: IncomingEvent[] = [{ source: 'room', priority: 0, isAlexDirectMessage: true }];
-    const decision = scheduler.decideNext([p0Task('task-p0')], state({ totalTicks: 10 }), p0Event);
+    const decision = scheduler.decideNext([p0Task('task-p0')], state({ totalTicks: 10 }), p0Event, { workMode: 'creative' });
 
     expect(decision.action).not.toBe('discovery');
   });
 
   it('on a non-discovery tick the bound task continues as normal', () => {
     const scheduler = new DefaultScheduler();
-    const decision = scheduler.decideNext([p0Task('task-p0')], state({ totalTicks: 11 }), noEvents);
+    const decision = scheduler.decideNext([p0Task('task-p0')], state({ totalTicks: 11 }), noEvents, { workMode: 'maintenance' });
+
+    expect(decision.action).toBe('continue');
+    expect(decision.taskId).toBe('task-p0');
+  });
+
+  it('maintenance mode suppresses the discovery floor on discovery ticks', () => {
+    const scheduler = new DefaultScheduler();
+    const decision = scheduler.decideNext([p0Task('task-p0')], state({ totalTicks: 10 }), noEvents, { workMode: 'maintenance' });
 
     expect(decision.action).toBe('continue');
     expect(decision.taskId).toBe('task-p0');
