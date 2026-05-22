@@ -89,6 +89,7 @@ export interface SchedulerPolicy {
 const ATTENTION_BUDGET = 15;
 const DISCOVERY_INTERVAL = 10;
 const AGING_BOOST_TICKS = 30;
+export const ALEX_CHAT_DERIVED_TASK_TTL_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Reason tag for the creative-trunk fairness floor. The discovery slot is a
@@ -529,6 +530,11 @@ export function schedulerPick(
   const tasks: TaskSnapshot[] = entries.map(entryToSnapshot)
     .filter(t => {
       const entry = entriesById.get(t.id);
+      if (!entry || !completeExpiredAlexChatDerivedTask(memoryDir, entry)) return true;
+      return false;
+    })
+    .filter(t => {
+      const entry = entriesById.get(t.id);
       if (!entry || !isStaleMiddlewareTriageTask(entry)) return true;
       completeStaleMiddlewareTriageTask(memoryDir, entry);
       return false;
@@ -736,6 +742,34 @@ function isStaleMiddlewareTriageTask(entry: MemoryIndexEntry): boolean {
     && String(entry.summary ?? '').startsWith('Triage middleware failed task ')
     && Number.isFinite(ticks)
     && ticks > STALE_MIDDLEWARE_TRIAGE_TICKS;
+}
+
+function completeExpiredAlexChatDerivedTask(memoryDir: string, entry: MemoryIndexEntry, nowMs = Date.now()): boolean {
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  if (entry.source !== 'room') return false;
+  if (payload.from !== 'alex') return false;
+
+  const createdAt = typeof payload.created === 'string' ? payload.created : entry.ts;
+  const createdMs = new Date(createdAt).getTime();
+  if (!Number.isFinite(createdMs)) return false;
+  if (nowMs - createdMs < ALEX_CHAT_DERIVED_TASK_TTL_MS) return false;
+
+  updateMemoryIndexEntrySync(memoryDir, entry.id, {
+    status: 'completed',
+    payload: {
+      ...payload,
+      completed_by: 'alex-chat-derived-ttl',
+      completed_at: new Date(nowMs).toISOString(),
+      ttl_ms: ALEX_CHAT_DERIVED_TASK_TTL_MS,
+    },
+  });
+  slog('SCHED', `alex-chat-ttl: completed stale room task=${entry.id.slice(0, 12)} ${String(entry.summary ?? '').slice(0, 50)}`);
+  eventBus.emit('action:scheduler', {
+    event: 'alex-chat-derived-task-ttl',
+    taskId: entry.id,
+    ts: new Date(nowMs).toISOString(),
+  });
+  return true;
 }
 
 function completeStaleMiddlewareTriageTask(memoryDir: string, entry: MemoryIndexEntry): void {
