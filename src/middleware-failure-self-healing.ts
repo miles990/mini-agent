@@ -387,18 +387,27 @@ export async function closeStaleMiddlewareTriageFollowUps(
     const payload = (entry.payload ?? {}) as Record<string, unknown>;
     const middlewareTaskId = String(payload.middleware_failure_task_id ?? '');
     const ticks = Number(payload.ticksSinceLastProgress ?? 0);
-    if (liveFailedIds.has(middlewareTaskId) && ticks <= 100) continue;
+    const sidecarDisposition = readTerminalTriageDisposition(memoryDir, middlewareTaskId);
+    if (liveFailedIds.has(middlewareTaskId) && ticks <= 100 && !sidecarDisposition) continue;
+
+    const terminalResolution = sidecarDisposition
+      ? `middleware triage follow-up closed by sidecar disposition=${sidecarDisposition}`
+      : liveFailedIds.has(middlewareTaskId)
+        ? 'middleware triage follow-up exceeded 100 stale ticks without progress'
+        : 'middleware triage follow-up closed because the failed task is no longer live';
 
     const updated = await updateMemoryIndexEntry(memoryDir, entry.id, {
       status: 'completed',
       payload: {
         ...payload,
-        terminal_resolution: liveFailedIds.has(middlewareTaskId)
-          ? 'middleware triage follow-up exceeded 100 stale ticks without progress'
-          : 'middleware triage follow-up closed because the failed task is no longer live',
+        terminal_resolution: terminalResolution,
         terminal_resolved_at: now.toISOString(),
       },
-      tags: [...new Set([...(entry.tags ?? []), 'stale-triage-closed'])],
+      tags: [...new Set([
+        ...(entry.tags ?? []),
+        'stale-triage-closed',
+        ...(sidecarDisposition ? ['sidecar-dismissed'] : []),
+      ])],
     });
     if (updated) closed++;
   }
@@ -560,6 +569,32 @@ function isMiddlewareFailureLifecycleAction(value: unknown): value is Middleware
     || value === 'terminal-cancelled';
 }
 
+/**
+ * Read the terminal disposition (if any) of an out-of-band triage sidecar at
+ * `memory/state/triage-${taskId}.md`. Sidecar artifacts are written by Kuro
+ * cycles when a failure is triaged manually; without this gate the emitter
+ * keeps spawning phantom triage follow-ups even after disposition is set
+ * (mini-agent#539).
+ *
+ * Returns the disposition verb (lower-cased) or undefined when no terminal
+ * disposition is recorded.
+ */
+function readTerminalTriageDisposition(memoryDir: string, taskId: string): string | undefined {
+  if (!taskId || taskId === 'unknown') return undefined;
+  const sidecar = path.join(memoryDir, 'state', `triage-${taskId}.md`);
+  if (!existsSync(sidecar)) return undefined;
+  let text: string;
+  try {
+    text = readFileSync(sidecar, 'utf8');
+  } catch {
+    return undefined;
+  }
+  const match = text.match(
+    /^\s*-\s*\*\*This task\*\*\s*:\s*(dismiss(?:ed)?|completed|cancell?ed|resolved|terminal)\b/im,
+  );
+  return match ? match[1].toLowerCase() : undefined;
+}
+
 async function ensureMiddlewareFailureFollowUpTask(
   memoryDir: string,
   bucket: MiddlewareFailureBucket,
@@ -575,6 +610,22 @@ async function ensureMiddlewareFailureFollowUpTask(
         && payload.middleware_failure_bucket === bucket;
     });
   if (active) return active.id;
+
+  // Sidecar-disposition gate (mini-agent#539): if a triage artifact with a
+  // terminal disposition already exists for this upstream task, do not re-emit
+  // a follow-up. The "other" bucket is the documented phantom-P0 path; we keep
+  // the gate narrowly scoped to it so non-triage buckets (provider-hold,
+  // max-turns, workspace-isolation) keep their normal recovery behaviour.
+  if (bucket === 'other') {
+    const sidecarDisposition = readTerminalTriageDisposition(memoryDir, taskId);
+    if (sidecarDisposition) {
+      slog(
+        'MIDDLEWARE-SELF-HEAL',
+        `skip triage follow-up for ${taskId}: sidecar disposition=${sidecarDisposition}`,
+      );
+      return `sidecar-dismissed:${taskId}`;
+    }
+  }
 
   const plan = middlewareFailureRepairPlan(bucket, task);
   try {
