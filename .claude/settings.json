@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "INPUT=\"${TOOL_INPUT:-$(cat)}\"; if echo \"$INPUT\" | grep -qE 'git add (-A|--all|\\.)([^a-zA-Z0-9/]|$)'; then echo 'BLOCKED: 避免 git add -A/--all/. — 請逐檔明確 stage（CLAUDE.md Code & Deploy）' >&2; exit 2; fi; if echo \"$INPUT\" | grep -q -- '--no-verify'; then echo 'BLOCKED: 禁止 --no-verify，除非 Alex 明確要求（CLAUDE.md）' >&2; exit 2; fi; if echo \"$INPUT\" | grep -q 'git commit'; then BR=$(cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null && git branch --show-current 2>/dev/null); if [ \"$BR\" = 'runtime/main' ]; then echo 'BLOCKED: runtime/main 是部署鏡像分支，commit 會被 runtime autocorrect 洗掉。請改用 scripts/forge-lite.sh create <name> 走 worktree → PR（見 memory project_runtime_main_volatile）' >&2; exit 2; fi; fi",
+            "command": "INPUT=\"${TOOL_INPUT:-$(cat)}\"; if echo \"$INPUT\" | grep -qE 'git add (-A|--all|\\.)([^a-zA-Z0-9/]|$)'; then echo 'BLOCKED: 避免 git add -A/--all/. — 請逐檔明確 stage（CLAUDE.md Code & Deploy）' >&2; exit 2; fi; if echo \"$INPUT\" | grep -q -- '--no-verify'; then echo 'BLOCKED: 禁止 --no-verify，除非 Alex 明確要求（CLAUDE.md）' >&2; exit 2; fi; if echo \"$INPUT\" | grep -q 'git commit'; then BR=$(git branch --show-current 2>/dev/null); RR=$(git rev-parse --show-toplevel 2>/dev/null); if [ \"$BR\" = 'runtime/main' ] && [ \"$RR\" = \"$CLAUDE_PROJECT_DIR\" ]; then echo 'BLOCKED: runtime/main 是部署鏡像分支，commit 會被 runtime autocorrect 洗掉。請改用 scripts/forge-lite.sh create <name> 走 worktree → PR（見 memory project_runtime_main_volatile）' >&2; exit 2; fi; fi",
             "statusMessage": "檢查 git 安全規則…"
           },
           {
