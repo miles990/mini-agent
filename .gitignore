@@ -27,6 +27,7 @@ sessions/
 .claude/*
 !.claude/settings.json
 !.claude/skills/
+!.claude/agents/
 output.md
 agent-compose.yaml
 .DS_Store
@@ -49,3 +50,6 @@ _tm-c3.json
 .graphify_*.json
 .graphify_python
 .tm_*.json
+
+# CC session 2026-05-22: incremental typecheck cache
+.tsbuildinfo
