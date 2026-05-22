@@ -113,10 +113,10 @@ describe('extractErrorSubtype — silent_exit_void 4-class typed-failure schema 
 });
 
 describe('sideQuery timeout bucket (#547)', () => {
-  it('keeps sideQuery timeout messages in the silent_exit_void subtype', () => {
+  it('keeps sideQuery timeout messages out of the callClaude silent_exit_void subtype', () => {
     const msg = 'sideQuery TIMEOUT: Claude CLI silent exit (30s no stderr). stdout=empty prompt 1234 chars';
     expect(extractErrorCode(msg)).toBe('TIMEOUT');
-    expect(extractErrorSubtype(msg)).toBe('silent_exit_void');
+    expect(extractErrorSubtype(msg)).toBe('side_query_timeout');
   });
 });
 

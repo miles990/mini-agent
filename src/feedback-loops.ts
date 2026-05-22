@@ -305,6 +305,10 @@ export function extractErrorSubtype(errorMsg: string): string {
   }
   // 2026-04-20: agent.ts:224 silent_exit message template (shipped 3039f4a3) — complete the label
   // chain so TIMEOUT:generic fallthrough becomes TIMEOUT:silent_exit in recurring-errors.
+  // Issue #547: sideQuery emits its own timeout telemetry, but the message includes
+  // "silent exit" + "stdout=empty" for historical compatibility. Keep it out of
+  // the callClaude silent_exit_void recovery lane.
+  if (lower.includes('sidequery timeout') || lower.includes('side-query timeout')) return 'side_query_timeout';
   if (lower.includes('靜默中斷') || lower.includes('靜默溢位') || lower.includes('silent exit')) {
     if (lower.includes('auth') || lower.includes('unauthorized') || lower.includes('401')) return 'silent_exit_auth';
     if (lower.includes('overloaded') || lower.includes('529')) return 'silent_exit_overload';
