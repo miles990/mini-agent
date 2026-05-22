@@ -83,6 +83,18 @@ const ATTENTION_BUDGET = 15;
 const DISCOVERY_INTERVAL = 10;
 const AGING_BOOST_TICKS = 30;
 
+/**
+ * Reason tag for the creative-trunk fairness floor. The discovery slot is a
+ * primary track of being, co-equal with the task queue — not a leftover that
+ * only runs when nothing else is pending. Every DISCOVERY_INTERVAL ticks it
+ * takes one cycle even while tasks (including standing P0 *tasks*) are bound.
+ * A live P0 *event* (a genuine emergency / direct signal) still owns the cycle.
+ * The correction gate must NOT override this — the bound task is not lost, it
+ * resumes on the very next tick.
+ */
+const CREATIVE_TRUNK_REASON =
+  'discovery slot: creative trunk fairness floor — yields one cycle from the task queue';
+
 /** Consecutive terminal-signal cycles before a task is suppressed from dispatch. */
 export const DISPATCH_SUPPRESSION_THRESHOLD = 3;
 const STALE_MIDDLEWARE_TRIAGE_TICKS = 100;
@@ -131,7 +143,17 @@ export class DefaultScheduler implements SchedulerPolicy {
       }
     }
 
-    // Rule 2: Current task still active → continue (task binding)
+    // Rule 2: Creative-trunk fairness floor. The discovery slot fires every
+    // DISCOVERY_INTERVAL ticks even while a task is bound — placed BEFORE the
+    // task-binding rule so a standing P0 *task* cannot monopolise every cycle
+    // and starve the creative trunk. A live P0 *event* (Rule 1 already ran)
+    // still owns its cycle: !hasP0Event guards that. The bound task is not
+    // dropped — currentTaskId persists, so it resumes on the next tick.
+    if (isDiscoverySlot && !hasP0Event) {
+      return { taskId: null, reason: CREATIVE_TRUNK_REASON, action: 'discovery', suspended: null };
+    }
+
+    // Rule 3: Current task still active → continue (task binding)
     if (state.currentTaskId) {
       const current = activeTasks.find(t => t.id === state.currentTaskId);
       if (current) {
@@ -154,11 +176,6 @@ export class DefaultScheduler implements SchedulerPolicy {
         }
         return { taskId: current.id, reason: 'task binding: continue current', action: 'continue', suspended: null };
       }
-    }
-
-    // Rule 3: Discovery slot
-    if (isDiscoverySlot) {
-      return { taskId: null, reason: 'discovery slot: free exploration', action: 'discovery', suspended: null };
     }
 
     // Rule 4: Stack rank and pick highest
@@ -582,7 +599,13 @@ export function schedulerPick(
   // the force-correction branch below would reintroduce a held correction task.
   const schedulableTaskIds = new Set(tasksAfterHolds.map(task => task.id));
   const correctionTask = entries.find(entry => schedulableTaskIds.has(entry.id) && isCorrectionTask(entry));
-  if (correctionTask && (!decision.taskId || decision.action === 'discovery' || decision.action === 'idle')) {
+  // The creative-trunk fairness floor is exempt: a pending correction task must
+  // not override it. The correction task is not lost — currentTaskId persists,
+  // so it resumes on the next tick. Without this, a standing correction P0
+  // would re-hijack the one cycle in ten the creative trunk is owed.
+  const isCreativeTrunkFloor =
+    decision.action === 'discovery' && decision.reason === CREATIVE_TRUNK_REASON;
+  if (correctionTask && !isCreativeTrunkFloor && (!decision.taskId || decision.action === 'discovery' || decision.action === 'idle')) {
     const forced: SchedulingDecision = {
       taskId: correctionTask.id,
       reason: `correction gate: ${(correctionTask.summary ?? '').slice(0, 80)}`,
