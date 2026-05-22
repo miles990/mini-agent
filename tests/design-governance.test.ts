@@ -127,6 +127,34 @@ describe('design governance', () => {
     expect(report.status).toBe('ok');
     expect(report.summary).toBe('0 high-risk task(s) have design governance');
   });
+
+  it('does not require design artifacts for preserved-stash triage tasks that mention memory paths', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
+    const report = evaluateDesignGovernance(memoryDir, [
+      task({
+        status: 'pending',
+        summary: 'stash-280388f16424: diagnose preserved stash stash@{7}: kuro-portfolio/ai-trend/index.html, memory/inner-notes.md',
+        payload: { priority: 1 },
+      }),
+    ]);
+
+    expect(report.status).toBe('ok');
+    expect(report.missingArtifacts).toHaveLength(0);
+  });
+
+  it('does not require design artifacts for completed PR deploy status reports', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
+    const report = evaluateDesignGovernance(memoryDir, [
+      task({
+        status: 'in_progress',
+        summary: '@kuro PR #536 已 merge + deploy run 26261288212 success; dist/stash-governance.js confirmed deployed',
+        payload: { priority: 1 },
+      }),
+    ]);
+
+    expect(report.status).toBe('ok');
+    expect(report.missingArtifacts).toHaveLength(0);
+  });
 });
 
 function task(overrides: Partial<MemoryIndexEntry>): MemoryIndexEntry {
