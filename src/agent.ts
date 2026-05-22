@@ -82,7 +82,7 @@ export interface ExecOptions {
   fgSlotId?: string;
   /** Hard timeout in ms (default: 900_000 = 15min). FG lane should use shorter value. */
   timeoutMs?: number;
-  /** No-progress timeout in ms (default: 300_000 = 5min). Kill if no stdout for this long. */
+  /** No-progress timeout in ms (default: 30_000 = 30s). Kill if no stdout for this long. Callers needing longer tolerance (long Claude turns, KG steps) should pass an explicit value — see loop.ts:3060 (240_000) and housekeeping.ts:964. */
   progressTimeoutMs?: number;
   /** Thinking budget in tokens (Phase B — rubric-driven dynamic budget). 0 = disabled. */
   maxThinkingTokens?: number;
