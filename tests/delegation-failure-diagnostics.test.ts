@@ -199,6 +199,44 @@ describe('delegation failure diagnostics', () => {
     }));
   });
 
+  it('resolves repeated bounded-shell recovery timeouts as exhausted lane recovery', async () => {
+    recordDelegationFailure(tmpDir, {
+      taskId: 'retry-1',
+      taskType: 'shell',
+      prompt: [
+        '## Retry Task: Retry middleware shell lane with bounded probes after timeout',
+        'Task ID: idx-af45d4ff-b34f-478e-a680-f3fe33bdaaf3',
+        'Strategy: bounded-shell-probe',
+        '',
+        'cd /Users/user/Workspace/mini-agent && pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+      ].join('\n'),
+      output: '[brain-runtime] status=failed primary=none claims=0 [shell:primary:failed] task task-1 did not complete within 120000ms',
+    });
+    const second = recordDelegationFailure(tmpDir, {
+      taskId: 'retry-2',
+      taskType: 'shell',
+      prompt: [
+        '## Retry Task: Retry middleware shell lane with bounded probes after timeout',
+        'Task ID: idx-af45d4ff-b34f-478e-a680-f3fe33bdaaf3',
+        'Strategy: bounded-shell-probe',
+        '',
+        'cd /Users/user/Workspace/mini-agent && pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+      ].join('\n'),
+      output: '[brain-runtime] status=failed primary=none claims=0 [shell:primary:failed] task task-2 did not complete within 120000ms',
+    });
+
+    const diagnosis = await diagnoseDelegationFailure(tmpDir, second.record.signature);
+
+    expect(diagnosis).toEqual(expect.objectContaining({
+      status: 'resolved',
+      category: 'middleware_failed',
+    }));
+    expect(diagnosis!.summary).toContain('bounded shell recovery');
+    expect(readDelegationFailureRecordsSync(tmpDir)[0]).toEqual(expect.objectContaining({
+      status: 'resolved',
+    }));
+  });
+
   it('picks up repeated open records when diagnosing pending failures', async () => {
     recordDelegationFailure(tmpDir, {
       taskId: 'del-1',

@@ -145,6 +145,22 @@ function buildDiagnosis(memoryDir: string, record: DelegationFailureRecord): Del
     };
   }
 
+  if (
+    record.taskType === 'shell'
+    && /bounded-shell-probe|retry middleware shell lane with bounded probes/.test(lower)
+    && /did not complete within \d+ms|wall-clock timeout|timed out after/.test(lower)
+  ) {
+    return {
+      signature: record.signature,
+      code,
+      status: 'resolved',
+      category: 'middleware_failed',
+      summary: 'The repeated failure is an exhausted bounded shell recovery attempt, not a fresh task defect.',
+      recommendedAction: 'Do not retry the recovery envelope through broad shell delegation; run deterministic local command slices with progress artifacts before releasing the origin task.',
+      reportPath,
+    };
+  }
+
   if (/forge worktree allocation failed|workspace isolation policy/.test(lower)) {
     return {
       signature: record.signature,
