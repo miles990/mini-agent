@@ -18,6 +18,17 @@
         "mcp-server-sqlite-npx",
         "/Users/user/.mini-agent/instances/03bbc29a/memory-index.db"
       ]
+    },
+    "knowledge-graph": {
+      "type": "stdio",
+      "command": "bun",
+      "args": [
+        "run",
+        "/Users/user/Workspace/knowledge-graph/src/mcp-server.ts"
+      ],
+      "env": {
+        "KG_URL": "http://127.0.0.1:3300"
+      }
     }
   }
 }
