@@ -18,6 +18,15 @@ export interface KgExternalMemoryOptions {
   staleDiscussionDays?: number;
 }
 
+export interface MemorySnapshotResult {
+  attempted: boolean;
+  committed: boolean;
+  trackable: string[];
+  ignored: string[];
+  commit?: string;
+  error?: string;
+}
+
 const CRITICAL_JSONL_RELATIVE_PATHS = [
   'state/task-events.jsonl',
   'index/relations.jsonl',
@@ -85,6 +94,81 @@ export function evaluateMemoryStateTruth(memoryDir: string, repoRoot: string): E
     summary: 'external file memory is parseable and snapshotted',
     evidence,
   };
+}
+
+export function snapshotCuratedMemoryChanges(
+  memoryDir: string,
+  message = 'chore(memory): snapshot curated autonomy closure state',
+): MemorySnapshotResult {
+  const gitDir = path.join(memoryDir, '.git');
+  if (!fs.existsSync(gitDir)) {
+    return { attempted: false, committed: false, trackable: [], ignored: [] };
+  }
+
+  const status = gitStatus(memoryDir);
+  if (status === null) {
+    return {
+      attempted: false,
+      committed: false,
+      trackable: [],
+      ignored: [],
+      error: 'git status failed',
+    };
+  }
+
+  const dirty = classifyMemoryRepoGitStatus(status);
+  const trackable = dirty.trackable.map(item => item.relPath);
+  const ignored = dirty.ignored.map(item => item.relPath);
+  if (trackable.length === 0) {
+    return { attempted: false, committed: false, trackable, ignored };
+  }
+
+  try {
+    execFileSync('git', ['add', '--', ...trackable], {
+      cwd: memoryDir,
+      timeout: 5000,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    const staged = execFileSync('git', ['diff', '--cached', '--name-only', '--', ...trackable], {
+      cwd: memoryDir,
+      encoding: 'utf-8',
+      timeout: 5000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim().split('\n').filter(Boolean);
+    if (staged.length === 0) {
+      return { attempted: true, committed: false, trackable, ignored };
+    }
+    execFileSync('git', [
+      '-c',
+      'user.name=mini-agent',
+      '-c',
+      'user.email=mini-agent@local',
+      'commit',
+      '-m',
+      message,
+      '--',
+      ...staged,
+    ], {
+      cwd: memoryDir,
+      timeout: 10000,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    const commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+      cwd: memoryDir,
+      encoding: 'utf-8',
+      timeout: 5000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    return { attempted: true, committed: true, trackable, ignored, commit };
+  } catch (err) {
+    return {
+      attempted: true,
+      committed: false,
+      trackable,
+      ignored,
+      error: String(err).slice(0, 200),
+    };
+  }
 }
 
 export function evaluateKgExternalMemoryTruth(memoryDir: string, now = new Date(), options: KgExternalMemoryOptions = {}): ExternalMemoryHealthResult {
