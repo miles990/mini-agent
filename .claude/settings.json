@@ -1,12 +1,13 @@
 {
   "hooks": {
-    "PostToolUse": [
+    "Stop": [
       {
-        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "if [[ \"$TOOL_INPUT\" == *\".ts\"* ]]; then cd \"$CLAUDE_PROJECT_DIR\" && npx tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo 2>&1 | head -20; fi"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; IN=$(cat); echo \"$IN\" | grep -qE '\"stop_hook_active\": *true' && exit 0; OUT=$(npx tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo 2>&1); [ -z \"$OUT\" ] && exit 0; { echo 'TypeScript 型別錯誤（Stop hook）— 請修正後再結束:'; echo \"$OUT\" | tail -30; } >&2; exit 2",
+            "statusMessage": "型別檢查中…",
+            "timeout": 120
           }
         ]
       }
