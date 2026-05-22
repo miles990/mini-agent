@@ -326,6 +326,32 @@ export function readPendingInbox(): InboxItem[] {
   return inboxCache.getPending();
 }
 
+/**
+ * 讀取尚未真正回覆的 inbox items。
+ * `seen` means a lane has looked at / claimed the item, not that the user got an
+ * answer. Direct-message recovery needs these rows so ACK-only replies cannot
+ * disappear after being marked seen by the foreground handoff path.
+ */
+export function readUnrepliedInbox(options?: {
+  hoursBack?: number;
+  sources?: InboxItem['source'][];
+}): InboxItem[] {
+  try {
+    const cutoff = options?.hoursBack
+      ? new Date(Date.now() - options.hoursBack * 60 * 60 * 1000).toISOString()
+      : null;
+    const sources = options?.sources ? new Set(options.sources) : null;
+    return inboxCache.getAll()
+      .filter(item => item.status === 'pending' || item.status === 'seen')
+      .filter(item => !cutoff || item.ts >= cutoff)
+      .filter(item => !sources || sources.has(item.source))
+      .sort((a, b) =>
+        a.priority !== b.priority ? a.priority - b.priority : a.ts.localeCompare(b.ts));
+  } catch {
+    return [];
+  }
+}
+
 // =============================================================================
 // Mark Processed
 // =============================================================================

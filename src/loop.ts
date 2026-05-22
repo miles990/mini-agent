@@ -54,7 +54,7 @@ import { cleanParkingLot } from './idea-qualify.js';
 import { qualityCheck } from './quality-gate.js';
 import { emitActivity } from './activity-stream.js';
 import { loadAgentMemory, formatMemorySection, type AgentMemoryEntry } from './kg-memory.js';
-import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
+import { readPendingInbox, readUnrepliedInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
 import { claimMessage, isMessageClaimed, releaseMessage } from './message-claimer.js';
 import type { PendingPriorityState } from './event-wal.js';
@@ -149,6 +149,20 @@ import {
   recordImprovementTelemetry,
 } from './improvement-telemetry.js';
 import { decideCloudTokenRoute } from './cloud-token-governor.js';
+
+const DIRECT_MESSAGE_INBOX_SOURCES = ['telegram', 'room', 'claude-code'] as const;
+
+function inboxSourceForDirectMessage(source: string): typeof DIRECT_MESSAGE_INBOX_SOURCES[number] | null {
+  if (source === 'chat') return 'claude-code';
+  if ((DIRECT_MESSAGE_INBOX_SOURCES as readonly string[]).includes(source)) {
+    return source as typeof DIRECT_MESSAGE_INBOX_SOURCES[number];
+  }
+  return null;
+}
+
+function readRecentUnrepliedDirectMessages() {
+  return readUnrepliedInbox({ hoursBack: 4, sources: [...DIRECT_MESSAGE_INBOX_SOURCES] });
+}
 
 // =============================================================================
 // Types
@@ -1027,16 +1041,20 @@ export class AgentLoop {
       const BOT_FROMS = new Set(['mushi', 'system', 'bot', 'kuro', 'kuro-watcher']);
 
       try {
-        const pending = readPendingInbox().filter(i => i.source === source && i.status === 'pending');
+        const inboxSource = inboxSourceForDirectMessage(source);
+        const pending = inboxSource
+          ? readUnrepliedInbox({ hoursBack: 4, sources: [inboxSource] })
+          : readPendingInbox().filter(i => i.source === source && i.status === 'pending');
         let suppressed = 0;
         let marked = 0;
         for (const item of pending) {
           const isBotSender = BOT_FROMS.has((item.from || '').toLowerCase());
           // Circuit breaker: after 2 foreground attempts without visible reply, force-mark
-          // to prevent infinite retry loops. Track via foregroundRetryCount map.
+          // bot/system noise only. Human messages must stay unreplied until a
+          // substantive answer is emitted; otherwise ACK-only replies silently drop work.
           const retryCount = (this.foregroundRetryCount.get(item.id) ?? 0) + 1;
           this.foregroundRetryCount.set(item.id, retryCount);
-          const forceMarkByRetry = retryCount >= 2;
+          const forceMarkByRetry = isBotSender && retryCount >= 2;
 
           if (!isBotSender && !hasVisibleReply && !forceMarkByRetry) {
             suppressed++;
@@ -1380,7 +1398,13 @@ export class AgentLoop {
           this.triggerReason = 'startup (unprocessed-P0/P1)';
           slog('LOOP', 'Startup: unprocessed P0/P1 inbox items detected → prioritizing');
         }
-        // Priority 3: Legacy check for 'seen' telegram items
+        // Priority 3: Any recent unreplied direct message, including P4 room shares
+        // that were ACKed and marked seen but not substantively answered.
+        else if (readRecentUnrepliedDirectMessages().length > 0) {
+          this.triggerReason = 'direct-message (unreplied-startup)';
+          slog('LOOP', 'Startup: unreplied direct message detected → prioritizing');
+        }
+        // Priority 4: Legacy check for 'seen' telegram items
         else if (hasRecentUnrepliedTelegram(4)) {
           this.triggerReason = 'startup (telegram-hint)';
           slog('LOOP', 'Startup: recent unseen telegram detected → prioritizing inbox check');
@@ -1540,6 +1564,11 @@ export class AgentLoop {
         if (content.includes('## Unaddressed') && /## Unaddressed[\s\S]*?- \[/.test(content)) {
           return true;
         }
+      }
+      // Unified inbox: `seen` direct messages are still unreplied. ACK-only
+      // foreground responses deliberately leave rows in this state for follow-up.
+      if (readRecentUnrepliedDirectMessages().length > 0) {
+        return true;
       }
       // Only P0/P1 tasks count as "pending work" — P2+ don't block learn/explore/idle
       const memDir = getMemoryRootDir();
@@ -1876,7 +1905,21 @@ export class AgentLoop {
       // Defense-in-depth: catches edge cases where trigger didn't start the cycle
       // (e.g. arrived during pause, process restart, or any future routing bug).
       // Must run before isDirectMessage so all downstream checks see the correct value.
-      const inboxItemsEarly = readPendingInbox();
+      const pendingInboxEarly = readPendingInbox();
+      const seenDmInboxEarly = readUnrepliedInbox({
+        hoursBack: 4,
+        sources: [...DIRECT_MESSAGE_INBOX_SOURCES],
+      }).filter(i => i.status === 'seen');
+      const inboxItemsEarly = [...pendingInboxEarly];
+      const inboxIdsEarly = new Set(inboxItemsEarly.map(i => i.id));
+      for (const item of seenDmInboxEarly) {
+        if (!inboxIdsEarly.has(item.id)) {
+          inboxItemsEarly.push(item);
+          inboxIdsEarly.add(item.id);
+        }
+      }
+      inboxItemsEarly.sort((a, b) =>
+        a.priority !== b.priority ? a.priority - b.priority : a.ts.localeCompare(b.ts));
 
       // ── Task Graph: intelligent inbox routing ──
       // Route DM items: simple ones → foreground slots (parallel), complex → stay in OODA
