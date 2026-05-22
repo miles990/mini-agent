@@ -195,6 +195,7 @@ function classifyDesignNeed(task: MemoryIndexEntry): DesignGovernanceTaskFinding
   const summary = task.summary ?? '';
   if (isPreservedStashTriageTask(summary) && !explicitRequired) return null;
   if (isCompletedDeploymentStatusReport(summary) && !explicitRequired) return null;
+  if (isLocalAgentToolingTask(summary) && !explicitRequired) return null;
   if (/autonomy closure:\s*repair design-governance/i.test(summary)) return null;
   const tags = task.tags ?? [];
   const tagRequired = tags.some(tag => HIGH_RISK_TAGS.has(tag));
@@ -232,6 +233,16 @@ function isCompletedDeploymentStatusReport(summary: string): boolean {
     && /\bmerge[ds]?\b|已\s*merge/i.test(summary)
     && /\bdeploy(?:ed)?\b|部署/i.test(summary)
     && /\bsuccess(?:ful|fully)?\b|成功|生效/i.test(summary);
+}
+
+// Design artifact: memory/proposals/design-artifacts/idx-1085c97b-a58b-4199-9836-96a77b9c37ac.md
+function isLocalAgentToolingTask(summary: string): boolean {
+  const mentionsLocalAgentTooling = /\.claude\/(?:settings\.json|agents\/|skills\/)/i.test(summary)
+    || /\b(?:PreToolUse|PostToolUse|Stop hook)\b/i.test(summary);
+  if (!mentionsLocalAgentTooling) return false;
+
+  const touchesRuntimeSource = /\b(?:src\/|scripts\/|plugins\/|dashboard\.html|agent-compose\.yaml|package\.json|pnpm-lock\.yaml|memory\/state\/|memory\/index\/|deploy|api route|middleware service|kg service)\b/i.test(summary);
+  return !touchesRuntimeSource;
 }
 
 function findDesignArtifact(
