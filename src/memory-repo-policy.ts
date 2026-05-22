@@ -19,6 +19,10 @@ export interface MemoryRepoFileStat extends MemoryRepoPathClassification {
   bytes: number;
 }
 
+export interface MemoryRepoGitStatusClassification extends MemoryRepoPathClassification {
+  status: string;
+}
+
 export interface MemoryRepoHealthReport {
   generatedAt: string;
   memoryDir: string;
@@ -226,6 +230,39 @@ export function classifyMemoryRepoPath(relPath: string): MemoryRepoPathClassific
   }
 
   return { relPath: normalized, klass: 'curated-knowledge', track: true, reason: 'curated memory artifact' };
+}
+
+export function classifyMemoryRepoGitStatus(status: string): {
+  trackable: MemoryRepoGitStatusClassification[];
+  ignored: MemoryRepoGitStatusClassification[];
+} {
+  const trackable: MemoryRepoGitStatusClassification[] = [];
+  const ignored: MemoryRepoGitStatusClassification[] = [];
+
+  for (const line of status.split('\n')) {
+    if (!line.trim()) continue;
+    const parsed = parseGitPorcelainLine(line);
+    if (!parsed) continue;
+    const classification = {
+      ...classifyMemoryRepoPath(parsed.relPath),
+      status: parsed.status,
+    };
+    if (classification.track) {
+      trackable.push(classification);
+    } else {
+      ignored.push(classification);
+    }
+  }
+
+  return { trackable, ignored };
+}
+
+function parseGitPorcelainLine(line: string): { status: string; relPath: string } | null {
+  const status = line.slice(0, 2);
+  const rawPath = line.slice(3).trim();
+  const relPath = rawPath.includes(' -> ') ? rawPath.split(' -> ').pop()?.trim() ?? rawPath : rawPath;
+  if (!relPath || relPath.startsWith('"')) return null;
+  return { status, relPath };
 }
 
 export function buildMemoryRepoHealthReport(
