@@ -93,6 +93,23 @@ describe('stash governance', () => {
     expect(diagnostic.assessment.autoResolvable.every(f => f.resolution === 'append-union')).toBe(true);
   });
 
+  it('classifies a stale deploy-backup snapshot as a mechanical drop, not a diagnose task', () => {
+    const diagnostic = classifyStash(deployBackupCodeStash());
+
+    expect(diagnostic).toEqual(expect.objectContaining({
+      decision: 'drop-stale-deploy-backup',
+      mechanicalAction: 'drop-deploy-backup-snapshot',
+      fallbackTask: null,
+      rootCause: expect.stringContaining('Pre-deploy safety snapshot'),
+    }));
+  });
+
+  it('does not reclassify a deploy-backup carrying append-only memory — merge-append-union still wins', () => {
+    // Regression guard: the deploy-backup drop branch must not steal stashes
+    // that still have append-only memory to union-merge before being dropped.
+    expect(classifyStash(deployBackupAppendOnlyStash()).decision).toBe('merge-append-union');
+  });
+
   it('does not create scheduler tasks for managed deploy-backup append-only stashes (regression: phantom P1 loop)', async () => {
     const memoryDir = path.join(tmpDir, 'memory');
     mkdirSync(path.join(memoryDir, 'state'), { recursive: true });
@@ -167,6 +184,45 @@ describe('stash governance', () => {
 
     const stashList = execFileSync('git', ['stash', 'list'], { cwd: repo, encoding: 'utf-8' });
     expect(stashList.trim()).toBe('');
+  });
+
+  it('drops every stale deploy-backup snapshot in one pass, unbounded by maxCases', async () => {
+    const repo = path.join(tmpDir, 'repo');
+    mkdirSync(repo, { recursive: true });
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.email', 'test@test');
+    git('config', 'user.name', 'test');
+    git('config', 'commit.gpgsign', 'false');
+
+    const file = path.join(repo, 'src', 'thing.ts');
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, 'export const v = 1;\n', 'utf-8');
+    git('add', '.');
+    git('commit', '-q', '-m', 'init');
+
+    // Four deploy-backup snapshots — more than the default maxCases (3) — to
+    // prove the drop pass drains the whole backlog in a single run rather than
+    // ceil(N / maxCases) runs (the failure mode that let 33 accumulate).
+    for (let i = 0; i < 4; i++) {
+      writeFileSync(file, `export const v = ${i + 2};\n`, 'utf-8');
+      git('stash', 'push', '-q', '-m', `On main: deploy-backup-2026050${i + 1}T010101Z`, '--', 'src/thing.ts');
+    }
+
+    const memoryDir = path.join(tmpDir, 'memory');
+    mkdirSync(path.join(memoryDir, 'state', 'index'), { recursive: true });
+    writeFileSync(path.join(memoryDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(memoryDir, 'state', 'index', 'relations.jsonl'), '', 'utf-8');
+
+    const result = await governGitStashes(memoryDir, repo, {
+      dropAbsorbed: true,
+      maxCases: 3,
+      reason: 'test',
+    });
+
+    expect(result.deployBackupDrops).toHaveLength(4);
+    expect(result.createdTasks).toHaveLength(0);
+    expect(execFileSync('git', ['stash', 'list'], { cwd: repo, encoding: 'utf-8' }).trim()).toBe('');
   });
 
   it('executor refuses to drop the stash if the merged output would shrink (append-only invariant)', async () => {
@@ -265,5 +321,13 @@ function deployBackupAppendOnlyStash(): GitStashRecord {
     ref: 'stash@{0}',
     message: 'On runtime/main: deploy-backup-20260508T165720Z',
     files: ['memory/handoffs/active.md'],
+  };
+}
+
+function deployBackupCodeStash(): GitStashRecord {
+  return {
+    ref: 'stash@{0}',
+    message: 'On main: deploy-backup-20260506T091949Z',
+    files: ['src/loop.ts'],
   };
 }

@@ -17,6 +17,7 @@ export interface GitStashRecord {
 export type StashGovernanceDecision =
   | 'ignore'
   | 'drop-absorbed'
+  | 'drop-stale-deploy-backup'
   | 'regenerate-generated-artifacts'
   | 'merge-append-union'
   | 'manual-diagnostic';
@@ -53,6 +54,7 @@ export interface StashGovernanceResult {
   createdTasks: MemoryIndexEntry[];
   closedTasks: MemoryIndexEntry[];
   appendUnionMerges?: AppendUnionMergeOutcome[];
+  deployBackupDrops?: string[];
 }
 
 export async function governGitStashes(
@@ -108,6 +110,23 @@ export async function governGitStashes(
     }
   }
 
+  // Deploy-backup drop pass. Re-lists stashes fresh so it is immune to the
+  // index shifts the absorbed / append-union drop loops above may have caused
+  // (stash refs are positional — `stash@{N}`). Iterates descending index so
+  // each drop leaves every lower ref valid. Deliberately unbounded by maxCases:
+  // that cap throttles task-creating diagnoses, not a `git stash drop`, and a
+  // backlog of obsolete snapshots should drain in a single pass rather than
+  // ceil(N / maxCases) runs — the failure mode that let 33 accumulate.
+  const deployBackupDrops: string[] = [];
+  if (opts.dropAbsorbed) {
+    const live = opts.stashes ?? listGitStashes(repoRoot);
+    for (let i = live.length - 1; i >= 0; i--) {
+      const stash = live[i];
+      if (classifyStash(stash, opts.reason).decision !== 'drop-stale-deploy-backup') continue;
+      if (dropStash(repoRoot, stash.ref)) deployBackupDrops.push(stash.ref);
+    }
+  }
+
   if (opts.createTasks) {
     const { createTask } = await import('./memory-index.js');
     closedTasks.push(...await closeObsoleteStashTasks(memoryDir, allCases));
@@ -137,11 +156,12 @@ export async function governGitStashes(
     }
   }
 
-  if (cases.length > 0 && (opts.record || opts.createTasks)) {
-    slog('HOUSEKEEPING', `stash governance diagnosed ${cases.length} stash case(s); tasks=${createdTasks.length} closed=${closedTasks.length} absorbedDrops=${absorbedDrops.length} appendUnionDrops=${appendUnionMerges.filter(m => m.dropped).length}`);
+  if ((cases.length > 0 || deployBackupDrops.length > 0) && (opts.record || opts.createTasks)) {
+    const deferred = allCases.length - cases.length;
+    slog('HOUSEKEEPING', `stash governance diagnosed ${cases.length}/${allCases.length} stash case(s)${deferred > 0 ? ` (${deferred} deferred to next run)` : ''}; tasks=${createdTasks.length} closed=${closedTasks.length} absorbedDrops=${absorbedDrops.length} deployBackupDrops=${deployBackupDrops.length} appendUnionDrops=${appendUnionMerges.filter(m => m.dropped).length}`);
   }
 
-  return { cases, createdTasks, closedTasks, appendUnionMerges };
+  return { cases, createdTasks, closedTasks, appendUnionMerges, deployBackupDrops };
 }
 
 /**
@@ -290,6 +310,9 @@ export function classifyStash(stash: GitStashRecord, reason = 'periodic-scan'): 
   const allAiTrend = stash.files.length > 0
     && stash.files.every(file => file.startsWith('kuro-portfolio/ai-trend/'));
   const id = `stash-${hashCase(stash.message, stash.files)}`;
+  const onlyAppendUnion = assessment.manual.length === 0
+    && assessment.autoResolvable.length > 0
+    && assessment.autoResolvable.every(file => file.resolution === 'append-union');
 
   if (stash.absorbed) {
     return {
@@ -313,6 +336,37 @@ export function classifyStash(stash: GitStashRecord, reason = 'periodic-scan'): 
     };
   }
 
+  // Deploy-backup snapshots (`deploy-backup-<ISO8601>`) are safety stashes the
+  // deploy pipeline takes automatically before each deploy. Once the deploy has
+  // landed they are obsolete — the pre-deploy state stays reachable via the
+  // deploy reflog (~30d) and main branch history. They are not work-in-progress
+  // and must never become diagnose tasks. Left unclassified they silently
+  // accumulated (57 stashes / 33 deploy-backups, 2026-05-22): some failed
+  // isManagedStash and were ignored, the rest fell off the maxCases window.
+  // Exception: a snapshot carrying append-only memory conflicts falls through
+  // to merge-append-union below so that memory is union-merged before drop.
+  if (isDeployBackupStash(stash.message) && !onlyAppendUnion) {
+    return {
+      id,
+      ts: new Date().toISOString(),
+      stashRef: stash.ref,
+      message: stash.message,
+      files: stash.files,
+      assessment,
+      decision: 'drop-stale-deploy-backup',
+      rootCause: 'Pre-deploy safety snapshot superseded once the deploy landed; pre-deploy state remains reachable via the deploy reflog and main branch history.',
+      evidence: [
+        `trigger=${reason}`,
+        `stash=${stash.ref}`,
+        `message=${stash.message}`,
+        `files=${stash.files.length} file(s)`,
+        'policy=obsolete deploy-backup snapshots are dropped mechanically; recoverable from reflog ~30d',
+      ],
+      mechanicalAction: 'drop-deploy-backup-snapshot',
+      fallbackTask: null,
+    };
+  }
+
   if (!isManagedStash(stash) && !allGenerated) {
     return {
       id,
@@ -328,10 +382,6 @@ export function classifyStash(stash: GitStashRecord, reason = 'periodic-scan'): 
       fallbackTask: null,
     };
   }
-
-  const onlyAppendUnion = assessment.manual.length === 0
-    && assessment.autoResolvable.length > 0
-    && assessment.autoResolvable.every(file => file.resolution === 'append-union');
 
   if (isManagedStash(stash) && onlyAppendUnion) {
     return {
@@ -407,6 +457,16 @@ export function classifyStash(stash: GitStashRecord, reason = 'periodic-scan'): 
 
 function isManagedStash(stash: GitStashRecord): boolean {
   return /auto-push|keep-ai-trend-dirty|runtime|autocorrect|pre-rebase/i.test(stash.message);
+}
+
+/**
+ * A deploy-backup snapshot — `git stash` reflog subject ending in
+ * `deploy-backup-<YYYYMMDDThhmmssZ>`, e.g. `On runtime/main:
+ * deploy-backup-20260520T110613Z`. The timestamp is anchored to the end so the
+ * match never catches work-in-progress stashes that merely mention the words.
+ */
+function isDeployBackupStash(message: string): boolean {
+  return /(?:^|:\s)deploy-backup-\d{8}T\d{6}Z$/.test(message.trim());
 }
 
 async function hasActiveTaskForCase(memoryDir: string, caseId: string): Promise<boolean> {
