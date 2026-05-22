@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   evaluateKgExternalMemoryTruth,
   evaluateMemoryStateTruth,
+  snapshotCuratedMemoryChanges,
 } from '../src/external-memory-health.js';
 
 let tmpDir: string;
@@ -53,6 +54,26 @@ describe('external memory health', () => {
     const result = evaluateMemoryStateTruth(tmpDir, tmpDir);
 
     expect(result.status).toBe('ok');
+  });
+
+  it('snapshots only curated memory changes and leaves ignored telemetry local', () => {
+    initGitMemory(tmpDir);
+    writeFileSync(path.join(tmpDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'inner-notes.md'), '# Notes\n', 'utf-8');
+
+    const snapshot = snapshotCuratedMemoryChanges(tmpDir, 'test: snapshot curated memory');
+    const result = evaluateMemoryStateTruth(tmpDir, tmpDir);
+    const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], {
+      cwd: tmpDir,
+      encoding: 'utf-8',
+    });
+
+    expect(snapshot.committed).toBe(true);
+    expect(snapshot.trackable).toEqual(['inner-notes.md']);
+    expect(result.status).toBe('ok');
+    expect(snapshot.ignored).toEqual([]);
+    expect(status).not.toContain('state/task-events.jsonl');
+    expect(status).not.toContain('inner-notes.md');
   });
 
   it('blocks unchecked P0 recurring-error HEARTBEAT tasks with no live error-pattern support', () => {
