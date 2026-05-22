@@ -3007,6 +3007,14 @@ export class AgentLoop {
             // mid-task and degrade to "拆小". callClaude's documented default
             // is 15min; 240s restores real budget while staying bounded.
             timeoutMs: 240_000,
+            // Silence-watchdog must match hard timeout — without this, PROGRESS_TIMEOUT_MS
+            // (agent.ts:697) defaults to 30_000ms, so claude streaming thinking-text for
+            // >30s with zero tool calls gets killed (toolCallCount===0 branch in agent.ts:907-909).
+            // This is the actual mechanism behind silent_exit_void_midprompt recurrence on
+            // 2026-05-22 (8 hits ~223s each, exit N/A, prompt 20-30K chars). PR #535 raised
+            // wall-clock to 240s but the silence-watchdog at 30s still fires first when claude
+            // reasons silently mid-prompt. Align both timeouts.
+            progressTimeoutMs: 240_000,
             onPartialOutput,
             cycleMode,
             model: modelCliName,
