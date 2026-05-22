@@ -193,6 +193,8 @@ function classifyDesignNeed(task: MemoryIndexEntry): DesignGovernanceTaskFinding
   if (OPERATIONAL_ORIGINS.includes(String(payload.origin)) && !explicitRequired) return null;
 
   const summary = task.summary ?? '';
+  if (isPreservedStashTriageTask(summary) && !explicitRequired) return null;
+  if (isCompletedDeploymentStatusReport(summary) && !explicitRequired) return null;
   if (/autonomy closure:\s*repair design-governance/i.test(summary)) return null;
   const tags = task.tags ?? [];
   const tagRequired = tags.some(tag => HIGH_RISK_TAGS.has(tag));
@@ -217,6 +219,19 @@ function classifyDesignNeed(task: MemoryIndexEntry): DesignGovernanceTaskFinding
     reason,
     missingSections: [],
   };
+}
+
+function isPreservedStashTriageTask(summary: string): boolean {
+  return /\bstash-[a-f0-9]+\b/i.test(summary)
+    && /\bdiagnose\s+preserved\s+stash\b/i.test(summary)
+    && /\bstash@\{\d+\}/i.test(summary);
+}
+
+function isCompletedDeploymentStatusReport(summary: string): boolean {
+  return /\bPR\s*#\d+/i.test(summary)
+    && /\bmerge[ds]?\b|已\s*merge/i.test(summary)
+    && /\bdeploy(?:ed)?\b|部署/i.test(summary)
+    && /\bsuccess(?:ful|fully)?\b|成功|生效/i.test(summary);
 }
 
 function findDesignArtifact(
