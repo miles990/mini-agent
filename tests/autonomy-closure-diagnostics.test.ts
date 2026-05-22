@@ -147,6 +147,23 @@ describe('autonomy closure diagnostics', () => {
     }));
   });
 
+  it('recognizes unsnapshotted curated memory from evidence even when summary wording changes', () => {
+    const cases = diagnoseAutonomyClosure(warningSnapshotWithStage({
+      stage: 'memory-state-truth',
+      status: 'warn',
+      summary: 'external memory has durable edits waiting for local snapshot',
+      evidence: [' M handoffs/active.md (curated-knowledge)'],
+      repair: 'Commit curated memory changes locally; keep high-frequency telemetry ignored.',
+    }));
+
+    expect(cases[0]).toEqual(expect.objectContaining({
+      stage: 'memory-state-truth',
+      status: 'mechanical-action',
+      mechanicalAction: 'snapshot-curated-memory',
+      fallbackTask: null,
+    }));
+  });
+
   it('self-heals curated memory dirt while leaving high-frequency telemetry local', async () => {
     tmpDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-autonomy-diagnostics-'));
     initGitMemory(tmpDir);
