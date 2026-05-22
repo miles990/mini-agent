@@ -13,7 +13,7 @@ import { spawnDelegation, type DelegationTask } from './delegation.js';
 import { schedulerTaskDone } from './scheduler.js';
 import { eventBus } from './event-bus.js';
 import { slog } from './utils.js';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { evaluateWorkspaceIsolation } from './workspace-isolation.js';
@@ -170,7 +170,29 @@ export function buildRetryEnvelopeDelegation(
 // M4: Goal Auto-Closure
 // =============================================================================
 
-export function checkGoalClosure(memoryDir: string, completedTaskId: string): string | null {
+function runVerifyCommand(command: string, timeoutMs = 10_000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn('sh', ['-c', command], {
+      cwd: process.cwd(),
+      stdio: 'ignore',
+    });
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      resolve(false);
+    }, timeoutMs);
+
+    child.once('error', () => {
+      clearTimeout(timer);
+      resolve(false);
+    });
+    child.once('exit', (code) => {
+      clearTimeout(timer);
+      resolve(code === 0);
+    });
+  });
+}
+
+export async function checkGoalClosure(memoryDir: string, completedTaskId: string): Promise<string | null> {
   const tasks = queryMemoryIndexSync(memoryDir, { type: ['task'], id: completedTaskId, limit: 1 });
   if (tasks.length === 0) return null;
 
@@ -197,14 +219,14 @@ export function checkGoalClosure(memoryDir: string, completedTaskId: string): st
   const goalVerify = goalPayload.verify_command as string | undefined;
 
   if (goalVerify) {
-    const result = spawnSync('sh', ['-c', goalVerify], { timeout: 10_000, stdio: 'pipe', cwd: process.cwd() });
-    if (result.status !== 0) {
+    const passed = await runVerifyCommand(goalVerify);
+    if (!passed) {
       slog('AUTO-EXEC', `goal ${goalId.slice(0, 16)} verify failed — not closing`);
       return null;
     }
   }
 
-  updateMemoryIndexEntry(memoryDir, goalId, { status: 'completed' }).catch(() => {});
+  await updateMemoryIndexEntry(memoryDir, goalId, { status: 'completed' });
   eventBus.emit('action:task', { event: 'goal-closed', goalId, childCount: siblings.length });
   slog('AUTO-EXEC', `goal ${goalId.slice(0, 16)} auto-closed (${siblings.length} children all completed)`);
   return goalId;
@@ -239,7 +261,9 @@ function ensureListener(): void {
       slog('AUTO-EXEC', `task ${taskId.slice(0, 16)} completed successfully`);
 
       const memoryDir = getMemoryRootDir();
-      checkGoalClosure(memoryDir, taskId);
+      checkGoalClosure(memoryDir, taskId).catch((err) => {
+        slog('AUTO-EXEC', `goal closure check failed: ${err instanceof Error ? err.message : String(err)}`);
+      });
     } else {
       const outputPreview = typeof event.data.outputPreview === 'string' ? event.data.outputPreview : '';
       const resourceHold = classifyProviderResourceHold(outputPreview);

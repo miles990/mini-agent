@@ -6,7 +6,7 @@
  */
 
 import { queryMemoryIndexSync, appendMemoryIndexEntry, updateMemoryIndexEntry, type CreateMemoryIndexEntryInput } from './memory-index.js';
-import { execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { slog } from './utils.js';
 
 const DECOMPOSE_COOLDOWN_MS = 5 * 60_000;
@@ -21,7 +21,55 @@ export interface DecomposeResult {
   subTaskCount?: number;
 }
 
-export function checkAndDecompose(memoryDir: string): DecomposeResult {
+function runClaudeDecompose(promptText: string, schema: string, timeoutMs = 90_000): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('claude', [
+      '-p',
+      '--model',
+      'sonnet',
+      '--output-format',
+      'json',
+      '--json-schema',
+      schema,
+    ], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill('SIGKILL');
+      reject(new Error(`claude decompose timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    child.stdout.setEncoding('utf-8');
+    child.stderr.setEncoding('utf-8');
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.once('error', (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.once('exit', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (code === 0) {
+        resolve(stdout);
+      } else {
+        reject(new Error(stderr.trim() || `claude exited with code ${code}`));
+      }
+    });
+    child.stdin.end(promptText);
+  });
+}
+
+export async function checkAndDecompose(memoryDir: string): Promise<DecomposeResult> {
   const elapsed = Date.now() - lastDecomposeAt;
   if (elapsed < DECOMPOSE_COOLDOWN_MS) {
     return { decomposed: false, reason: `cooldown (${Math.round((DECOMPOSE_COOLDOWN_MS - elapsed) / 60000)}min)` };
@@ -65,10 +113,7 @@ export function checkAndDecompose(memoryDir: string): DecomposeResult {
       },
     });
 
-    const raw = execSync(
-      `claude -p --model sonnet --output-format json --json-schema ${JSON.stringify(schema)}`,
-      { timeout: 90_000, encoding: 'utf-8', input: promptText, stdio: ['pipe', 'pipe', 'pipe'] },
-    );
+    const raw = await runClaudeDecompose(promptText, schema);
 
     const envelope = JSON.parse(raw);
     const subTasks = envelope?.structured_output as Array<{ summary: string; verify_command: string; acceptance_criteria: string }> | undefined;

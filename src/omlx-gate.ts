@@ -860,6 +860,14 @@ export interface LocalLLMResult {
   error?: string;
 }
 
+function localConcurrentDeadlineMs(tasks: LocalLLMTask[], maxConcurrency: number): number {
+  const concurrency = Math.max(1, Math.min(maxConcurrency, tasks.length));
+  const rounds = Math.ceil(tasks.length / concurrency);
+  const slowestTask = Math.max(...tasks.map(t => t.timeoutMs ?? 15_000));
+  const graceMs = Math.min(2_000, Math.max(10, slowestTask));
+  return Math.min(30_000, rounds * slowestTask + graceMs);
+}
+
 /**
  * Run multiple 0.8B tasks concurrently with a concurrency limit.
  * Sweet spot: 2-3 concurrent (benchmark: 3 concurrent ~200ms, 15.1 req/s).
@@ -886,6 +894,9 @@ export async function callLocalConcurrent(
 
   const results: LocalLLMResult[] = new Array(tasks.length);
   let nextIdx = 0;
+  let deadlineHit = false;
+  const batchStartedAt = Date.now();
+  const deadlineAt = batchStartedAt + localConcurrentDeadlineMs(tasks, maxConcurrency);
 
   const runTask = async (taskIdx: number): Promise<void> => {
     const task = tasks[taskIdx];
@@ -912,13 +923,36 @@ export async function callLocalConcurrent(
   for (let i = 0; i < Math.min(maxConcurrency, tasks.length); i++) {
     workers.push((async () => {
       while (nextIdx < tasks.length) {
+        if (Date.now() >= deadlineAt) {
+          deadlineHit = true;
+          return;
+        }
         const idx = nextIdx++;
         await runTask(idx);
       }
     })());
   }
 
-  await Promise.all(workers);
+  const deadlineMs = Math.max(1, deadlineAt - Date.now());
+  await Promise.race([
+    Promise.all(workers),
+    new Promise<void>((resolve) => setTimeout(() => {
+      deadlineHit = true;
+      resolve();
+    }, deadlineMs)),
+  ]);
+
+  const batchLatencyMs = Date.now() - batchStartedAt;
+  for (let i = 0; i < tasks.length; i++) {
+    if (!results[i]) {
+      results[i] = {
+        id: tasks[i].id,
+        content: null,
+        latencyMs: batchLatencyMs,
+        error: deadlineHit ? 'batch-deadline' : 'not-run',
+      };
+    }
+  }
 
   // Batch-level circuit breaker accounting — one event per batch, not per concurrent call.
   // Prevents a single slow batch (N tasks all timeout) from firing N recordCircuitFailure() calls.
@@ -932,7 +966,7 @@ export async function callLocalConcurrent(
   const totalLatency = results.reduce((sum, r) => sum + r.latencyMs, 0);
   const avgLatency = tasks.length > 0 ? Math.round(totalLatency / tasks.length) : 0;
   eventBus.emit('log:info', {
-    tag: 'omlx-gate', msg: `Concurrent: ${succeeded}/${tasks.length} ok, avg ${avgLatency}ms, max-concurrency ${maxConcurrency}`,
+    tag: 'omlx-gate', msg: `Concurrent: ${succeeded}/${tasks.length} ok, avg ${avgLatency}ms, max-concurrency ${maxConcurrency}${deadlineHit ? ', deadline-hit' : ''}`,
   });
 
   return results;

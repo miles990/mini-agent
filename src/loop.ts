@@ -2122,7 +2122,7 @@ export class AgentLoop {
       // Task decomposer: split abstract tasks into concrete sub-tasks (M1)
       try {
         const { checkAndDecompose } = await import('./task-decomposer.js');
-        const decompResult = checkAndDecompose(getMemoryRootDir());
+        const decompResult = await checkAndDecompose(getMemoryRootDir());
         if (decompResult.decomposed) {
           slog('DECOMPOSE', decompResult.reason);
         }

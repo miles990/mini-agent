@@ -25,6 +25,20 @@ import type { ParsedTags } from './types.js';
 import { loadCorrectionHolds, findActiveHold } from './correction-holds.js';
 import type { CorrectionReasonType } from './correction-gate.js';
 
+async function runVerifyCommandAsync(command: string, timeoutMs = 10_000): Promise<boolean> {
+  try {
+    await execAsync(command, {
+      timeout: timeoutMs,
+      killSignal: 'SIGKILL',
+      cwd: process.cwd(),
+      maxBuffer: 1024 * 1024,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -759,10 +773,9 @@ export async function updateTask(
   // Verify gate: task with verify_command must pass before terminal status
   const verifyCmd = (currentPayload.verify_command ?? newPayload.verify_command) as string | undefined;
   if (verifyCmd && ['completed', 'done'].includes(patch.status ?? '')) {
-    try {
-      execSync(verifyCmd, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
+    if (await runVerifyCommandAsync(verifyCmd)) {
       newPayload.verify_proof = { command: verifyCmd, passed: true, ts: new Date().toISOString() };
-    } catch {
+    } else {
       slog('VERIFY-GATE', `Rejected close: verify failed for ${current.summary?.slice(0, 60)}`);
       return current;
     }
@@ -844,15 +857,14 @@ export async function resolveDependencies(memoryDir: string, completedTaskId: st
         const goalVerify = (goal.payload as Record<string, unknown>)?.verify_command as string;
         let goalCompleted = false;
         if (goalVerify) {
-          try {
-            execSync(goalVerify, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
+          if (await runVerifyCommandAsync(goalVerify)) {
             await updateMemoryIndexEntry(memoryDir, goalId, {
               status: 'completed',
               payload: { ...(goal.payload as Record<string, unknown>), verify_proof: { command: goalVerify, passed: true, ts: new Date().toISOString() } },
             });
             slog('PIPELINE', `Goal auto-completed: ${goal.summary?.slice(0, 60)}`);
             goalCompleted = true;
-          } catch {
+          } else {
             slog('PIPELINE', `Goal verify failed: ${goal.summary?.slice(0, 60)}`);
           }
         } else {

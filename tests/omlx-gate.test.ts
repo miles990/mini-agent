@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  callLocalConcurrent,
   classifyHeartbeatCronActionability,
   cronGate,
   getGateStats,
@@ -21,6 +22,7 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true });
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   resetGateStats();
 });
 
@@ -74,5 +76,23 @@ describe('cronGate', () => {
 
     expect(cronGate('Check HEARTBEAT.md for pending tasks and execute them if any')).toBe('claude');
     expect(getGateStats().cronPassed).toBe(1);
+  });
+});
+
+describe('callLocalConcurrent', () => {
+  it('returns partial failed results when the batch deadline is hit', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    vi.stubEnv('OMLX_URL', 'http://127.0.0.1:65535');
+
+    const startedAt = Date.now();
+    const results = await callLocalConcurrent([
+      { id: 'a', prompt: 'a', maxTokens: 1, timeoutMs: 5 },
+      { id: 'b', prompt: 'b', maxTokens: 1, timeoutMs: 5 },
+    ], 1);
+
+    expect(Date.now() - startedAt).toBeLessThan(500);
+    expect(results).toHaveLength(2);
+    expect(results.map(r => r.id)).toEqual(['a', 'b']);
+    expect(results.some(r => r.error === 'batch-deadline')).toBe(true);
   });
 });
