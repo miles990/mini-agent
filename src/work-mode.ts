@@ -61,13 +61,15 @@ function readState(): WorkModeState {
     };
   } catch {
     const now = new Date().toISOString();
-    return {
+    const state: WorkModeState = {
       baseMode: DEFAULT_WORK_MODE,
       activeMode: DEFAULT_WORK_MODE,
       temporaryReason: null,
       switchedAt: now,
       updatedAt: now,
     };
+    try { writeState(state); } catch { /* status endpoints must stay readable */ }
+    return state;
   }
 }
 
