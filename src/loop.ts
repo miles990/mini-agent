@@ -12,6 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForeground, acquireForegroundSlot, releaseForegroundSlot, getLaneStatus } from './agent.js';
 import { getMemory, getMemoryStateDir } from './memory.js';
@@ -152,6 +153,51 @@ import {
 import { decideCloudTokenRoute } from './cloud-token-governor.js';
 
 const DIRECT_MESSAGE_INBOX_SOURCES = ['telegram', 'room', 'claude-code'] as const;
+let runtimeAutocorrectInFlight = false;
+
+function startRuntimeAutocorrectSidecar(repoRoot: string): boolean {
+  if (runtimeAutocorrectInFlight) return false;
+  runtimeAutocorrectInFlight = true;
+
+  const child = spawn('pnpm', [
+    'exec',
+    'tsx',
+    'scripts/runtime-workspace-autocorrect.ts',
+    '--apply',
+    '--json',
+  ], {
+    cwd: repoRoot,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: process.env,
+  });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf-8');
+  child.stderr.setEncoding('utf-8');
+  child.stdout.on('data', chunk => { stdout += chunk; });
+  child.stderr.on('data', chunk => { stderr += chunk; });
+  child.once('error', (err) => {
+    runtimeAutocorrectInFlight = false;
+    slog('WARN', `runtime autocorrect sidecar failed to start: ${err.message}`);
+  });
+  child.once('exit', (code) => {
+    runtimeAutocorrectInFlight = false;
+    const trimmed = stdout.trim();
+    try {
+      const parsed = JSON.parse(trimmed) as {
+        result?: { status?: string; reason?: string; prUrl?: string };
+      };
+      const result = parsed.result;
+      slog('CORRECTION', `runtime autocorrect ${result?.status ?? `exit-${code}`}: ${result?.reason ?? 'no result'}${result?.prUrl ? ` ${result.prUrl}` : ''}`);
+    } catch {
+      const detail = (stderr.trim() || trimmed || `exit code ${code}`).slice(0, 200);
+      slog(code === 0 ? 'CORRECTION' : 'WARN', `runtime autocorrect sidecar exit=${code}: ${detail}`);
+    }
+  });
+
+  return true;
+}
 
 function inboxSourceForDirectMessage(source: string): typeof DIRECT_MESSAGE_INBOX_SOURCES[number] | null {
   if (source === 'chat') return 'claude-code';
@@ -2496,14 +2542,10 @@ export class AgentLoop {
           || reason.type === 'dirty-runtime-workspace',
         ) || correction.shipTruth.state === 'behind';
         if (shouldAutocorrectRuntime && process.env.MINI_AGENT_AUTOCORRECT_RUNTIME_WORKSPACE !== '0') {
-          try {
-            const { autocorrectRuntimeWorkspace } = await import('./runtime-workspace-autocorrect.js');
-            const result = autocorrectRuntimeWorkspace(process.cwd(), { apply: true });
-            slog('CORRECTION', `runtime autocorrect ${result.status}: ${result.reason}${result.prUrl ? ` ${result.prUrl}` : ''}`);
-            correction = evaluateCorrectionGate(memDir);
-          } catch (e) {
-            slog('WARN', `runtime autocorrect failed: ${e}`);
-          }
+          const started = startRuntimeAutocorrectSidecar(process.cwd());
+          slog('CORRECTION', started
+            ? 'runtime autocorrect sidecar started'
+            : 'runtime autocorrect sidecar already running');
         }
         if (correction.needsCorrection) {
           const correctionTask = await ensureCorrectionTask(memDir, correction);
