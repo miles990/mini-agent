@@ -195,6 +195,7 @@ function classifyDesignNeed(task: MemoryIndexEntry): DesignGovernanceTaskFinding
   const summary = task.summary ?? '';
   if (isPreservedStashTriageTask(summary) && !explicitRequired) return null;
   if (isCompletedPrStatusReport(summary) && !explicitRequired) return null;
+  if (isRoutineOperationalProbeTask(summary) && !explicitRequired) return null;
   if (isLocalAgentToolingTask(summary) && !explicitRequired) return null;
   if (/autonomy closure:\s*repair design-governance/i.test(summary)) return null;
   const tags = task.tags ?? [];
@@ -239,6 +240,13 @@ function isCompletedPrStatusReport(summary: string): boolean {
     || /verify\s*(?:全綠|green|passed)|verification\s*(?:green|passed)|checks?\s*(?:green|passed)|測試\s*(?:全綠|通過)/i.test(summary);
 
   return hasCompletedShip || hasCompletedAutomation;
+}
+
+function isRoutineOperationalProbeTask(summary: string): boolean {
+  const startsAsRoutineProbe = /^(?:@kuro\s+)?(?:Smart patrol|Smart source scan|HEARTBEAT check|Check HEARTBEAT\.md)\b/i.test(summary.trim());
+  if (!startsAsRoutineProbe) return false;
+
+  return /\b(?:plugins\/self-healing\.sh|self-healing\.sh|HEARTBEAT\.md|source scan)\b/i.test(summary);
 }
 
 // Design artifact: memory/proposals/design-artifacts/idx-1085c97b-a58b-4199-9836-96a77b9c37ac.md
