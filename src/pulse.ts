@@ -147,6 +147,25 @@ interface PulseState {
   lastSkillUpdateMtime?: number;
 }
 
+type LiveErrorPattern = {
+  resolvedAt?: string;
+  lastSeen?: string;
+  lastSeenAt?: string;
+};
+
+export function isLiveErrorPatternResolved(pattern: LiveErrorPattern | undefined): boolean {
+  if (!pattern?.resolvedAt) return false;
+
+  const resolvedTs = Date.parse(pattern.resolvedAt);
+  if (!Number.isFinite(resolvedTs)) return false;
+
+  const seenAt = pattern.lastSeenAt ?? pattern.lastSeen;
+  if (!seenAt) return true;
+
+  const seenTs = Date.parse(seenAt);
+  return !Number.isFinite(seenTs) || seenTs <= resolvedTs;
+}
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -721,9 +740,23 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
 
       let changed = false;
       const memory = getMemory();
+      const liveErrorPatterns = readJsonFile<Record<string, LiveErrorPattern>>(
+        getStatePath('error-patterns.json'),
+        {},
+      );
 
       for (const [key, count] of groups) {
         if (count < ERROR_PATTERN_THRESHOLD) continue;
+
+        if (isLiveErrorPatternResolved(liveErrorPatterns[key])) {
+          if (state.errorPatterns[key]) {
+            delete state.errorPatterns[key];
+            changed = true;
+          }
+          slog('PULSE', `Resolved error pattern skipped: ${key}`);
+          continue;
+        }
+
         metrics.recurringErrorCount++;
 
         // Protective subtypes (memory_guard / max_turns): guard mechanisms working as intended,
