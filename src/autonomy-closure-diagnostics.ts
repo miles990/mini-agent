@@ -5,12 +5,14 @@ import {
   type AutonomyClosureStage,
   type AutonomyClosureStageResult,
 } from './autonomy-closure-health.js';
+import { snapshotCuratedMemoryChanges } from './external-memory-health.js';
 import { autoRepairPrVerificationEvidence, githubAutoActions } from './github.js';
 import { slog } from './utils.js';
 
 export type AutonomyClosureMechanicalAction =
   | 'github-autopilot'
   | 'repair-pr-verification-evidence'
+  | 'snapshot-curated-memory'
   | 'none';
 
 export interface AutonomyClosureDiagnosticCase {
@@ -57,6 +59,12 @@ export async function diagnoseAndRepairAutonomyClosure(
     if (diagnostic.mechanicalAction === 'github-autopilot') {
       await githubAutoActions();
       actionsRun.push(diagnostic.mechanicalAction);
+      continue;
+    }
+    if (diagnostic.mechanicalAction === 'snapshot-curated-memory') {
+      const result = snapshotCuratedMemoryChanges(memoryDir);
+      if (result.committed) actionsRun.push(diagnostic.mechanicalAction);
+      if (result.error) slog('AUTONOMY', `curated memory snapshot failed: ${result.error}`);
       continue;
     }
   }
@@ -161,9 +169,10 @@ function diagnoseStage(stage: AutonomyClosureStageResult, ts: string): AutonomyC
   }
 
   if (stage.stage === 'memory-state-truth') {
+    const canSnapshotCuratedMemory = /curated memory git change\(s\) not snapshotted/i.test(stage.summary);
     return {
       ...base,
-      status: 'fallback-task',
+      status: canSnapshotCuratedMemory ? 'mechanical-action' : 'fallback-task',
       rootCause: 'External file memory is not in a durable parseable state.',
       evidence: stage.evidence,
       probeCommands: [
@@ -171,12 +180,14 @@ function diagnoseStage(stage: AutonomyClosureStageResult, ts: string): AutonomyC
         'pnpm check:autonomy-closure -- --json',
       ],
       constraintTexture: constraintTextureFor(stage, 'memory may change often, but curated state must be parseable, snapshotted, and replayable'),
-      mechanicalAction: 'none',
-      fallbackTask: {
-        title: 'P0 diagnostic: restore external memory state truth',
-        verifyCommand: 'git -C "$MINI_AGENT_MEMORY_DIR" status --short && pnpm check:autonomy-closure -- --json',
-        acceptanceCriteria: 'Critical JSONL is parseable and curated memory changes are either snapshotted or explicitly ignored as high-frequency telemetry.',
-      },
+      mechanicalAction: canSnapshotCuratedMemory ? 'snapshot-curated-memory' : 'none',
+      fallbackTask: canSnapshotCuratedMemory
+        ? null
+        : {
+            title: 'P0 diagnostic: restore external memory state truth',
+            verifyCommand: 'git -C "$MINI_AGENT_MEMORY_DIR" status --short && pnpm check:autonomy-closure -- --json',
+            acceptanceCriteria: 'Critical JSONL is parseable and curated memory changes are either snapshotted or explicitly ignored as high-frequency telemetry.',
+          },
     };
   }
 

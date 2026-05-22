@@ -1,6 +1,21 @@
-import { describe, expect, it } from 'vitest';
-import { diagnoseAutonomyClosure, diagnosticFingerprint } from '../src/autonomy-closure-diagnostics.js';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  diagnoseAndRepairAutonomyClosure,
+  diagnoseAutonomyClosure,
+  diagnosticFingerprint,
+} from '../src/autonomy-closure-diagnostics.js';
 import type { AutonomyClosureSnapshot } from '../src/autonomy-closure-health.js';
+
+let tmpDir: string | null = null;
+
+afterEach(() => {
+  if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
+  tmpDir = null;
+});
 
 describe('autonomy closure diagnostics', () => {
   it('routes PR review consensus blockers through mechanical verification repair first', () => {
@@ -111,6 +126,50 @@ describe('autonomy closure diagnostics', () => {
       }),
     }));
   });
+
+  it('routes unsnapshotted curated memory through a mechanical snapshot action', () => {
+    const cases = diagnoseAutonomyClosure(warningSnapshotWithStage({
+      stage: 'memory-state-truth',
+      status: 'warn',
+      summary: '1 curated memory git change(s) not snapshotted',
+      evidence: [' M handoffs/active.md (curated-knowledge)'],
+      repair: 'Commit curated memory changes locally; keep high-frequency telemetry ignored.',
+    }));
+
+    expect(cases[0]).toEqual(expect.objectContaining({
+      stage: 'memory-state-truth',
+      status: 'mechanical-action',
+      mechanicalAction: 'snapshot-curated-memory',
+      fallbackTask: null,
+      probeCommands: expect.arrayContaining([
+        'git -C "$MINI_AGENT_MEMORY_DIR" status --short',
+      ]),
+    }));
+  });
+
+  it('self-heals curated memory dirt while leaving high-frequency telemetry local', async () => {
+    tmpDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-autonomy-diagnostics-'));
+    initGitMemory(tmpDir);
+    mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
+    writeFileSync(path.join(tmpDir, 'inner-notes.md'), '# Notes\n', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'state', 'autonomy-closure-diagnostics.jsonl'), '{"telemetry":true}\n', 'utf-8');
+
+    const result = await diagnoseAndRepairAutonomyClosure(tmpDir, warningSnapshotWithStage({
+      stage: 'memory-state-truth',
+      status: 'warn',
+      summary: '1 curated memory git change(s) not snapshotted',
+      evidence: [' M inner-notes.md (curated-knowledge)'],
+      repair: 'Commit curated memory changes locally; keep high-frequency telemetry ignored.',
+    }));
+    const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+      cwd: tmpDir,
+      encoding: 'utf-8',
+    });
+
+    expect(result.actionsRun).toEqual(['snapshot-curated-memory']);
+    expect(status).not.toContain('inner-notes.md');
+    expect(status).toContain('state/autonomy-closure-diagnostics.jsonl');
+  });
 });
 
 function snapshotWithStage(stage: AutonomyClosureSnapshot['stages'][number]): AutonomyClosureSnapshot {
@@ -137,4 +196,19 @@ function snapshotWithStage(stage: AutonomyClosureSnapshot['stages'][number]): Au
       acknowledgedHolds: [],
     },
   };
+}
+
+function warningSnapshotWithStage(stage: AutonomyClosureSnapshot['stages'][number]): AutonomyClosureSnapshot {
+  return {
+    ...snapshotWithStage(stage),
+    status: 'degraded',
+    blockingStages: [],
+    warningStages: [stage.stage],
+  };
+}
+
+function initGitMemory(dir: string): void {
+  execFileSync('git', ['init'], { cwd: dir, stdio: 'ignore' });
+  execFileSync('git', ['config', 'user.name', 'test'], { cwd: dir, stdio: 'ignore' });
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir, stdio: 'ignore' });
 }
