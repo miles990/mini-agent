@@ -194,7 +194,7 @@ function classifyDesignNeed(task: MemoryIndexEntry): DesignGovernanceTaskFinding
 
   const summary = task.summary ?? '';
   if (isPreservedStashTriageTask(summary) && !explicitRequired) return null;
-  if (isCompletedDeploymentStatusReport(summary) && !explicitRequired) return null;
+  if (isCompletedPrStatusReport(summary) && !explicitRequired) return null;
   if (isLocalAgentToolingTask(summary) && !explicitRequired) return null;
   if (/autonomy closure:\s*repair design-governance/i.test(summary)) return null;
   const tags = task.tags ?? [];
@@ -228,11 +228,17 @@ function isPreservedStashTriageTask(summary: string): boolean {
     && /\bstash@\{\d+\}/i.test(summary);
 }
 
-function isCompletedDeploymentStatusReport(summary: string): boolean {
-  return /\bPR\s*#\d+/i.test(summary)
-    && /\bmerge[ds]?\b|已\s*merge/i.test(summary)
+function isCompletedPrStatusReport(summary: string): boolean {
+  if (!/\bPR\s*#\d+/i.test(summary)) return false;
+
+  const hasCompletedShip = /\bmerge[ds]?\b|已\s*merge/i.test(summary)
     && /\bdeploy(?:ed)?\b|部署/i.test(summary)
     && /\bsuccess(?:ful|fully)?\b|成功|生效/i.test(summary);
+  const hasCompletedAutomation = /(?:套用|執行|處理|apply|applied|implement(?:ed)?|complete(?:d)?)\s*(?:完成|完|done|success(?:ful|fully)?)/i.test(summary)
+    || /(?:完成|完了|done|complete(?:d)?)\s*(?:→|->|:|：)?\s*.*\bPR\s*#\d+/i.test(summary)
+    || /verify\s*(?:全綠|green|passed)|verification\s*(?:green|passed)|checks?\s*(?:green|passed)|測試\s*(?:全綠|通過)/i.test(summary);
+
+  return hasCompletedShip || hasCompletedAutomation;
 }
 
 // Design artifact: memory/proposals/design-artifacts/idx-1085c97b-a58b-4199-9836-96a77b9c37ac.md

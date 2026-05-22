@@ -156,6 +156,53 @@ describe('design governance', () => {
     expect(report.missingArtifacts).toHaveLength(0);
   });
 
+  it('does not require design artifacts for completed automation PR status reports', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
+    const report = evaluateDesignGovernance(memoryDir, [
+      task({
+        id: 'idx-36546a72-1c59-483f-bfca-9b6b834a414e',
+        status: 'in_progress',
+        summary: '@kuro 自動化建議套用完成 → PR #559：新增 identity-layer-canary subagent（會審查對你 SOUL/CLAUDE.md/gate 的淨增改動，對照 KG 1c2885cd 過度累積 prior）+ coordinate-edit skill。verify 全綠。',
+        tags: ['room'],
+        payload: { ticksSinceLastProgress: 1 },
+      }),
+    ]);
+
+    expect(report.status).toBe('ok');
+    expect(report.missingArtifacts).toHaveLength(0);
+  });
+
+  it('does not require design artifacts for completed work reports that mention a PR after the completion marker', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
+    const report = evaluateDesignGovernance(memoryDir, [
+      task({
+        id: 'idx-518eae5c-0a17-4f90-b6fe-3d534b4f9296',
+        status: 'in_progress',
+        summary: '@kuro KG MCP server 完成 → knowledge-graph PR #4（6 tools: kg_query/get_entity/list+get_discussion/create_discussion/post_position，typecheck + MCP handshake + 真實 kg_query 全驗過）。mini-agent .mcp.json 接線等 PR',
+        tags: ['room'],
+      }),
+    ]);
+
+    expect(report.status).toBe('ok');
+    expect(report.missingArtifacts).toHaveLength(0);
+  });
+
+  it('still requires design artifacts for active PR implementation requests', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
+    const report = evaluateDesignGovernance(memoryDir, [
+      task({
+        status: 'in_progress',
+        summary: '@kuro implement PR #559 follow-up for KG workflow state machine',
+        payload: { priority: 1 },
+      }),
+    ]);
+
+    expect(report.status).toBe('blocked');
+    expect(report.missingArtifacts[0]).toEqual(expect.objectContaining({
+      taskId: 'idx-design-test',
+    }));
+  });
+
   it('does not require deep design artifacts for local Claude tooling guardrails', () => {
     const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
     const report = evaluateDesignGovernance(memoryDir, [
