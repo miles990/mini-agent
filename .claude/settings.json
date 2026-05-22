@@ -6,18 +6,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [[ \"$TOOL_INPUT\" == *\".ts\"* ]]; then cd \"$CLAUDE_PROJECT_DIR\" && npx tsc --noEmit 2>&1 | head -20; fi"
+            "command": "if [[ \"$TOOL_INPUT\" == *\".ts\"* ]]; then cd \"$CLAUDE_PROJECT_DIR\" && npx tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo 2>&1 | head -20; fi"
           }
         ]
       }
     ],
     "PreToolUse": [
       {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=\"${TOOL_INPUT:-$(cat)}\"; if echo \"$INPUT\" | grep -qE '\"file_path\": ?\"[^\"]*/\\.env\"'; then echo 'BLOCKED: .env 含 secrets（OPENAI_API_KEY 等），請改 .env.example，或在 chat-room 說明需求' >&2; exit 2; fi"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "if echo \"$TOOL_INPUT\" | grep -q 'git commit'; then cd \"$CLAUDE_PROJECT_DIR\" && npx tsc --noEmit 2>&1 | tail -5; fi"
+            "command": "if echo \"$TOOL_INPUT\" | grep -q 'git commit'; then cd \"$CLAUDE_PROJECT_DIR\" && npx tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo 2>&1 | tail -5; fi"
           }
         ]
       }

@@ -9,6 +9,15 @@
       "env": {
         "AGENT_URL": "http://127.0.0.1:3001"
       }
+    },
+    "memory-db": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-sqlite-npx",
+        "/Users/user/.mini-agent/instances/03bbc29a/memory-index.db"
+      ]
     }
   }
 }
