@@ -169,7 +169,7 @@ function diagnoseStage(stage: AutonomyClosureStageResult, ts: string): AutonomyC
   }
 
   if (stage.stage === 'memory-state-truth') {
-    const canSnapshotCuratedMemory = /curated memory git change\(s\) not snapshotted/i.test(stage.summary);
+    const canSnapshotCuratedMemory = isUnsnapshottedCuratedMemoryStage(stage);
     return {
       ...base,
       status: canSnapshotCuratedMemory ? 'mechanical-action' : 'fallback-task',
@@ -229,6 +229,11 @@ function diagnoseStage(stage: AutonomyClosureStageResult, ts: string): AutonomyC
       acceptanceCriteria: `${stage.summary} ${stage.repair ?? ''}`.trim(),
     },
   };
+}
+
+function isUnsnapshottedCuratedMemoryStage(stage: AutonomyClosureStageResult): boolean {
+  if (/curated memory git change\(s\) not snapshotted/i.test(stage.summary)) return true;
+  return stage.evidence.some(line => /\b[AMDRCU? ]{1,2}\s+\S+ \((?:curated-knowledge)\)/i.test(line));
 }
 
 function diagnosticBase(stage: AutonomyClosureStageResult, ts: string): Pick<AutonomyClosureDiagnosticCase, 'id' | 'ts' | 'stage' | 'fingerprint'> {
