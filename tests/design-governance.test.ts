@@ -142,6 +142,21 @@ describe('design governance', () => {
     expect(report.missingArtifacts).toHaveLength(0);
   });
 
+  it('does not require design artifacts for routine operational probe tasks', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
+    const report = evaluateDesignGovernance(memoryDir, [
+      task({
+        id: 'idx-7d77e496-88c8-44c8-904a-3d38c5717690',
+        status: 'pending',
+        summary: 'Smart patrol: Run `bash plugins/self-healing.sh` and check results. If any HEALED items, [CHAT] notify Alex what was auto-repaired. If any UNRESOLVED items, attempt manual diagnosis and fix. Also check: (1) topic memory idle >3 days (2) HEARTBEAT overdue tasks (3) uncommitted memory changes. Take action on findings.',
+        payload: { priority: 1 },
+      }),
+    ]);
+
+    expect(report.status).toBe('ok');
+    expect(report.missingArtifacts).toHaveLength(0);
+  });
+
   it('does not require design artifacts for completed PR deploy status reports', () => {
     const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
     const report = evaluateDesignGovernance(memoryDir, [
