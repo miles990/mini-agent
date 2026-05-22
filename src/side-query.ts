@@ -15,6 +15,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { eventBus } from './event-bus.js';
+import { getLogger } from './logging.js';
 import { execClaudeViaSdk, isSdkEnabled } from './sdk-client.js';
 
 // Use the same subprocess cwd as execClaude — outside .mini-agent git tree
@@ -25,6 +26,17 @@ export interface SideQueryOptions {
   model?: string;
   timeout?: number;
   maxTokens?: number;
+}
+
+const DEFAULT_SIDE_QUERY_TIMEOUT_MS = 30_000;
+
+function logSideQueryTimeout(timeout: number, promptChars: number, detail?: string): void {
+  try {
+    getLogger().logError(
+      new Error(`sideQuery TIMEOUT: Claude CLI silent exit (${Math.round(timeout / 1000)}s no stderr). stdout=empty prompt ${promptChars} chars${detail ? `: ${detail}` : ''}`),
+      'sideQuery',
+    );
+  } catch { /* logging is best-effort */ }
 }
 
 /**
@@ -38,7 +50,7 @@ export async function sideQuery(
   opts?: SideQueryOptions,
 ): Promise<string | null> {
   const model = opts?.model ?? 'claude-haiku-4-5-20251001';
-  const timeout = opts?.timeout ?? 15_000;
+  const timeout = opts?.timeout ?? DEFAULT_SIDE_QUERY_TIMEOUT_MS;
   const start = Date.now();
 
   // Phase A3 canary: when USE_SDK=true, route side-query through Agent SDK.
@@ -58,6 +70,9 @@ export async function sideQuery(
       return result.trim() || null;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (/timeout|stalled/i.test(msg)) {
+        logSideQueryTimeout(timeout, prompt.length, msg.slice(0, 200));
+      }
       eventBus.emit('log:info', {
         tag: 'side-query',
         msg: `[canary-sdk] failed: ${msg.slice(0, 200)}`,
@@ -103,6 +118,7 @@ export async function sideQuery(
 
     const timer = setTimeout(() => {
       try { child.kill('SIGTERM'); } catch { /* ignore */ }
+      logSideQueryTimeout(timeout, prompt.length);
       settle(null);
     }, timeout);
 
