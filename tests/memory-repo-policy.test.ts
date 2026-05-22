@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildMemoryRepoHealthReport,
+  classifyMemoryRepoGitStatus,
   classifyMemoryRepoPath,
   CONTEXT_FABRIC_DESIGN,
   formatMemoryRepoHealthMarkdown,
@@ -25,6 +26,22 @@ describe('memory repo policy', () => {
       klass: 'curated-knowledge',
       track: true,
     });
+  });
+
+  it('classifies git dirt into curated work and ignored telemetry', () => {
+    const status = [
+      ' M inner-notes.md',
+      '?? state/autonomy-closure-diagnostics.jsonl',
+      '?? logs/runtime.jsonl',
+    ].join('\n');
+
+    const result = classifyMemoryRepoGitStatus(status);
+
+    expect(result.trackable.map(file => file.relPath)).toEqual(['inner-notes.md']);
+    expect(result.ignored.map(file => file.relPath)).toEqual([
+      'state/autonomy-closure-diagnostics.jsonl',
+      'logs/runtime.jsonl',
+    ]);
   });
 
   it('surfaces curated Markdown as KG candidates for shared semantic memory', () => {

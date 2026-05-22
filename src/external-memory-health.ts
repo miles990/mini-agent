@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { isKgDiscussionLifecycleKnown, readKgDiscussionLifecycleRecords } from './kg-discussion-janitor.js';
+import { classifyMemoryRepoGitStatus } from './memory-repo-policy.js';
 
 export interface ExternalMemoryHealthResult {
   status: 'ok' | 'warn' | 'blocked';
@@ -66,12 +67,15 @@ export function evaluateMemoryStateTruth(memoryDir: string, repoRoot: string): E
     };
   }
 
-  const dirtyLines = status.split('\n').filter(Boolean);
-  if (dirtyLines.length > 0) {
+  const dirty = classifyMemoryRepoGitStatus(status);
+  if (dirty.trackable.length > 0) {
     return {
       status: 'warn',
-      summary: `${dirtyLines.length} curated memory git change(s) not snapshotted`,
-      evidence: [...evidence, ...dirtyLines.slice(0, 8)],
+      summary: `${dirty.trackable.length} curated memory git change(s) not snapshotted`,
+      evidence: [
+        ...evidence,
+        ...dirty.trackable.slice(0, 8).map(item => `${item.status} ${item.relPath} (${item.klass})`),
+      ],
       repair: 'Commit curated memory changes locally; keep high-frequency telemetry ignored.',
     };
   }

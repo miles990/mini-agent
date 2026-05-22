@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,13 +34,25 @@ describe('external memory health', () => {
   });
 
   it('warns when a git-backed external memory repo has unsnapshotted curated files', () => {
-    mkdirSync(path.join(tmpDir, '.git'));
+    initGitMemory(tmpDir);
     writeFileSync(path.join(tmpDir, 'state', 'task-events.jsonl'), '', 'utf-8');
-    writeFileSync(path.join(tmpDir, 'MEMORY.md'), '# Memory\n', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'inner-notes.md'), '# Notes\n', 'utf-8');
 
     const result = evaluateMemoryStateTruth(tmpDir, tmpDir);
 
-    expect(['warn', 'ok']).toContain(result.status);
+    expect(result.status).toBe('warn');
+    expect(result.summary).toContain('1 curated memory git change');
+    expect(result.evidence.join('\n')).toContain('inner-notes.md (curated-knowledge)');
+  });
+
+  it('does not warn for ignored high-frequency telemetry changes', () => {
+    initGitMemory(tmpDir);
+    writeFileSync(path.join(tmpDir, 'state', 'task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'state', 'transient.json'), '{}', 'utf-8');
+
+    const result = evaluateMemoryStateTruth(tmpDir, tmpDir);
+
+    expect(result.status).toBe('ok');
   });
 
   it('blocks unchecked P0 recurring-error HEARTBEAT tasks with no live error-pattern support', () => {
@@ -121,3 +134,8 @@ describe('external memory health', () => {
     expect(result.repair).toContain('context exchange');
   });
 });
+
+function initGitMemory(dir: string): void {
+  execFileSync('git', ['init'], { cwd: dir, stdio: 'ignore' });
+  writeFileSync(path.join(dir, '.git', 'info', 'exclude'), 'state/\n*.jsonl\n', 'utf-8');
+}

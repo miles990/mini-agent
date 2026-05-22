@@ -30,7 +30,7 @@ import type { TaskResult } from './delegation.js';
 import { reconcileMiddlewareCommitmentsSafe } from './middleware-truth-reconciler.js';
 import { rotateDecisionLogs } from './decision-log-rotation.js';
 import { sweepMiddlewareFailures } from './middleware-failure-self-healing.js';
-import { classifyMemoryRepoPath } from './memory-repo-policy.js';
+import { classifyMemoryRepoGitStatus } from './memory-repo-policy.js';
 import { getFeature, setEnabled } from './features.js';
 import { pruneReviewBacklog } from './review-backlog-janitor.js';
 import { sweepKgDiscussionLifecycle } from './kg-discussion-janitor.js';
@@ -860,16 +860,7 @@ function ensureCriticalContextFeatures(): void {
 }
 
 function parseTrackableMemoryStatus(status: string): string[] {
-  const files = new Set<string>();
-  for (const line of status.split('\n')) {
-    if (!line.trim()) continue;
-    const rawPath = line.slice(3).trim();
-    const relPath = rawPath.includes(' -> ') ? rawPath.split(' -> ').pop()?.trim() ?? rawPath : rawPath;
-    if (!relPath || relPath.startsWith('"')) continue;
-    const classification = classifyMemoryRepoPath(relPath);
-    if (classification.track) files.add(relPath);
-  }
-  return [...files].sort();
+  return classifyMemoryRepoGitStatus(status).trackable.map(file => file.relPath).sort();
 }
 
 async function execGit(cwd: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
