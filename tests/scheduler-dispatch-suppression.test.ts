@@ -206,12 +206,12 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
     const decision = schedulerPick(tmpDir, []);
 
     expect(decision.action).toBe('idle');
-    expect(decision.reason).toContain('next discovery slot');
+    expect(decision.reason).toContain('maintenance mode');
   });
 
-  it('keeps periodic discovery when no tasks are schedulable', () => {
+  it('keeps creative discovery when no tasks are schedulable in creative mode', () => {
     for (let i = 0; i < 10; i++) advanceTick();
-    const decision = schedulerPick(tmpDir, []);
+    const decision = schedulerPick(tmpDir, [], { workMode: 'creative' });
 
     expect(decision.action).toBe('discovery');
     expect(decision.reason).toContain('discovery slot');

@@ -67,11 +67,18 @@ export interface IncomingEvent {
   isAlexDirectMessage: boolean;
 }
 
+export type SchedulerWorkMode = 'maintenance' | 'creative';
+
+export interface SchedulerOptions {
+  workMode?: SchedulerWorkMode;
+}
+
 export interface SchedulerPolicy {
   decideNext(
     tasks: TaskSnapshot[],
     state: SchedulerState,
     events: IncomingEvent[],
+    options?: SchedulerOptions,
   ): SchedulingDecision;
 }
 
@@ -108,7 +115,9 @@ export class DefaultScheduler implements SchedulerPolicy {
     tasks: TaskSnapshot[],
     state: SchedulerState,
     events: IncomingEvent[],
+    options: SchedulerOptions = {},
   ): SchedulingDecision {
+    const workMode = options.workMode ?? 'maintenance';
     const activeTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
     const hasP0Event = events.some(e => e.priority === 0 || e.isAlexDirectMessage);
     const isDiscoverySlot = state.totalTicks > 0 && state.totalTicks % DISCOVERY_INTERVAL === 0;
@@ -117,10 +126,14 @@ export class DefaultScheduler implements SchedulerPolicy {
       if (hasP0Event) {
         return { taskId: null, reason: 'event-driven open-cycle: no tasks, direct signal needs attention', action: 'discovery', suspended: null };
       }
-      if (isDiscoverySlot) {
+      if (workMode === 'creative') {
         return { taskId: null, reason: 'discovery slot: no tasks, free exploration', action: 'discovery', suspended: null };
       }
-      return { taskId: null, reason: 'idle: no schedulable tasks until next discovery slot', action: 'idle', suspended: null };
+      return { taskId: null, reason: 'idle: maintenance mode has no schedulable tasks', action: 'idle', suspended: null };
+    }
+
+    if (workMode === 'creative' && !hasP0Event) {
+      return { taskId: null, reason: 'creative mode: free creation is active', action: 'discovery', suspended: null };
     }
 
     // Rule 1: P0 event preempts non-P0 current task
@@ -149,7 +162,7 @@ export class DefaultScheduler implements SchedulerPolicy {
     // and starve the creative trunk. A live P0 *event* (Rule 1 already ran)
     // still owns its cycle: !hasP0Event guards that. The bound task is not
     // dropped — currentTaskId persists, so it resumes on the next tick.
-    if (isDiscoverySlot && !hasP0Event) {
+    if (workMode === 'creative' && isDiscoverySlot && !hasP0Event) {
       return { taskId: null, reason: CREATIVE_TRUNK_REASON, action: 'discovery', suspended: null };
     }
 
@@ -480,6 +493,7 @@ function isClosedByPhantomClosure(task: TaskSnapshot, closureKeys: Set<string>):
 export function schedulerPick(
   memoryDir: string,
   events: IncomingEvent[] = [],
+  options: SchedulerOptions = {},
 ): SchedulingDecision {
   // Recurring-task lifecycle, reconciled every tick (granularity = OODA cycle):
   //  - re-arm completed recurring tasks → hold with their next fire time
@@ -594,7 +608,7 @@ export function schedulerPick(
   if (tasksAfterHolds.length !== beforeHoldFilter) {
     slog('SCHED', `stack-rank-hold-filter: dropped ${beforeHoldFilter - tasksAfterHolds.length} held correction task(s)`);
   }
-  const decision = scheduler.decideNext(tasksAfterHolds, schedulerState, events);
+  const decision = scheduler.decideNext(tasksAfterHolds, schedulerState, events, options);
   // Issue #316: schedulableTaskIds must reflect the post-hold-filter set, otherwise
   // the force-correction branch below would reintroduce a held correction task.
   const schedulableTaskIds = new Set(tasksAfterHolds.map(task => task.id));
@@ -604,7 +618,7 @@ export function schedulerPick(
   // so it resumes on the next tick. Without this, a standing correction P0
   // would re-hijack the one cycle in ten the creative trunk is owed.
   const isCreativeTrunkFloor =
-    decision.action === 'discovery' && decision.reason === CREATIVE_TRUNK_REASON;
+    decision.action === 'discovery' && (decision.reason === CREATIVE_TRUNK_REASON || options.workMode === 'creative');
   if (correctionTask && !isCreativeTrunkFloor && (!decision.taskId || decision.action === 'discovery' || decision.action === 'idle')) {
     const forced: SchedulingDecision = {
       taskId: correctionTask.id,
@@ -649,8 +663,9 @@ export async function schedulerPickAsync(
   memoryDir: string,
   repoRoot: string,
   events: IncomingEvent[] = [],
+  options: SchedulerOptions = {},
 ): Promise<SchedulingDecision> {
-  const decision = schedulerPick(memoryDir, events);
+  const decision = schedulerPick(memoryDir, events, options);
 
   // Re-verify the dispatch decision against live source-of-truth.
   // Two paths:
