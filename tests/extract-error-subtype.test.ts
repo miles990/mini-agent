@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractErrorSubtype } from '../src/feedback-loops.js';
+import { extractErrorCode, extractErrorSubtype } from '../src/feedback-loops.js';
 
 describe('extractErrorSubtype — transient band split (#318)', () => {
   // Sample error message format observed in error-patterns.json:
@@ -109,6 +109,14 @@ describe('extractErrorSubtype — silent_exit_void 4-class typed-failure schema 
   it('keeps tiny-prompt cases on silent_exit_void baseline regardless of duration', () => {
     expect(extractErrorSubtype(mkSilentMsg(500, 10000))).toBe('silent_exit_void');
     expect(extractErrorSubtype(mkSilentMsg(150, 5000))).toBe('silent_exit_void');
+  });
+});
+
+describe('sideQuery timeout bucket (#547)', () => {
+  it('keeps sideQuery timeout messages in the silent_exit_void subtype', () => {
+    const msg = 'sideQuery TIMEOUT: Claude CLI silent exit (30s no stderr). stdout=empty prompt 1234 chars';
+    expect(extractErrorCode(msg)).toBe('TIMEOUT');
+    expect(extractErrorSubtype(msg)).toBe('silent_exit_void');
   });
 });
 
