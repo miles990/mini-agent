@@ -155,6 +155,38 @@ describe('design governance', () => {
     expect(report.status).toBe('ok');
     expect(report.missingArtifacts).toHaveLength(0);
   });
+
+  it('does not require deep design artifacts for local Claude tooling guardrails', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
+    const report = evaluateDesignGovernance(memoryDir, [
+      task({
+        id: 'idx-e0378a58-7965-4fc0-9d69-4f0626408eb4',
+        status: 'in_progress',
+        summary: '@kuro 我要改 .claude/settings.json 加兩個 PreToolUse hook（runtime/main commit 守衛 + git add -A/--no-verify 守衛），並新增 .claude/agents/field-consistency-reviewer.md 與 .claude/skills/persist-check/SKILL.md。走 forge',
+        tags: ['room'],
+        payload: { ticksSinceLastProgress: 5 },
+      }),
+    ]);
+
+    expect(report.status).toBe('ok');
+    expect(report.missingArtifacts).toHaveLength(0);
+  });
+
+  it('still requires design artifacts when local Claude tooling touches runtime source', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-design-governance-'));
+    const report = evaluateDesignGovernance(memoryDir, [
+      task({
+        status: 'in_progress',
+        summary: 'Update .claude/settings.json PreToolUse hook and src/dispatcher.ts workflow state machine',
+        payload: { priority: 1 },
+      }),
+    ]);
+
+    expect(report.status).toBe('blocked');
+    expect(report.missingArtifacts[0]).toEqual(expect.objectContaining({
+      taskId: 'idx-design-test',
+    }));
+  });
 });
 
 function task(overrides: Partial<MemoryIndexEntry>): MemoryIndexEntry {
