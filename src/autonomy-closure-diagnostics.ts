@@ -191,6 +191,37 @@ function diagnoseStage(stage: AutonomyClosureStageResult, ts: string): AutonomyC
     };
   }
 
+  if (stage.stage === 'kg-context-fabric') {
+    const serviceUnavailable = isKgContextFabricServiceUnavailable(stage);
+    return {
+      ...base,
+      status: 'fallback-task',
+      rootCause: serviceUnavailable
+        ? 'KG context fabric service is down or intentionally unavailable without a bounded operating-mode record.'
+        : 'KG context fabric is degraded and needs API/lifecycle routing before broad context-dependent work resumes.',
+      evidence: stage.evidence,
+      probeCommands: [
+        'curl -sS --max-time 2 "${KG_URL:-http://127.0.0.1:3300}/health"',
+        'curl -sS --max-time 2 "${KG_URL:-http://127.0.0.1:3300}/api/stats"',
+        'curl -sS --max-time 2 "${KG_URL:-http://127.0.0.1:3300}/api/discussions?status=open"',
+        'pnpm check:autonomy-closure -- --json',
+      ],
+      constraintTexture: constraintTextureFor(stage, serviceUnavailable
+        ? 'KG outages must converge to one explicit state: service healthy, KG-backed features intentionally disabled, or a timed infrastructure hold with owner and release probe'
+        : 'KG fabric degradation must become a named API, ingest, worker, or discussion-lifecycle bucket with a falsifiable next probe'),
+      mechanicalAction: 'none',
+      fallbackTask: {
+        title: serviceUnavailable
+          ? 'P1 diagnostic: restore or bound KG context fabric outage'
+          : 'P1 diagnostic: route degraded KG context fabric',
+        verifyCommand: 'pnpm check:autonomy-closure -- --json',
+        acceptanceCriteria: serviceUnavailable
+          ? 'KG /health responds successfully, or KG-backed features are intentionally disabled, or the outage is recorded as a timed infrastructure hold with owner, reason, and release probe. The next diagnostic must not say the KG stage has no deterministic repair probe.'
+          : 'KG health/stats/discussions probes are classified into a concrete bucket and either return healthy or have a bounded lifecycle record with a falsifiable release check.',
+      },
+    };
+  }
+
   if (stage.stage === 'design-governance') {
     return {
       ...base,
@@ -234,6 +265,11 @@ function diagnoseStage(stage: AutonomyClosureStageResult, ts: string): AutonomyC
 function isUnsnapshottedCuratedMemoryStage(stage: AutonomyClosureStageResult): boolean {
   if (/curated memory git change\(s\) not snapshotted/i.test(stage.summary)) return true;
   return stage.evidence.some(line => /\b[AMDRCU? ]{1,2}\s+\S+ \((?:curated-knowledge)\)/i.test(line));
+}
+
+function isKgContextFabricServiceUnavailable(stage: AutonomyClosureStageResult): boolean {
+  if (/service is unreachable|not reachable|connection refused|couldn'?t connect|failed to connect/i.test(stage.summary)) return true;
+  return stage.evidence.some(line => /curl:\s*\(7\)|ECONNREFUSED|connection refused|couldn'?t connect|failed to connect/i.test(line));
 }
 
 function diagnosticBase(stage: AutonomyClosureStageResult, ts: string): Pick<AutonomyClosureDiagnosticCase, 'id' | 'ts' | 'stage' | 'fingerprint'> {
