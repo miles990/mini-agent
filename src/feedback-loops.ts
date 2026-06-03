@@ -44,6 +44,8 @@ interface ErrorPatternState {
     lastMessage?: string;
     resolvedAt?: string;
     resolvedBy?: string;
+    staleResolvedAt?: string;
+    staleResolvedBy?: string | null;
   };
 }
 
@@ -581,6 +583,12 @@ export async function detectErrorPatterns(): Promise<void> {
 
     const existing = state[key];
     if (existing) {
+      if (existing.resolvedAt && latestTs && latestTs > existing.resolvedAt) {
+        existing.staleResolvedAt = existing.resolvedAt;
+        existing.staleResolvedBy = existing.resolvedBy ?? null;
+        delete existing.resolvedAt;
+        delete existing.resolvedBy;
+      }
       existing.count = count;
       existing.lastSeen = today;
       if (sampleMsg) existing.lastMessage = sampleMsg;
