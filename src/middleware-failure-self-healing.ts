@@ -172,10 +172,18 @@ export async function classifyMiddlewareFailures(
       delegationStatus = 'needs_human';
       lifecycleAction = 'recover-lane';
       resolution = `${resolution}; created lane recovery follow-up ${followUpTaskId}`;
-    } else if (bucket === 'workspace-isolation' || bucket === 'other') {
+    } else if (bucket === 'workspace-isolation') {
       followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
-      lifecycleAction = bucket === 'workspace-isolation' ? 'repair-workspace' : 'triage';
+      lifecycleAction = 'repair-workspace';
       resolution = `${resolution}; created repair follow-up ${followUpTaskId}`;
+    } else if (bucket === 'other') {
+      if (hasActionableTriageExcerpt(task.task ?? '')) {
+        followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
+        resolution = `${resolution}; created repair follow-up ${followUpTaskId}`;
+      } else {
+        slog('MIDDLEWARE-SELF-HEAL', `dropped_invalid_excerpt task=${taskId} bucket=${bucket}`);
+        resolution = `${resolution}; dropped_invalid_excerpt: failed_task_excerpt has no stderr, exit code, or diag block`;
+      }
     } else if (bucket === 'cancelled') {
       lifecycleAction = 'terminal-cancelled';
       resolution = `${resolution}; user/system cancellation treated as terminal unless it recurs`;
@@ -219,6 +227,7 @@ async function upgradeMissingFailurePlaybook(
   if (existing.followUpTaskId) return false;
   if (existing.bucket === 'cancelled') return false;
   if (existing.bucket === 'max-turns' && isTerminalBrainMaxTurnTask(task)) return false;
+  if (existing.bucket === 'other' && !hasActionableTriageExcerpt(task.task ?? '')) return false;
 
   const followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, existing.bucket, task, now);
   appendMiddlewareFailureClassification(memoryDir, {
@@ -812,6 +821,13 @@ function middlewareFailureRepairPlan(
 
 function compactTaskText(task: string): string {
   return String(task).replace(/\s+/g, ' ').trim().slice(0, 1200);
+}
+
+function hasActionableTriageExcerpt(excerpt: string): boolean {
+  const text = String(excerpt);
+  return /(?:^|\n)\s*stderr\s*[:=]\s*\S/im.test(text)
+    || /\b(?:exit(?:ed)?(?:\s+with)?(?:\s+code)?|code)\s*[=:]?\s*\d+\b/i.test(text)
+    || /(?:^|\n)\s*(?:diag|diagnostic|diagnostics)(?:\s+block)?\s*[:=]\s*\S/im.test(text);
 }
 
 function splitShellCommand(task: string): string[] | undefined {

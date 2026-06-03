@@ -343,12 +343,37 @@ describe('middleware failure self-healing', () => {
       .toEqual(expect.objectContaining({ strategy: 'compressed-provider-resume' }));
   });
 
-  it('creates unknown middleware triage as P1, not scheduler-blocking P0', async () => {
+  it('drops unknown middleware triage when failed_task_excerpt has no failure payload', async () => {
     const result = await classifyMiddlewareFailures(memoryDir, [{
       id: 'task-unknown',
       worker: 'shell',
       status: 'failed',
       task: 'unexpected tool failure',
+      error: 'unrecognized failure shape',
+    }], new Date('2026-05-15T08:32:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ failed: 1, classified: 1 }));
+    const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
+    expect(followUps).toHaveLength(0);
+    const classification = readMiddlewareFailureClassificationsSync(memoryDir)[0];
+    expect(classification).toEqual(expect.objectContaining({
+      taskId: 'task-unknown',
+      bucket: 'other',
+    }));
+    expect(classification.followUpTaskId).toBeUndefined();
+    expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-unknown',
+      status: 'resolved',
+      resolution: expect.stringContaining('dropped_invalid_excerpt'),
+    }));
+  });
+
+  it('creates unknown middleware triage as P1 when failed_task_excerpt has stderr', async () => {
+    const result = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-unknown',
+      worker: 'shell',
+      status: 'failed',
+      task: 'run deploy script\nstderr: permission denied while restarting service',
       error: 'unrecognized failure shape',
     }], new Date('2026-05-15T08:32:00.000Z'));
 
