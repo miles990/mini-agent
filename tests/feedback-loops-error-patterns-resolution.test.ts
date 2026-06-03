@@ -18,6 +18,9 @@ import path from 'node:path';
 
 let tmpStateDir: string;
 const stateFile = () => path.join(tmpStateDir, 'error-patterns.json');
+const mocks = vi.hoisted(() => ({
+  queryErrorLogs: vi.fn(),
+}));
 
 vi.mock('../src/memory.js', () => ({
   getMemoryStateDir: () => tmpStateDir,
@@ -30,7 +33,12 @@ vi.mock('../src/utils.js', async (importOriginal) => {
   return { ...actual, slog: () => {} };
 });
 
+vi.mock('../src/logging.js', () => ({
+  getLogger: () => ({ queryErrorLogs: mocks.queryErrorLogs }),
+}));
+
 import {
+  detectErrorPatterns,
   readState,
   writeState,
   flushFeedbackState,
@@ -44,6 +52,8 @@ type ErrorPattern = {
   lastMessage?: string;
   resolvedAt?: string;
   resolvedBy?: string;
+  staleResolvedAt?: string;
+  staleResolvedBy?: string | null;
 };
 type State = Record<string, ErrorPattern>;
 
@@ -60,11 +70,15 @@ function bumpMtime(filePath: string, deltaMs = 1000): void {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'));
   tmpStateDir = mkdtempSync(path.join(tmpdir(), 'fb-loops-422-'));
+  mocks.queryErrorLogs.mockReset();
   _resetFeedbackStateCacheForTests();
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   rmSync(tmpStateDir, { recursive: true, force: true });
 });
 
@@ -170,5 +184,44 @@ describe('issue #422 — error-patterns resolvedAt strip', () => {
     // And it must still be on disk identically.
     const disk = JSON.parse(readFileSync(stateFile(), 'utf-8')) as State;
     expect(disk['X:Y::Z'].count).toBe(5);
+  });
+
+  it('detectErrorPatterns clears resolvedAt when an existing bucket re-fires after resolution', async () => {
+    const key = 'TIMEOUT:real_timeout::callClaude';
+    writeStateFileDirect({
+      [key]: {
+        count: 5,
+        taskCreated: false,
+        lastSeen: '2026-05-22',
+        resolvedAt: '2026-05-22T05:23:17.000Z',
+        resolvedBy: 'abc123',
+      },
+    });
+
+    mocks.queryErrorLogs.mockReturnValue([
+      {
+        timestamp: '2026-06-03T09:27:00.000Z',
+        data: { context: 'callClaude', error: 'TIMEOUT took too long' },
+      },
+      {
+        timestamp: '2026-06-03T09:28:00.000Z',
+        data: { context: 'callClaude', error: 'TIMEOUT took too long' },
+      },
+      {
+        timestamp: '2026-06-03T09:29:00.000Z',
+        data: { context: 'callClaude', error: 'TIMEOUT took too long' },
+      },
+    ]);
+
+    await detectErrorPatterns();
+    flushFeedbackState();
+
+    const onDisk = JSON.parse(readFileSync(stateFile(), 'utf-8')) as State;
+    expect(onDisk[key].resolvedAt).toBeUndefined();
+    expect(onDisk[key].resolvedBy).toBeUndefined();
+    expect(onDisk[key].staleResolvedAt).toBe('2026-05-22T05:23:17.000Z');
+    expect(onDisk[key].staleResolvedBy).toBe('abc123');
+    expect(onDisk[key].lastSeen).toBe('2026-06-03');
+    expect(onDisk[key].lastSeenAt).toBe('2026-06-03T09:29:00.000Z');
   });
 });
