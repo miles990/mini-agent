@@ -164,6 +164,37 @@ describe('autonomy closure diagnostics', () => {
     }));
   });
 
+  it('routes unreachable KG context fabric through a bounded service-outage diagnostic', () => {
+    const cases = diagnoseAutonomyClosure(warningSnapshotWithStage({
+      stage: 'kg-context-fabric',
+      status: 'warn',
+      summary: 'KG context fabric service is unreachable',
+      evidence: [
+        'kgUrl=http://127.0.0.1:3300',
+        'probeAttempts=3',
+        'Error: Command failed: curl -sS --max-time 2 http://127.0.0.1:3300/health\ncurl: (7) Failed to connect to 127.0.0.1 port 3300 after 0 ms: Couldn\'t connect to server\n',
+      ],
+      repair: 'Start knowledge-graph or disable KG-backed context exchange until the service is intentionally unavailable.',
+    }));
+
+    expect(cases[0]).toEqual(expect.objectContaining({
+      stage: 'kg-context-fabric',
+      rootCause: expect.stringContaining('service is down or intentionally unavailable'),
+      probeCommands: expect.arrayContaining([
+        expect.stringContaining('/health'),
+        expect.stringContaining('/api/stats'),
+        expect.stringContaining('/api/discussions?status=open'),
+      ]),
+      constraintTexture: expect.objectContaining({
+        convergenceRule: expect.stringContaining('timed infrastructure hold'),
+      }),
+      fallbackTask: expect.objectContaining({
+        title: 'P1 diagnostic: restore or bound KG context fabric outage',
+        acceptanceCriteria: expect.stringContaining('must not say the KG stage has no deterministic repair probe'),
+      }),
+    }));
+  });
+
   it('self-heals curated memory dirt while leaving high-frequency telemetry local', async () => {
     tmpDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-autonomy-diagnostics-'));
     initGitMemory(tmpDir);
