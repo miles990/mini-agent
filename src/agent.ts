@@ -281,6 +281,19 @@ function classifyError(error: unknown): ErrorClassification {
   return { type: 'UNKNOWN', retryable: true, message: `處理訊息時發生錯誤${exitLabel}${diagSuffix}。請稍後再試，或嘗試換個方式描述你的需求。`, modelGuidance: `CLI exited${exitLabel}${diagSuffix} without diagnostic output. On retry, simplify the request. If this keeps happening, defer the task and report the issue — inspect cli session (auth / rate limit) as probable cause.` };
 }
 
+export function formatProviderWatchdogDiagnostic(error: unknown): string {
+  const silentMs = (error as { silentMs?: unknown })?.silentMs;
+  const watchdog = (error as { watchdog?: unknown })?.watchdog;
+  const parts: string[] = [];
+  if (typeof silentMs === 'number' && Number.isFinite(silentMs)) {
+    parts.push(`silentMs=${Math.round(silentMs)}`);
+  }
+  if (typeof watchdog === 'string' && watchdog.trim()) {
+    parts.push(`watchdog=${watchdog.trim()}`);
+  }
+  return parts.length > 0 ? `, ${parts.join(', ')}` : '';
+}
+
 // =============================================================================
 // Lane Types
 // =============================================================================
@@ -2015,11 +2028,12 @@ export async function callClaude(
       const stderr = (error as { stderr?: string })?.stderr?.trim() ?? '';
       const exitCode = (error as { status?: number })?.status;
       const classified = classifyError(error);
+      const watchdogDiagnostic = formatProviderWatchdogDiagnostic(error);
 
       // Log error — include both per-attempt and total duration for accurate debugging
       const logger = getLogger();
       logger.logError(
-        new Error(`${primary} CLI ${classified.type} (exit ${exitCode ?? 'N/A'}, ${attemptDuration}ms this attempt, ${duration}ms total, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars, ${source} lane): ${stderr.slice(0, 500) || classified.message}`),
+        new Error(`${primary} CLI ${classified.type} (exit ${exitCode ?? 'N/A'}, ${attemptDuration}ms this attempt, ${duration}ms total, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars${watchdogDiagnostic}, ${source} lane): ${stderr.slice(0, 500) || classified.message}`),
         'callClaude'
       );
 
