@@ -1110,7 +1110,9 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       } catch { /* fail-open */ }
 
       if (code !== 0 && !resultText) {
-        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS, toolCallCount, exitReason }));
+        const rejectSilentMs = Date.now() - lastStdoutDataTs;
+        const rejectWatchdog = killReason || exitReason;
+        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS, toolCallCount, exitReason, silentMs: rejectSilentMs, watchdog: rejectWatchdog }));
       } else {
         // Fallback: if resultText is empty but we received text blocks during streaming,
         // reconstruct from allTextBlocks. Claude CLI 2.x stream-json may return empty
