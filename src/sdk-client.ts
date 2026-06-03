@@ -220,6 +220,8 @@ export async function execClaudeViaSdk(
       setTimeout(() => {
         finish(Object.assign(new Error(`SDK query timeout after ${timeoutMs}ms`), {
           duration: Date.now() - startTs, timeoutMs, progressTimeoutMs, source,
+          silentMs: Date.now() - lastProgressTs,
+          watchdog: 'wall-clock' as const,
         }));
       }, 2000);
     }, timeoutMs);
@@ -230,6 +232,8 @@ export async function execClaudeViaSdk(
         setTimeout(() => {
           finish(Object.assign(new Error(`SDK query stalled — no progress for ${progressTimeoutMs}ms`), {
             duration: Date.now() - startTs, timeoutMs, progressTimeoutMs, source,
+            silentMs: Date.now() - lastProgressTs,
+            watchdog: 'silence' as const,
           }));
         }, 2000);
       }
