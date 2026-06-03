@@ -880,6 +880,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
             slog('CLAUDE', `Force-resolve: close event not received 10s after SIGKILL (pid ${child.pid}), elapsed=${(duration / 1000).toFixed(1)}s`);
             reject(Object.assign(new Error('Claude CLI force-resolved: close event timeout after SIGKILL'), {
               stderr, stdout: resultText, status: null, killed: true, signal: 'SIGKILL', duration, timeoutMs: TIMEOUT_MS,
+              silentMs: Date.now() - lastStdoutDataTs, watchdog: killReason || 'force-resolve',
             }));
           }
         }, 10_000);
@@ -1110,7 +1111,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       } catch { /* fail-open */ }
 
       if (code !== 0 && !resultText) {
-        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS, toolCallCount, exitReason }));
+        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS, toolCallCount, exitReason, silentMs: Date.now() - lastStdoutDataTs, watchdog: killReason || exitReason || null }));
       } else {
         // Fallback: if resultText is empty but we received text blocks during streaming,
         // reconstruct from allTextBlocks. Claude CLI 2.x stream-json may return empty
