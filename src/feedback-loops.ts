@@ -204,6 +204,10 @@ export const PROTECTIVE_SUBTYPES = new Set([
   // Issue #491: upstream Chinese-localized 400 rejection — structurally ungatable (fires on
   // attempt 1/3 before any window accumulates); re-fires are upstream events, not regressions.
   'upstream_quickreject_cn',
+  // Issue #583: sideQuery is fire-and-forget by design (src/side-query.ts:9-10); timeout is
+  // expected operating behavior, not a bug. Telemetry stays in error-patterns.json but the
+  // footer aggregator must not surface it as actionable recurring noise.
+  'side_query_timeout',
 ]);
 
 /**
