@@ -554,6 +554,24 @@ describe('middleware failure self-healing', () => {
     }));
   });
 
+  it('keeps single shell timeout commands as executable bounded probe slices', async () => {
+    await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-single-timeout',
+      worker: 'shell',
+      status: 'failed',
+      task: 'pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+      error: 'Worker stall: no activity timeout',
+    }], new Date('2026-05-06T16:30:00.000Z'));
+
+    const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
+    expect(followUps[0].payload?.retry_envelope).toEqual(expect.objectContaining({
+      strategy: 'bounded-shell-probe',
+      commandSlices: [
+        'pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+      ],
+    }));
+  });
+
   it('closes historical offline delegation failures once middleware is reachable again', async () => {
     await classifyMiddlewareFailures(memoryDir, [{
       id: 'task-offline',

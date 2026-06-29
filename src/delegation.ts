@@ -177,6 +177,7 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { timeoutMs: number }> = {
   debug:    { timeoutMs: 300_000 },
   graphify: { timeoutMs: 600_000 },
 };
+const RAW_PROMPT_TYPES = new Set<DelegationTaskType>(['shell', 'graphify']);
 
 // P1-d edit-layer: always active (v2-final §6 — no flag, no dual path).
 
@@ -260,7 +261,7 @@ export function spawnDelegation(task: DelegationTask): string {
 
   // Layer 1 phantom-prompt gate (issue #141): reject thin prompts pre-dispatch.
   // Spec pinned by tests/delegation-phantom-prompt.test.ts.
-  if (isPhantomPrompt(task.prompt)) {
+  if (!RAW_PROMPT_TYPES.has(taskType) && isPhantomPrompt(task.prompt)) {
     const preview = (task.prompt ?? '').trim().slice(0, 60);
     slog(
       'DELEGATION',
@@ -503,13 +504,11 @@ function buildBrainRequestForDelegation(entry: ActiveEntry, cwd: string, timeout
     entry.task.context,
     entry.task.acceptance ? `Acceptance: ${entry.task.acceptance}` : undefined,
   ].filter(Boolean).join('\n\n');
-  const rawPromptTypes = new Set<DelegationTaskType>(['shell', 'graphify']);
-
   return {
     taskId: entry.result.id,
     source: 'background',
     intent: workItem.intent,
-    prompt: rawPromptTypes.has(taskType)
+    prompt: RAW_PROMPT_TYPES.has(taskType)
       ? entry.task.prompt
       : [context, entry.task.prompt].filter(Boolean).join('\n\n'),
     systemPrompt: 'You are running as a mini-agent delegated brain provider. Return the requested result with concise evidence.',

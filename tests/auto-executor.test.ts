@@ -104,6 +104,10 @@ describe('auto executor task routing', () => {
       acceptance: 'No single silent step may run for 1800s again.',
       timeoutMs: 120_000,
       progressTimeoutMs: 60_000,
+      commandSlices: [
+        'cd /Users/user/Workspace/mini-agent',
+        'pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+      ],
       notes: [],
     };
 
@@ -114,6 +118,11 @@ describe('auto executor task routing', () => {
 
     const delegation = buildRetryEnvelopeDelegation(task, envelope);
     expect(delegation.type).toBe('shell');
+    expect(delegation.prompt).toBe(
+      'cd /Users/user/Workspace/mini-agent && pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+    );
+    expect(delegation.prompt).not.toContain('## Retry Task:');
+    expect(delegation.prompt).not.toContain('Strategy: bounded-shell-probe');
     expect(delegation.progressTimeoutMs).toBe(60_000);
   });
 });

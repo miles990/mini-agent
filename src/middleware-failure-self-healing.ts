@@ -836,7 +836,7 @@ function splitShellCommand(task: string): string[] | undefined {
     .map(part => part.trim())
     .filter(Boolean)
     .slice(0, 8);
-  return slices.length > 1 ? slices : undefined;
+  return slices.length > 0 ? slices : undefined;
 }
 
 function isTerminalBrainMaxTurnTask(task: MiddlewareTaskRecord): boolean {
