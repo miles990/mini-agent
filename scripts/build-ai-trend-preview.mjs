@@ -662,6 +662,7 @@ async function main() {
   const arxiv = await loadLatest('arxiv-trend', DATE);
   const gh = await loadLatest('github-trend', DATE);
   const x = await loadLatest('x-trend', DATE, 14, { keepX: true });
+  const tr = await loadLatest('trendradar-zh', DATE);
   const trend = await loadTopicTrend(DATE);
   const archive = await listArchiveDates();
   const kpick = await loadKuroPick(DATE);
@@ -669,7 +670,9 @@ async function main() {
 
   // X 用「likes/1000」做 cross-source 可比分數，避免吞噬 HN/Latent
   const xNorm = (x.posts || []).map(p => ({ ...p, _xs: (p.points || 0) / 1000 }));
-  const cross = uniqByUrl([...hn.posts, ...latent.posts, ...xNorm])
+  // TrendRadar zh 用 weight 0.5 補位，不蓋過主 5 lane
+  const trNorm = (tr.posts || []).map(p => ({ ...p, _xs: (p.points || 0) * 0.5 }));
+  const cross = uniqByUrl([...hn.posts, ...latent.posts, ...xNorm, ...trNorm])
     .map(p => ({ ...p, _score: p._xs ?? (p.points || 0) }))
     .sort((a,b) => (b._score||0) - (a._score||0));
   const xTop = x.posts || [];
@@ -828,6 +831,7 @@ ${archive.length ? `<section>
   console.log(`  arxiv=${arxiv.key||'-'}/${arxiv.posts.length}@${arxiv.run_at?fmtTaipeiMinute(arxiv.run_at):'-'}`);
   console.log(`  gh=${gh.key||'-'}/${gh.posts.length}@${gh.run_at?fmtTaipeiMinute(gh.run_at):'-'}`);
   console.log(`  x=${x.key||'-'}/${x.posts.length}@${x.run_at?fmtTaipeiMinute(x.run_at):'-'}`);
+  console.log(`  tr=${tr.key||'-'}/${tr.posts.length}@${tr.run_at?fmtTaipeiMinute(tr.run_at):'-'}`);
   console.log(`  sections: cross=${cross.length} new=${newReleases.length} reads=${reads.length} proj=${projects.length} disc=${discs.length} x=${xTop.length}`);
 }
 
