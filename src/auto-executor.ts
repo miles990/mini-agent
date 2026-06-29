@@ -139,7 +139,10 @@ export function buildRetryEnvelopeDelegation(
   const acceptance = (topPayload.acceptance_criteria as string) ?? envelope.acceptance;
   const delegationId = `retry-${top.id.slice(0, 16).replace(/-+$/, '')}-${now}`;
 
-  const prompt = [
+  const shellCommand = envelope.worker === 'shell'
+    ? envelope.commandSlices?.map(slice => slice.trim()).filter(Boolean).join(' && ')
+    : undefined;
+  const prompt = shellCommand || [
     `## Retry Task: ${top.summary}`,
     '',
     `Task ID: ${top.id}`,
