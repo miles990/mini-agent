@@ -747,6 +747,15 @@ function middlewareFailureRepairPlan(
   }
   if (bucket === 'stall-or-timeout') {
     const acceptance = 'The failed shell/task chain is split into bounded probes with checkpoints; no single silent step may run for 1800s again.';
+    const slices = splitShellCommand(task.task ?? '');
+    // ponytail: issue #581 — shell lane execs prompt literally; prose envelope = command-not-found storm.
+    // Emit a bash one-liner for shell; framing stays in acceptance/notes.
+    const shellOneLiner = (slices && slices[0]) || (task.task ?? '').trim() || ':';
+    const prosePrompt = [
+      'Break the failed work into bounded probes. Emit progress after each probe.',
+      'For shell commands, run each command slice separately and persist intermediate artifacts before continuing.',
+      excerpt,
+    ].filter(Boolean).join('\n\n');
     return {
       status: 'pending',
       summary: `Retry middleware ${worker} lane with bounded probes after timeout`,
@@ -754,18 +763,15 @@ function middlewareFailureRepairPlan(
       retryEnvelope: {
         strategy: worker === 'shell' ? 'bounded-shell-probe' : 'lane-recovery',
         worker,
-        prompt: [
-          'Break the failed work into bounded probes. Emit progress after each probe.',
-          'For shell commands, run each command slice separately and persist intermediate artifacts before continuing.',
-          excerpt,
-        ].filter(Boolean).join('\n\n'),
+        prompt: worker === 'shell' ? shellOneLiner : prosePrompt,
         acceptance,
         timeoutMs: 120_000,
         progressTimeoutMs: 60_000,
-        commandSlices: splitShellCommand(task.task ?? ''),
+        commandSlices: slices,
         notes: [
           'timeout/stall requires shorter probes and progress checkpoints, not a longer timeout',
           'only increase timeout after a probe proves the command is making progress',
+          ...(worker === 'shell' ? ['shell lane execs prompt literally; framing moved out to avoid command-not-found storm (#581)'] : []),
         ],
       },
     };
