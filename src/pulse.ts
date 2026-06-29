@@ -759,10 +759,17 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
 
         metrics.recurringErrorCount++;
 
-        // Protective subtypes (memory_guard / max_turns): guard mechanisms working as intended,
-        // not bugs. Count but skip task creation — high frequency = pressure signal (log only).
+        // Protective subtypes (memory_guard / max_turns / side_query_timeout): guard mechanisms
+        // working as intended, not bugs. Skip BEFORE the existing-task short-circuit so subtypes
+        // promoted to protective after a task was already created (e.g. side_query_timeout) stop
+        // refreshing lastSeen and age out via the 7-day cleanup below.
         const subtype = key.split(':')[1] ?? '';
         const isProtective = PROTECTIVE_SUBTYPES.has(subtype);
+
+        if (isProtective) {
+          slog('PULSE', `Protective subtype ${key} (${count}×) — signal logged, no task (guard working)`);
+          continue;
+        }
 
         const existing = state.errorPatterns[key];
         if (existing?.taskCreated) {
@@ -774,11 +781,6 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
 
         state.errorPatterns[key] = { count, taskCreated: true, lastSeen: today };
         changed = true;
-
-        if (isProtective) {
-          slog('PULSE', `Protective subtype ${key} (${count}×) — signal logged, no task (guard working)`);
-          continue;
-        }
 
         const [code, context] = key.split('::');
         const dueDate = new Date(Date.now() + 3 * 86400_000).toISOString().split('T')[0];
