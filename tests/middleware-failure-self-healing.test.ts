@@ -548,6 +548,10 @@ describe('middleware failure self-healing', () => {
         'pnpm tsx scripts/kg-extract-entities.ts --write',
       ],
     }));
+    // #581: shell-lane prompt must be a bash one-liner, not the markdown framing
+    expect(followUps[0].payload?.retry_envelope?.prompt).toBe(
+      'pnpm tsx scripts/kg-extract-chunks.ts --write',
+    );
     expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
       taskId: 'task-timeout',
       status: 'needs_human',
