@@ -66,6 +66,7 @@ import {
   killAllDelegations,
   spawnDelegation,
 } from '../src/delegation.js';
+import { readDelegationFailureRecordsSync } from '../src/delegation-failure-guard.js';
 import { prepareForgeWorkspace } from '../src/forge.js';
 
 function validPrompt(text: string): string {
@@ -237,6 +238,30 @@ describe('delegation arbitration mapping', () => {
 
     expect(getTaskResult(id)?.status).toBe('failed');
     expect(getTaskResult(id)?.output).toContain('blocked by arbiter');
+  });
+
+  it('rejects prose-shaped shell prompts before middleware dispatch', () => {
+    const id = spawnDelegation({
+      prompt: [
+        '## Retry Task: Retry middleware shell lane with bounded probes after timeout',
+        'Task ID: idx-af45d4ff-b34f-478e-a680-f3fe33bdaaf3',
+        'Strategy: bounded-shell-probe',
+        '',
+        'Break the failed work into bounded probes.',
+        '',
+        'cd /Users/user/Workspace/mini-agent && pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+      ].join('\n'),
+      workdir: '/repo',
+      type: 'shell',
+    });
+
+    expect(getTaskResult(id)?.status).toBe('failed');
+    expect(getTaskResult(id)?.output).toContain('shell_received_prose');
+    expect(readDelegationFailureRecordsSync(testMemoryDir!)[0]).toEqual(expect.objectContaining({
+      taskId: id,
+      taskType: 'shell',
+      error: expect.stringContaining('shell_received_prose'),
+    }));
   });
 
   it('can execute delegations through BrainRuntime when enabled', async () => {
