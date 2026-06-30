@@ -662,6 +662,16 @@ export async function autoRepairPrVerificationEvidence(): Promise<void> {
   }
 }
 
+export async function autoRepairPrVerificationEvidenceAndResumeConsensus(): Promise<void> {
+  if (!await ghAvailable()) return;
+
+  await autoRepairPrVerificationEvidence();
+  await autoProduceInternalPrReviewClaims();
+  await autoTrackPrReviewConsensus();
+  await autoApplyInternalPrReviewConsensus();
+  await autoMergeInternallyApprovedPR();
+}
+
 async function viewPullRequest(prNumber: number): Promise<GhPrView | null> {
   try {
     const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,headRefOid,labels,files,isDraft,reviewDecision,baseRefName,mergeable,url']);

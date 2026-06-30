@@ -6,7 +6,7 @@ import {
   type AutonomyClosureStageResult,
 } from './autonomy-closure-health.js';
 import { snapshotCuratedMemoryChanges } from './external-memory-health.js';
-import { autoRepairPrVerificationEvidence, githubAutoActions } from './github.js';
+import { autoRepairPrVerificationEvidenceAndResumeConsensus, githubAutoActions } from './github.js';
 import { slog } from './utils.js';
 
 export type AutonomyClosureMechanicalAction =
@@ -52,7 +52,7 @@ export async function diagnoseAndRepairAutonomyClosure(
 
   for (const diagnostic of cases) {
     if (diagnostic.mechanicalAction === 'repair-pr-verification-evidence') {
-      await autoRepairPrVerificationEvidence();
+      await autoRepairPrVerificationEvidenceAndResumeConsensus();
       actionsRun.push(diagnostic.mechanicalAction);
       continue;
     }
