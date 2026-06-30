@@ -67,6 +67,56 @@ export function isPhantomPrompt(prompt: string): boolean {
   return true;
 }
 
+export interface ShellPromptValidation {
+  ok: boolean;
+  reason?: string;
+  line?: string;
+}
+
+/**
+ * Shell delegations are passed to `/bin/bash -c` literally. Reject markdown or
+ * prose envelopes at the dispatch boundary so one bad caller fails once with a
+ * typed error instead of producing a command-not-found storm.
+ */
+export function validateShellPrompt(prompt: string): ShellPromptValidation {
+  const lines = prompt.split(/\r?\n/);
+  let hasExecutableLine = false;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (line.startsWith('#!')) {
+      continue;
+    }
+    if (/^#{2,6}\s+\S/.test(line)) {
+      return { ok: false, reason: 'markdown_heading', line };
+    }
+    if (/^#/.test(line)) continue;
+    if (/^```/.test(line)) {
+      return { ok: false, reason: 'markdown_fence', line };
+    }
+    if (/^(?:[-*]|\d+\.)\s+/.test(line)) {
+      return { ok: false, reason: 'markdown_list', line };
+    }
+    if (/^<\/?[A-Za-z][^>]*>$/.test(line)) {
+      return { ok: false, reason: 'xml_envelope', line };
+    }
+    if (/^(?:Task ID|Strategy|Instructions|Acceptance Criteria|Notes|Retry Task)\s*:/i.test(line)) {
+      return { ok: false, reason: 'prose_field', line };
+    }
+    if (/^[A-Z][A-Za-z]+(?:\s+[a-z][A-Za-z/'-]+){2,}[.!?]?$/.test(line)) {
+      return { ok: false, reason: 'prose_sentence', line };
+    }
+    hasExecutableLine = true;
+  }
+
+  if (!hasExecutableLine) {
+    return { ok: false, reason: 'empty_or_comment_only' };
+  }
+
+  return { ok: true };
+}
+
 // =============================================================================
 // Types (stable external surface)
 // =============================================================================
@@ -437,6 +487,18 @@ export function spawnDelegation(task: DelegationTask): string {
       finalizeTask(entry, {
         status: 'failed',
         output: `blocked by write lease: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      return taskId;
+    }
+  }
+
+  if (worker === 'shell') {
+    const shellPrompt = validateShellPrompt(task.prompt);
+    if (!shellPrompt.ok) {
+      const detail = shellPrompt.line ? ` at line "${shellPrompt.line.slice(0, 120)}"` : '';
+      finalizeTask(entry, {
+        status: 'failed',
+        output: `shell_received_prose: ${shellPrompt.reason ?? 'invalid_shell_prompt'}${detail}. Shell delegations execute literal bash; pass an executable command/script or route prose through a non-shell worker.`,
       });
       return taskId;
     }

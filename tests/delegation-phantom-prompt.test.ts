@@ -14,7 +14,7 @@
  * lives in src/delegation.ts (or a dedicated guard module) once landed.
  */
 import { describe, expect, it } from 'vitest';
-import { isPhantomPrompt } from '../src/delegation.js';
+import { isPhantomPrompt, validateShellPrompt } from '../src/delegation.js';
 
 describe('phantom-prompt classifier (issue #141 layer 1)', () => {
   it('rejects the exact fail-ejkd7t signature', () => {
@@ -48,5 +48,29 @@ describe('phantom-prompt classifier (issue #141 layer 1)', () => {
     expect(
       isPhantomPrompt('## Task: ship\n\n## Instructions\nedit forge.ts:62 to surface stderr'),
     ).toBe(false);
+  });
+});
+
+describe('shell prompt boundary guard (issue #581)', () => {
+  it('accepts executable shell one-liners and comments', () => {
+    expect(validateShellPrompt('cd /repo && pnpm typecheck && pnpm test')).toEqual({ ok: true });
+    expect(validateShellPrompt('# progress checkpoint\npnpm tsx scripts/kg-extract-entities.ts --write --limit 100')).toEqual({ ok: true });
+  });
+
+  it('rejects bounded-shell-probe markdown envelopes before bash sees them', () => {
+    const prompt = [
+      '## Retry Task: Retry middleware shell lane with bounded probes after timeout',
+      'Task ID: idx-af45d4ff-b34f-478e-a680-f3fe33bdaaf3',
+      'Strategy: bounded-shell-probe',
+      '',
+      'Break the failed work into bounded probes.',
+      '',
+      'cd /Users/user/Workspace/mini-agent && pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+    ].join('\n');
+
+    expect(validateShellPrompt(prompt)).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'markdown_heading',
+    }));
   });
 });
